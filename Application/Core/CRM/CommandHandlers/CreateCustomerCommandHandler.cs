@@ -30,7 +30,6 @@ namespace Application.Core.CRM.CommandHandlers
 				StateId = request.StateId,
 				InteriorNumber = request.InteriorNumber,
 				ExteriorNumber = request.ExteriorNumber,
-				ExternalId = request.ExternalId
 			};
 			return await _repository.CreateAsync(customer);
 		}
