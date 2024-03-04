@@ -22,8 +22,10 @@
 
   <ItemGroup>
     <None Remove="Controllers\CRM\" />
+    <None Remove="Controllers\Login\" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Controllers\CRM\" />
+    <Folder Include="Controllers\Login\" />
   </ItemGroup>
 </Project>

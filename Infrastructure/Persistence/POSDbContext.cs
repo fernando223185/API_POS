@@ -15,6 +15,6 @@ namespace Infrastructure.Persistence
         }
         public DbSet<Products> Products { get; set; }
         public DbSet<Customer> Customer { get; set; }
-
+        public DbSet<Users> Users { get; set; }
     }
 }
