@@ -14,7 +14,7 @@ namespace Application.Abstractions.Catalogue
         //Update a product
         Task<Products> UpdateAsync(Products products);
         //Delete a product
-        Task<bool> DeleteAsync(int id);
+        //Task<bool> DeleteAsync(int id);
         //Search a code of product
         Task<bool> isCodeUniqueAsync(string code);
     }
