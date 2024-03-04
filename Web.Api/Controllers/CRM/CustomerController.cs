@@ -1,4 +1,5 @@
 ﻿
+using Application.Core.CRM.CommandHandlers;
 using Application.Core.CRM.Commands;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +17,13 @@ namespace Web.Api.Controllers.CRM
 		}
 		[HttpPost("create")]
 		public async Task<IActionResult> create(CreateCustomerCommand customer)
+		{
+			var result = await _mediator.Send(customer);
+			return Ok(result);
+		}
+
+		[HttpPut("update")]
+		public async Task<IActionResult> update(UpdateCustomerCommand customer)
 		{
 			var result = await _mediator.Send(customer);
 			return Ok(result);

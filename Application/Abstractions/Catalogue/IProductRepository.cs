@@ -12,10 +12,10 @@ namespace Application.Abstractions.Catalogue
         //Create a new producto
         Task<Products> CreateAsync(Products products);
         //Update a product
-        Task<Products> UpdateAsync(Products products);
+        //Task<Products> UpdateAsync(Products products);
         //Delete a product
         //Task<bool> DeleteAsync(int id);
         //Search a code of product
-        Task<bool> isCodeUniqueAsync(string code);
+        //Task<bool> isCodeUniqueAsync(string code);
     }
 }
