@@ -7,13 +7,6 @@
   <ItemGroup>
     <Folder Include="Core\Product\QueryHandlers\" />
     <Folder Include="Core\Product\Queries\" />
-    <Folder Include="Core\CRM\CommandHandlers\" />
-    <Folder Include="Core\CRM\Commands\" />
-    <Folder Include="Abstractions\CRM\" />
-    <Folder Include="Abstractions\Login\" />
-    <Folder Include="Core\Login\" />
-    <Folder Include="Core\Login\Commands\" />
-    <Folder Include="Core\Login\CommandHandlers\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,16 +16,6 @@
     <PackageReference Include="MediatR" Version="12.2.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Remove="Core\CRM\" />
-    <None Remove="Core\CRM\CommandHandlers\" />
-    <None Remove="Core\CRM\Commands\" />
-    <None Remove="Abstractions\CRM\" />
-    <None Remove="Abstractions\Login\" />
-    <None Remove="Core\Login\" />
-    <None Remove="Core\Login\Commands\" />
-    <None Remove="Core\Login\CommandHandlers\" />
-  </ItemGroup>
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

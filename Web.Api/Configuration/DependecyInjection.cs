@@ -1,7 +1,4 @@
 ﻿using Application.Abstractions.Catalogue;
-using Application.Abstractions.CRM;
-using Application.Abstractions.Login;
-
 using Infrastructure.Persistence;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -24,8 +21,6 @@ namespace Web.Api.Configuration
         public static IServiceCollection AddRepositories(this IServiceCollection services)
         {
             services.AddScoped<IProductRepository, ProductRepository>();
-            services.AddScoped<ICustomerRepository, CustomerRepository>();
-            services.AddScoped<ILoginRepository, LoginRepository>();
 
             return services;
         }
