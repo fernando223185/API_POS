@@ -19,6 +19,10 @@ namespace Web.Api.Controllers.Catalogue
             var result = await _mediator.Send(product);
             return Ok(result);
         }
+<<<<<<< HEAD
+        [HttpPut("Update")]
+        public async Task<IActionResult> Update()
+=======
         [HttpPost("update")]
         public async Task<IActionResult> update(UpdateProductCommand product)
         {
@@ -37,5 +41,6 @@ namespace Web.Api.Controllers.Catalogue
             var result = _mediator.Send(query);
             return Ok(result);
         }
+>>>>>>> d399b8080a32d22d35314462b39a24df68edce47
     }
 }

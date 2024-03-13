@@ -13,7 +13,10 @@
   <ItemGroup>
     <None Remove="DTOs\" />
   </ItemGroup>
+<<<<<<< HEAD
+=======
   <ItemGroup>
     <Folder Include="DTOs\" />
   </ItemGroup>
+>>>>>>> d399b8080a32d22d35314462b39a24df68edce47
 </Project>

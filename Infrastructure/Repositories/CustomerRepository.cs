@@ -2,6 +2,11 @@
 using Infrastructure.Persistence;
 using Application.Abstractions.CRM;
 using Microsoft.EntityFrameworkCore;
+<<<<<<< HEAD
+using Domain.DTOs;
+using Application.Core.CRM.Queries;
+=======
+>>>>>>> d399b8080a32d22d35314462b39a24df68edce47
 
 namespace Infrastructure.Repositories
 {
@@ -43,6 +48,58 @@ namespace Infrastructure.Repositories
 
 			return info;
 		}
+<<<<<<< HEAD
+
+		public async Task<PaginatedDto> GetByPageAsync(GetCustomerByPageQuery data)
+		{
+			int pageSize = 50;
+			PaginatedDto paginate = new PaginatedDto();
+
+			IQueryable<Customer> query = _dbcontext.Customer.AsQueryable();
+
+			if (!string.IsNullOrEmpty(data.search))
+			{
+				query = query.Where( c => c.Code == data.search 
+						|| c.Name.Contains(data.search)
+						|| c.LastName.Contains(data.search)
+				);
+			}
+
+			int pagesCount = (int)Math.Ceiling((decimal)await query.CountAsync() / pageSize);
+
+            var customers = await query
+                .OrderByDescending(c => c.ID)
+                .Skip((data.Page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(s => new
+                {
+                    s.ID,
+                    s.Code,
+                    s.Name,
+                    s.LastName,
+                    s.Phone,
+                    s.Email,
+                    s.Address,
+                    s.TaxId,
+                    s.ZipCode,
+                    s.Commentary,
+                    s.CountryId,
+                    s.StateId,
+                    s.InteriorNumber,
+                    s.ExteriorNumber,
+                    s.StatusId
+                })
+                .ToListAsync();
+			
+			paginate.sizePage = pagesCount;
+			paginate.page = data.Page;
+            paginate.totalPages = pagesCount;
+            paginate.data = customers;
+			
+			return paginate;
+        }
+=======
+>>>>>>> d399b8080a32d22d35314462b39a24df68edce47
 	}
 }
 
