@@ -2,11 +2,9 @@
 using Infrastructure.Persistence;
 using Application.Abstractions.CRM;
 using Microsoft.EntityFrameworkCore;
-<<<<<<< HEAD
 using Domain.DTOs;
 using Application.Core.CRM.Queries;
-=======
->>>>>>> d399b8080a32d22d35314462b39a24df68edce47
+
 
 namespace Infrastructure.Repositories
 {
@@ -48,7 +46,6 @@ namespace Infrastructure.Repositories
 
 			return info;
 		}
-<<<<<<< HEAD
 
 		public async Task<PaginatedDto> GetByPageAsync(GetCustomerByPageQuery data)
 		{
@@ -98,8 +95,11 @@ namespace Infrastructure.Repositories
 			
 			return paginate;
         }
-=======
->>>>>>> d399b8080a32d22d35314462b39a24df68edce47
+
+		public async Task<Customer> GetByIdAsync(int customerID)
+		{
+			return await _dbcontext.Customer.FirstOrDefaultAsync(c => c.ID == customerID);
+		}
 	}
 }
 

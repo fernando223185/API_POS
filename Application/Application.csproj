@@ -7,10 +7,6 @@
   <ItemGroup>
     <Folder Include="Core\Product\QueryHandlers\" />
     <Folder Include="Core\Product\Queries\" />
-<<<<<<< HEAD
-=======
-    <Folder Include="Core\CRM\" />
->>>>>>> d399b8080a32d22d35314462b39a24df68edce47
     <Folder Include="Core\CRM\CommandHandlers\" />
     <Folder Include="Core\CRM\Commands\" />
     <Folder Include="Abstractions\CRM\" />

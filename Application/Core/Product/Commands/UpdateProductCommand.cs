@@ -1,16 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-<<<<<<< HEAD
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Application.Core.Product.Commands
-{
-    public class UpdateProductCommand
-    {
-    }
-=======
+﻿
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
@@ -33,5 +21,4 @@ public class UpdateProductCommand : IRequest<Products>
     public string branch { get; set; }
     [Precision(18, 2)]
     public decimal price { get; set; }
->>>>>>> d399b8080a32d22d35314462b39a24df68edce47
 }

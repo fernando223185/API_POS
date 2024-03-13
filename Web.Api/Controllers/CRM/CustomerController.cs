@@ -1,10 +1,8 @@
 ﻿
 using Application.Core.CRM.CommandHandlers;
 using Application.Core.CRM.Commands;
-<<<<<<< HEAD
 using Application.Core.CRM.Queries;
-=======
->>>>>>> d399b8080a32d22d35314462b39a24df68edce47
+
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -32,7 +30,6 @@ namespace Web.Api.Controllers.CRM
 			var result = await _mediator.Send(customer);
 			return Ok(result);
 		}
-<<<<<<< HEAD
 		[HttpPost("List")]
 		public async Task<IActionResult> Get([FromBody] GetCustomerByPageQuery query)
 		{
@@ -44,8 +41,20 @@ namespace Web.Api.Controllers.CRM
 
 			return Ok(customers);
 		}
-=======
->>>>>>> d399b8080a32d22d35314462b39a24df68edce47
+
+		[HttpGet("find_by_id/{id}")]
+		public async Task<IActionResult> GetyById(int id)
+		{
+			var query = new GetCustomerByIdQuery { ID = id };
+			var customer = await _mediator.Send(query);
+
+			if (customer == null)
+			{
+				return NotFound();
+			}
+
+			return Ok(customer);
+		}
 	}
 }
 

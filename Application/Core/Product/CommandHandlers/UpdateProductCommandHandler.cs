@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,6 +34,4 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand 
         return await _productRepository.UpdateAsync(product);
     }
 }
-=======
-﻿
->>>>>>> d399b8080a32d22d35314462b39a24df68edce47
+
