@@ -28,8 +28,12 @@ namespace Web.Api.Controllers.CRM
 		public async Task<IActionResult> update(UpdateCustomerCommand customer)
 		{
 			var result = await _mediator.Send(customer);
-			return Ok(result);
-		}
+			if (result != null)
+			{
+                return Ok(new { message = "Data updated successfully.", error = 0, result });
+            }
+			return NotFound(new { message = "Failed to update data.", error = 1 });
+        }
 		[HttpPost("List")]
 		public async Task<IActionResult> Get([FromBody] GetCustomerByPageQuery query)
 		{
