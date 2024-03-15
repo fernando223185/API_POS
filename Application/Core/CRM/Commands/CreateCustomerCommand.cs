@@ -17,11 +17,8 @@ namespace Application.Core.CRM.Commands
         public string Commentary { get; set; }
         public int CountryId { get; set; }
         public int StateId { get; set; }
-        public DateTime Created_at { get; set; } = DateTime.Now;
         public string InteriorNumber { get; set; }
         public string ExteriorNumber { get; set; }
-        public int ExternalId { get; set; }
-        public int StatusId { get; set; }
     }
 }
 

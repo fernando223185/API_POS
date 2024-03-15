@@ -21,10 +21,17 @@ namespace Web.Api.Controllers.CRM
 		public async Task<IActionResult> create(CreateCustomerCommand customer)
 		{
 			var result = await _mediator.Send(customer);
-			return Ok(result);
-		}
+			if (result != null)
+			{
+                return Ok(new { message = "Data created successfully.", error = 0, result });
+            }
 
-		[HttpPut("update")]
+            return BadRequest(new { message = "Failed to created data.", error = 1 });
+
+
+        }
+
+        [HttpPut("update")]
 		public async Task<IActionResult> update(UpdateCustomerCommand customer)
 		{
 			var result = await _mediator.Send(customer);

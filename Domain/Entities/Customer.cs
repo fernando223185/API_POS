@@ -27,9 +27,7 @@ namespace Domain.Entities
         public DateTime Created_at { get; set; } = DateTime.Now;
         public string InteriorNumber { get; set; }
         public string ExteriorNumber { get; set; }
-
-        [DefaultValue(1)]
-        public int StatusId { get; set; }
+        public int StatusId { get; set; } = 1;
     }
 }
 
