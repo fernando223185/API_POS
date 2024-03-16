@@ -26,8 +26,6 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand 
             description = request.description,
             code = request.code,
             barcode = request.barcode,
-            category = request.category,
-            branch = request.branch,
             price = request.price,
         };
 

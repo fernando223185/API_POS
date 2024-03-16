@@ -1,9 +1,7 @@
-﻿using Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Application.Core.Product.Queries;
+using Domain.DTOs;
+using Domain.Entities;
+
 
 namespace Application.Abstractions.Catalogue
 {
@@ -18,5 +16,8 @@ namespace Application.Abstractions.Catalogue
         //Task<bool> DeleteAsync(int id);
         //Search a code of product
         //Task<bool> isCodeUniqueAsync(string code);
+        Task<PaginatedDto> GetByPageAsync(GetProductByPageQuery data);
+        Task<Products> GetByIdAsync(int customerID);
+
     }
 }

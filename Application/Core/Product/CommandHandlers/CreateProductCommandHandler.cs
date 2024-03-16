@@ -21,8 +21,6 @@ namespace Application.Core.Product.CommandHandlers
                 description = request.description,
                 code = request.code,
                 barcode = request.barcode,
-                category = request.category,
-                branch = request.branch,
                 price = request.price
             };
             return await _repository.CreateAsync(product);

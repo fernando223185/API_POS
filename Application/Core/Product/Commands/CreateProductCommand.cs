@@ -9,8 +9,6 @@ namespace Application.Core.Product.Commands
         public string description { get; set; }
         public string code { get; set; }
         public string barcode { get; set; }
-        public string category { get; set; }
-        public string branch { get; set; }
         public decimal price { get; set; }
     }
 }

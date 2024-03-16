@@ -17,8 +17,7 @@ public class UpdateProductCommand : IRequest<Products>
     public string description { get; set; }
     public string code { get; set; }
     public string barcode { get; set; }
-    public string category { get; set; }
-    public string branch { get; set; }
+
     [Precision(18, 2)]
     public decimal price { get; set; }
 }
