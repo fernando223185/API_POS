@@ -12,6 +12,8 @@
     <Folder Include="Core\Login\" />
     <Folder Include="Core\Login\Commands\" />
     <Folder Include="Core\Login\CommandHandlers\" />
+    <Folder Include="Core\Sales_orders\QueryHandlers\" />
+    <Folder Include="Core\Sales_orders\Queries\" />
   </ItemGroup>
 
   <ItemGroup>
