@@ -1,4 +1,5 @@
 ﻿using Application.Core.Sales_orders.Commands;
+using Application.Core.Sales_orders.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +26,20 @@ namespace Web.Api.Controllers.Sales_Ordes
             }
             return BadRequest(new { message = "Failed to created data.", error = 1 });
 
+        }
+
+        [HttpGet("find_by_id/{id}")]
+        public async Task<IActionResult> GetyById(int id)
+        {
+            var query = new GetSaleByIdQuery { ID = id };
+            var customer = await _mediator.Send(query);
+
+            if (customer == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(customer);
         }
     }
 }

@@ -10,6 +10,7 @@ namespace Application.Abstractions.Sales_Orders
     public interface ISalesRepository
     {
         Task<Sales> CreateAsync(Sales Sale);
+        Task<Sales> GetByIdAsync(int id);
 
 
     }

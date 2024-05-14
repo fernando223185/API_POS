@@ -18,7 +18,7 @@ namespace Application.Core.Sales_orders.CommandHandlers
         {
             var datePart = DateTime.Now.ToString("yyMMddHHmm");
             var randomPart = new Random().Next(100, 999);
-            return "V" + datePart + randomPart;
+            return "V-" + datePart + randomPart;
         }
 
         public async Task<Sales> Handle(CreateSaleCommand request, CancellationToken cancellationToken)

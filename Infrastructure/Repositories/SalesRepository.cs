@@ -1,6 +1,7 @@
 ﻿using Application.Abstractions.Sales_Orders;
 using Domain.Entities;
 using Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +24,11 @@ namespace Infrastructure.Repositories
             _dbcontext.Sales.Add(sale);
             await _dbcontext.SaveChangesAsync();
             return sale;
+        }
+
+        public async Task<Sales> GetByIdAsync(int SalesID)
+        {
+            return await _dbcontext.Sales.FirstOrDefaultAsync(c => c.ID == SalesID);
         }
 
     }
