@@ -12,6 +12,9 @@
     <Folder Include="Core\Login\" />
     <Folder Include="Core\Login\Commands\" />
     <Folder Include="Core\Login\CommandHandlers\" />
+    <Folder Include="Core\Users\" />
+    <Folder Include="Core\Users\Commands\" />
+    <Folder Include="Core\Users\CommandHandlers\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,6 +33,9 @@
     <None Remove="Core\Login\" />
     <None Remove="Core\Login\Commands\" />
     <None Remove="Core\Login\CommandHandlers\" />
+    <None Remove="Core\Users\" />
+    <None Remove="Core\Users\Commands\" />
+    <None Remove="Core\Users\CommandHandlers\" />
   </ItemGroup>
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>

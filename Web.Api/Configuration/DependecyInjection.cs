@@ -27,7 +27,7 @@ namespace Web.Api.Configuration
             services.AddScoped<ICustomerRepository, CustomerRepository>();
             services.AddScoped<ILoginRepository, LoginRepository>();
             services.AddScoped<ISalesRepository, SalesRepository>();
-
+            services.AddScoped<IUserRepository, UserRepository>();
             return services;
         }
     }

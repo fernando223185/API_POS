@@ -7,7 +7,7 @@ namespace Application.Abstractions.Login
 {
 	public interface ILoginRepository 
 	{
-		Task<Users> Login(Users data);
+		Task<User> Login(User data);
 	}
 }
 

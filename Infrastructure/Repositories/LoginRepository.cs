@@ -11,7 +11,7 @@ namespace Infrastructure.Repositories
 	public class LoginRepository : ILoginRepository
 	{
 		private readonly POSDbContext _dbcontext;
-        private readonly ILogger<LoginRepository> _logger; // Agrega esto
+        private readonly ILogger<LoginRepository> _logger; 
 
         public LoginRepository(POSDbContext _context, ILogger<LoginRepository> logger)
 		{
@@ -19,10 +19,10 @@ namespace Infrastructure.Repositories
             _logger = logger;
         }
 
-        public async Task<Users> Login(Users user)
+        public async Task<User> Login(User user)
         {
-            var data = await _dbcontext.Users
-                .Where(u => u.nameUser == user.nameUser && u.pass == user.pass)
+            var data = await _dbcontext.User
+                .Where(u => u.Code == user.Code && u.PasswordHash == user.PasswordHash)
                 .ToListAsync();
 
             if (!data.Any())
@@ -32,6 +32,8 @@ namespace Infrastructure.Repositories
 
             return data.First();
         }
+
+        
     }
 }
 

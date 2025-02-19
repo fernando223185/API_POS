@@ -2,9 +2,9 @@
 using Domain.Entities;
 namespace Application.Core.Login.Commands
 {
-	public class LoginCommand : ICommand<Users>
+	public class LoginCommand : ICommand<User>
 	{
-		public string nameUser { get; set; }
+		public string Code { get; set; }
 		public string pass { get; set; }
 	}
 }
