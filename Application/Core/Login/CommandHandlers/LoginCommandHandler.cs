@@ -1,9 +1,8 @@
-﻿using System.Security.Cryptography;
-using System.Text;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 using Application.Abstractions.Login;
 using Application.Core.Login.Commands;
+using Application.Common.Security;
 using Domain.Entities;
 using MediatR;
 
@@ -20,9 +19,7 @@ namespace Application.Core.Login.CommandHandlers
 
         public async Task<User?> Handle(LoginCommand request, CancellationToken cancellationToken)
         {
-            Console.WriteLine(request);
-
-            var passwordHash = HashPassword(request.pass);
+            var passwordHash = PasswordHasher.HashPassword(request.Password);
 
             var user = new User
             {
@@ -32,14 +29,6 @@ namespace Application.Core.Login.CommandHandlers
 
             var result = await _loginRepository.Login(user);
             return result;
-        }
-
-        private static byte[] HashPassword(string password)
-        {
-            using (var sha256 = SHA256.Create())
-            {
-                return sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            }
         }
     }
 }
