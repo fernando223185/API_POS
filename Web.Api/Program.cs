@@ -11,8 +11,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Application;
+using Application.Abstractions.Authorization;
+using Application.Abstractions.Security;
 using Infrastructure;
+using Infrastructure.Services;
 using Web.Api.Configuration;
+using Web.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,14 +25,31 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Agregar CORS con restricciones
+// Agregar CORS - configuración actualizada para desarrollo
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigins", policy =>
+    options.AddPolicy("AllowDevelopment", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:3000",           // React/Angular dev server
+                "https://localhost:3000",          // React/Angular dev server HTTPS
+                "http://localhost:3001",           // Alternate port
+                "https://localhost:3001",          // Alternate port HTTPS
+                "http://127.0.0.1:3000",           // IPv4 localhost
+                "https://127.0.0.1:3000"           // IPv4 localhost HTTPS
+              )
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+
+    // Política más restrictiva para producción
+    options.AddPolicy("Production", policy =>
     {
         policy.WithOrigins("https://tudominio.com")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
@@ -44,7 +65,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+            ClockSkew = TimeSpan.Zero // Eliminar tolerancia de tiempo
+        };
+
+        // Configurar eventos para debugging
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                Console.WriteLine($"Token validated for user: {context.Principal.Identity.Name}");
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -52,7 +89,9 @@ builder.Services
     .AddDB(builder.Configuration)
     .AddApplication()
     .AddInfrastructure()
-    .AddRepositories();
+    .AddRepositories()
+    .AddScoped<IPermissionService, PermissionService>()
+    .AddScoped<IJwtTokenService, JwtTokenService>(); // Agregar servicio JWT
 
 var app = builder.Build();
 
@@ -72,7 +111,14 @@ app.UseExceptionHandler(errorApp =>
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "POS API V1");
+        // Configurar Swagger para JWT
+        c.OAuthClientId("swagger");
+        c.OAuthAppName("POS API");
+        c.OAuthUsePkce();
+    });
 }
 
 // Habilitar HTTPS y HSTS en producción
@@ -84,8 +130,15 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
-// Usar CORS con restricciones
-app.UseCors("AllowSpecificOrigins");
+// Usar CORS según el entorno
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("AllowDevelopment");
+}
+else
+{
+    app.UseCors("Production");
+}
 
 //  Middleware de Logging de Peticiones HTTP
 app.Use(async (context, next) =>
@@ -98,6 +151,9 @@ app.Use(async (context, next) =>
 // Autenticación y Autorización
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Middleware para extraer información del JWT
+app.UseJwtUser();
 
 app.MapControllers();
 app.Run();

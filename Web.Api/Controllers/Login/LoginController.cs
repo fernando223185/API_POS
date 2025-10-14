@@ -1,7 +1,7 @@
 ﻿using MediatR;
 using Application.Core.Login.Commands;
-
-
+using Application.Abstractions.Security;
+using Application.DTOs.Auth;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Web.Api.Controllers.LoginController
@@ -11,20 +11,65 @@ namespace Web.Api.Controllers.LoginController
     public class LoginController : ControllerBase
 	{
 		private readonly IMediator _mediator;
-		public LoginController(IMediator mediator)
+		private readonly IJwtTokenService _jwtTokenService;
+
+		public LoginController(IMediator mediator, IJwtTokenService jwtTokenService)
 		{
 			_mediator = mediator;
+			_jwtTokenService = jwtTokenService;
 		}
 
 		[HttpPost("login")]
-        public async Task<IActionResult> Login(LoginCommand command)
+        public async Task<IActionResult> Login([FromBody] LoginCommand command)
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(command.Code) || string.IsNullOrWhiteSpace(command.Password))
+                {
+                    return BadRequest(new { 
+                        message = "Code and Password are required", 
+                        error = 1,
+                        errors = new {
+                            Code = string.IsNullOrWhiteSpace(command.Code) ? new[] { "The Code field is required." } : null,
+                            Password = string.IsNullOrWhiteSpace(command.Password) ? new[] { "The Password field is required." } : null
+                        }
+                    });
+                }
+
                 var user = await _mediator.Send(command);
+                
                 if (user != null)
                 {
-                    return Ok(new { message = "Login successful", error = 0 , user });
+                    // Generar JWT token
+                    var token = _jwtTokenService.GenerateToken(
+                        user.Id,
+                        user.Code,
+                        user.Name,
+                        user.Email,
+                        user.RoleId,
+                        user.Role?.Name ?? "Usuario"
+                    );
+
+                    var response = new LoginResponseDto
+                    {
+                        Message = "Login successful",
+                        Error = 0,
+                        Token = token,
+                        TokenType = "Bearer",
+                        ExpiresAt = DateTime.UtcNow.AddHours(8),
+                        User = new UserInfoDto
+                        {
+                            Id = user.Id,
+                            Code = user.Code,
+                            Name = user.Name,
+                            Email = user.Email,
+                            Active = user.Active,
+                            RoleId = user.RoleId,
+                            RoleName = user.Role?.Name ?? "Usuario"
+                        }
+                    };
+
+                    return Ok(response);
                 }
                 else
                 {
@@ -33,11 +78,78 @@ namespace Web.Api.Controllers.LoginController
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Unauthorized(new { message = ex.Message });
+                return Unauthorized(new { message = ex.Message, error = 1 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = ex.Message });
+                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+            }
+        }
+
+        [HttpPost("validate-token")]
+        public async Task<IActionResult> ValidateToken([FromHeader] string authorization)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(authorization) || !authorization.StartsWith("Bearer "))
+                {
+                    return BadRequest(new { message = "Invalid authorization header", error = 1 });
+                }
+
+                var token = authorization.Substring("Bearer ".Length).Trim();
+                
+                if (_jwtTokenService.ValidateToken(token))
+                {
+                    var userId = await _jwtTokenService.GetUserIdFromTokenAsync(token);
+                    
+                    return Ok(new { 
+                        message = "Token is valid", 
+                        error = 0, 
+                        valid = true,
+                        userId = userId
+                    });
+                }
+                else
+                {
+                    return Unauthorized(new { message = "Token is invalid or expired", error = 1, valid = false });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+            }
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromHeader] string authorization)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(authorization) || !authorization.StartsWith("Bearer "))
+                {
+                    return BadRequest(new { message = "Invalid authorization header", error = 1 });
+                }
+
+                var token = authorization.Substring("Bearer ".Length).Trim();
+                var userId = await _jwtTokenService.GetUserIdFromTokenAsync(token);
+                
+                if (userId == null)
+                {
+                    return Unauthorized(new { message = "Invalid token", error = 1 });
+                }
+
+                // Aquí podrías obtener información actualizada del usuario desde la base de datos
+                // Por ahora retornamos un nuevo token básico
+                
+                return Ok(new { 
+                    message = "Token refresh endpoint - implement as needed", 
+                    error = 0,
+                    userId = userId
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
             }
         }
     }

@@ -16,9 +16,10 @@ namespace Web.Api.Configuration
             IConfiguration configuration) 
         {
             var connectionString = configuration.GetConnectionString("DefaultConnection");
-            services.AddDbContext<POSDbContext>(options => options.UseSqlServer(connectionString));
+            services.AddDbContext<POSDbContext>(options => 
+                options.UseSqlServer(connectionString, b => 
+                    b.MigrationsAssembly("Infrastructure")));
             return services;
-
         }
 
         public static IServiceCollection AddRepositories(this IServiceCollection services)
