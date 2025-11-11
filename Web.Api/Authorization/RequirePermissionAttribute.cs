@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Web.Api.Authorization
 {
-    public class RequirePermissionAttribute : Attribute, IAuthorizationFilter
+    public class RequirePermissionAttribute : Attribute, IAsyncAuthorizationFilter
     {
         private readonly string _resource;
         private readonly string _action;
@@ -16,7 +16,7 @@ namespace Web.Api.Authorization
             _action = action;
         }
 
-        public async void OnAuthorization(AuthorizationFilterContext context)
+        public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
         {
             // Verificar si el usuario está autenticado
             if (!context.HttpContext.User.Identity?.IsAuthenticated ?? true)
@@ -33,26 +33,32 @@ namespace Web.Api.Authorization
                 return;
             }
 
-            // Verificar permisos
-            var permissionService = context.HttpContext.RequestServices.GetService<IPermissionService>();
-            if (permissionService != null)
+            // Verificar permisos usando un nuevo scope de servicio
+            using (var scope = context.HttpContext.RequestServices.CreateScope())
             {
-                try
+                var permissionService = scope.ServiceProvider.GetService<IPermissionService>();
+                if (permissionService != null)
                 {
-                    var hasPermission = await permissionService.HasPermissionAsync(userId, _resource, _action);
-                    if (!hasPermission)
+                    try
                     {
-                        context.Result = new ForbidResult();
+                        var hasPermission = await permissionService.HasPermissionAsync(userId, _resource, _action);
+                        if (!hasPermission)
+                        {
+                            context.Result = new ObjectResult(new { message = "Insufficient permissions", error = 1 })
+                            {
+                                StatusCode = 403
+                            };
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        context.Result = new ObjectResult(new { message = "Authorization error", error = 2, details = ex.Message })
+                        {
+                            StatusCode = 500
+                        };
                         return;
                     }
-                }
-                catch (Exception ex)
-                {
-                    context.Result = new ObjectResult(new { message = "Authorization error", error = 2, details = ex.Message })
-                    {
-                        StatusCode = 500
-                    };
-                    return;
                 }
             }
         }

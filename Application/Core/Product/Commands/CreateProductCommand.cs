@@ -1,14 +1,18 @@
 ﻿using Application.Abstractions.Messaging;
-using Domain.Entities;
+using Application.DTOs.Product;
+using MediatR;
 
 namespace Application.Core.Product.Commands
 {
-    public class CreateProductCommand : ICommand<Products>
+    public class CreateProductCommand : IRequest<ProductResponseDto>
     {
-        public string name { get; set; }
-        public string description { get; set; }
-        public string code { get; set; }
-        public string barcode { get; set; }
-        public decimal price { get; set; }
+        public CreateProductRequestDto ProductData { get; set; }
+        public int CreatedByUserId { get; set; }
+
+        public CreateProductCommand(CreateProductRequestDto productData, int createdByUserId)
+        {
+            ProductData = productData;
+            CreatedByUserId = createdByUserId;
+        }
     }
 }

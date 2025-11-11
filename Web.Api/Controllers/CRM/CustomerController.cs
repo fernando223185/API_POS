@@ -1,4 +1,7 @@
-﻿using MediatR;
+﻿using Application.Core.CRM.Commands;
+using Application.DTOs.Customer;
+using Application.Common.Services;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Web.Api.Authorization;
 
@@ -9,40 +12,110 @@ namespace Web.Api.Controllers.CRM
     public class CustomerController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly ICustomerCodeGeneratorService _codeGenerator;
 
-        public CustomerController(IMediator mediator)
+        public CustomerController(IMediator mediator, ICustomerCodeGeneratorService codeGenerator)
         {
             _mediator = mediator;
+            _codeGenerator = codeGenerator;
         }
 
+        /// <summary>
+        /// Crear un nuevo cliente con información fiscal y comercial completa
+        /// El código se genera automáticamente de forma incremental: CLI001, CLI002, CLI003...
+        /// </summary>
+        /// <param name="createCustomerRequest">Datos del cliente a crear</param>
+        /// <returns>Cliente creado con toda la información</returns>
         [HttpPost]
-        [RequirePermission("Customer", "Create")] // Requiere permiso específico
-        public async Task<IActionResult> Create([FromBody] dynamic customerData)
+        [RequirePermission("Customer", "Create")]
+        public async Task<IActionResult> Create([FromBody] CreateCustomerRequestDto createCustomerRequest)
         {
             try
             {
-                // Agregar información del usuario del token
+                // Validar modelo
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Datos de entrada inválidos",
+                        error = 1,
+                        errors = ModelState.SelectMany(x => x.Value.Errors.Select(e => e.ErrorMessage))
+                    });
+                }
+
+                // Obtener información del usuario del token
                 var userId = HttpContext.Items["UserId"] as int? ?? 0;
                 var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
 
-                // Simular creación de cliente (implementar lógica real después)
-                var customerId = new Random().Next(1000, 9999);
+                if (userId == 0)
+                {
+                    return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
+                }
 
-                return Ok(new { 
-                    message = "Customer created successfully", 
-                    error = 0, 
-                    customerId = customerId,
+                // Crear command y enviar a través de MediatR
+                var command = new CreateCustomerCommand(createCustomerRequest, userId);
+                var result = await _mediator.Send(command);
+
+                return Ok(new
+                {
+                    message = "Cliente creado exitosamente",
+                    error = 0,
+                    data = result,
                     createdBy = userName
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message,
+                    error = 1
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                return StatusCode(500, new
+                {
+                    message = "Error interno del servidor",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Obtener el próximo código de cliente que se generará automáticamente
+        /// Útil para mostrar al usuario qué código se asignará
+        /// </summary>
+        [HttpGet("next-code")]
+        [RequirePermission("Customer", "Create")]
+        public async Task<IActionResult> GetNextCode()
+        {
+            try
+            {
+                var nextCode = await _codeGenerator.GenerateNextCustomerCodeAsync();
+                
+                return Ok(new
+                {
+                    message = "Próximo código de cliente obtenido exitosamente",
+                    error = 0,
+                    nextCode = nextCode,
+                    info = "Este será el código asignado al próximo cliente creado"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new 
+                { 
+                    message = "Error al generar código", 
+                    error = 2, 
+                    details = ex.Message 
+                });
             }
         }
 
         [HttpGet]
-        [RequirePermission("Customer", "ViewList")] // Requiere permiso para ver lista
+        [RequirePermission("Customer", "ViewList")]
         public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             try
@@ -71,7 +144,7 @@ namespace Web.Api.Controllers.CRM
         }
 
         [HttpGet("{id}")]
-        [RequirePermission("Customer", "ViewList")] // Requiere permiso para ver detalles
+        [RequirePermission("Customer", "ViewList")]
         public async Task<IActionResult> GetById(int id)
         {
             try
@@ -99,7 +172,7 @@ namespace Web.Api.Controllers.CRM
         }
 
         [HttpPut("{id}")]
-        [RequirePermission("Customer", "Update")] // Requiere permiso para actualizar
+        [RequirePermission("Customer", "Update")]
         public async Task<IActionResult> Update(int id, [FromBody] dynamic customerData)
         {
             try
@@ -121,7 +194,7 @@ namespace Web.Api.Controllers.CRM
         }
 
         [HttpDelete("{id}")]
-        [RequirePermission("Customer", "Delete")] // Requiere permiso para eliminar
+        [RequirePermission("Customer", "Delete")]
         public async Task<IActionResult> Delete(int id)
         {
             try
@@ -143,7 +216,7 @@ namespace Web.Api.Controllers.CRM
         }
 
         [HttpGet("search")]
-        [RequirePermission("Customer", "ViewList")] // Requiere permiso para buscar
+        [RequirePermission("Customer", "ViewList")]
         public async Task<IActionResult> Search([FromQuery] string term, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             try

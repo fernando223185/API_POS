@@ -226,7 +226,7 @@ _pkginfo.txt
 # Visual Studio cache files
 # files ending in .cache can be ignored
 *.[Cc]ache
-# but keep track of directories ending in .cache
+# but keep track directories ending in .cache
 !?*.[Cc]ache/
 
 # Others
@@ -361,3 +361,69 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# =============================================
+# CONFIGURACIONES ESPECÍFICAS DEL PROYECTO ERP
+# =============================================
+
+# Archivos de configuración con datos sensibles
+appsettings.local.json
+appsettings.Development.local.json
+appsettings.Production.local.json
+appsettings.Staging.local.json
+secrets.json
+ConnectionStrings.json
+*.secrets.*
+
+# Certificados y claves para CFDI/SAT
+*.pfx
+*.p12
+*.key
+*.crt
+*.cer
+*.pem
+
+# Archivos de base de datos locales
+*.sqlite
+*.db
+*.db-shm
+*.db-wal
+LocalDatabase.mdf
+LocalDatabase_log.ldf
+
+# Logs específicos del ERP
+ErrorLogs/
+AccessLogs/
+AuditLogs/
+CFDILogs/
+
+# Archivos de respaldo de base de datos
+*.bak
+*.bakx
+*.trn
+
+# Archivos temporales de migración y testing
+**/Migrations/Temp/
+**/Migrations/Backup/
+TestData/
+TestFiles/
+
+# Archivos temporales y de sistema
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Archivos de Office temporales
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+# =============================================
+# ARCHIVOS QUE SÍ DEBEN INCLUIRSE (EJEMPLOS)
+# =============================================
+!**/appsettings.json
+!Scripts/
+!DatabaseScripts/
+!README.md
+!CHANGELOG.md

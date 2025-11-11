@@ -4,6 +4,7 @@ using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(POSDbContext))]
-    partial class POSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251111195036_RestoreAdminUser")]
+    partial class RestoreAdminUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -72,8 +75,8 @@ namespace Infrastructure.Migrations
 
                     b.Property<decimal>("DiscountPercentage")
                         .ValueGeneratedOnAdd()
-                        .HasPrecision(6, 4)
-                        .HasColumnType("decimal(6,4)")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("decimal(5,4)")
                         .HasDefaultValue(0m);
 
                     b.Property<string>("Email")
@@ -247,10 +250,8 @@ namespace Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<decimal>("DefaultDiscountPercentage")
-                        .ValueGeneratedOnAdd()
-                        .HasPrecision(6, 4)
-                        .HasColumnType("decimal(6,4)")
-                        .HasDefaultValue(0m);
+                        .HasPrecision(5, 4)
+                        .HasColumnType("decimal(5,4)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -524,10 +525,8 @@ namespace Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("DiscountPercentage")
-                        .ValueGeneratedOnAdd()
-                        .HasPrecision(6, 4)
-                        .HasColumnType("decimal(6,4)")
-                        .HasDefaultValue(0m);
+                        .HasPrecision(5, 4)
+                        .HasColumnType("decimal(5,4)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");

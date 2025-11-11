@@ -1,3 +1,6 @@
+using Application.Core.Product.Commands;
+using Application.DTOs.Product;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Web.Api.Authorization;
 
@@ -7,6 +10,13 @@ namespace Web.Api.Controllers.Products
     [ApiController]
     public class ProductsController : ControllerBase
     {
+        private readonly IMediator _mediator;
+
+        public ProductsController(IMediator mediator)
+        {
+            _mediator = mediator;
+        }
+
         [HttpGet]
         [RequirePermission("Product", "ViewCatalog")]
         public async Task<IActionResult> GetProducts([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
@@ -53,26 +63,64 @@ namespace Web.Api.Controllers.Products
             }
         }
 
+        /// <summary>
+        /// Crear un nuevo producto con toda la información fiscal y de inventario
+        /// </summary>
+        /// <param name="createProductRequest">Datos del producto a crear</param>
+        /// <returns>Producto creado con toda la información</returns>
         [HttpPost]
         [RequirePermission("Product", "Create")]
-        public async Task<IActionResult> CreateProduct([FromBody] dynamic productData)
+        public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequestDto createProductRequest)
         {
             try
             {
+                // Validar modelo
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Datos de entrada inválidos",
+                        error = 1,
+                        errors = ModelState.SelectMany(x => x.Value.Errors.Select(e => e.ErrorMessage))
+                    });
+                }
+
                 var userId = HttpContext.Items["UserId"] as int? ?? 0;
                 var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
 
+                if (userId == 0)
+                {
+                    return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
+                }
+
+                // Crear command y enviar a través de MediatR
+                var command = new CreateProductCommand(createProductRequest, userId);
+                var result = await _mediator.Send(command);
+
                 return Ok(new
                 {
-                    message = "Product created successfully",
+                    message = "Producto creado exitosamente",
                     error = 0,
-                    productId = 123,
+                    data = result,
                     createdBy = userName
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message,
+                    error = 1
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                return StatusCode(500, new
+                {
+                    message = "Error interno del servidor",
+                    error = 2,
+                    details = ex.Message
+                });
             }
         }
 
@@ -82,6 +130,7 @@ namespace Web.Api.Controllers.Products
         {
             try
             {
+                var userId = HttpContext.Items["UserId"] as int? ?? 0;
                 var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
 
                 return Ok(new
@@ -104,6 +153,7 @@ namespace Web.Api.Controllers.Products
         {
             try
             {
+                var userId = HttpContext.Items["UserId"] as int? ?? 0;
                 var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
 
                 return Ok(new
@@ -112,50 +162,6 @@ namespace Web.Api.Controllers.Products
                     error = 0,
                     productId = id,
                     deletedBy = userName
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
-            }
-        }
-
-        [HttpGet("categories")]
-        [RequirePermission("Product", "ManageCategories")]
-        public async Task<IActionResult> GetCategories()
-        {
-            try
-            {
-                return Ok(new
-                {
-                    message = "Categories retrieved successfully",
-                    error = 0,
-                    data = new[] {
-                        new { id = 1, name = "Electrónicos", description = "Productos electrónicos" },
-                        new { id = 2, name = "Ropa", description = "Prendas de vestir" }
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
-            }
-        }
-
-        [HttpGet("low-stock")]
-        [RequirePermission("Product", "ManageAlerts")]
-        public async Task<IActionResult> GetLowStockProducts()
-        {
-            try
-            {
-                return Ok(new
-                {
-                    message = "Low stock products retrieved successfully",
-                    error = 0,
-                    data = new[] {
-                        new { id = 1, name = "Producto 1", currentStock = 2, minimumStock = 5 },
-                        new { id = 3, name = "Producto 3", currentStock = 1, minimumStock = 10 }
-                    }
                 });
             }
             catch (Exception ex)

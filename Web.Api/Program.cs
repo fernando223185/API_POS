@@ -13,8 +13,14 @@ using Microsoft.IdentityModel.Tokens;
 using Application;
 using Application.Abstractions.Authorization;
 using Application.Abstractions.Security;
+using Application.Abstractions.CRM;
+using Application.Abstractions.Catalogue;
+using Application.Abstractions.Sales_Orders;
+using Application.Abstractions.Login;
+using Application.Common.Services; // ✅ Agregar namespace del servicio
 using Infrastructure;
 using Infrastructure.Services;
+using Infrastructure.Repositories;
 using Web.Api.Configuration;
 using Web.Api.Middleware;
 
@@ -85,13 +91,25 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// ✅ CONFIGURACIÓN CORRECTA DE SERVICIOS (SIN DUPLICACIONES)
 builder.Services
-    .AddDB(builder.Configuration)
-    .AddApplication()
-    .AddInfrastructure()
-    .AddRepositories()
-    .AddScoped<IPermissionService, PermissionService>()
-    .AddScoped<IJwtTokenService, JwtTokenService>(); // Agregar servicio JWT
+    .AddDatabase(builder.Configuration)             // DbContext como Scoped
+    .AddApplication()                               // MediatR y handlers
+    .AddInfrastructure();                          // Servicios de infraestructura
+
+// ✅ REGISTRAR REPOSITORIOS MANUALMENTE COMO SCOPED
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<ISalesRepository, SalesRepository>();
+builder.Services.AddScoped<ILoginRepository, LoginRepository>();  // ⚡ AGREGAR LoginRepository
+
+// ✅ REGISTRAR SERVICIOS ADICIONALES
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+
+// ✅ REGISTRAR SERVICIO DE GENERACIÓN DE CÓDIGOS
+builder.Services.AddScoped<ICustomerCodeGeneratorService, CustomerCodeGeneratorService>();
 
 var app = builder.Build();
 

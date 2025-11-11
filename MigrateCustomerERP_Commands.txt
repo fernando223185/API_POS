@@ -1,0 +1,19 @@
+# ==========================================
+# Comandos para generar la migración Customer ERP
+# ==========================================
+
+# Asegúrate de estar en el directorio del proyecto Infrastructure
+cd Infrastructure
+
+# Generar la migración
+dotnet ef migrations add AddCustomerERPFields --project ../Infrastructure --startup-project ../Web.Api
+
+# Aplicar la migración a la base de datos
+dotnet ef database update --project ../Infrastructure --startup-project ../Web.Api
+
+# ==========================================
+# Alternativa usando Package Manager Console en Visual Studio:
+# ==========================================
+
+# Add-Migration AddCustomerERPFields -Project Infrastructure -StartupProject Web.Api
+# Update-Database -Project Infrastructure -StartupProject Web.Api

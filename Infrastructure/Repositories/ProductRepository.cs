@@ -1,9 +1,7 @@
-ï»¿using Domain.Entities;
-using Infrastructure.Persistence;
 using Application.Abstractions.Catalogue;
+using Domain.Entities;
+using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Domain.DTOs;
-using Application.Core.Product.Queries;
 
 namespace Infrastructure.Repositories
 {
@@ -16,74 +14,99 @@ namespace Infrastructure.Repositories
             _dbcontext = dbcontext;
         }
 
-        public async Task<Products> CreateAsync(Products products)
+        public async Task<Products> CreateAsync(Products product)
         {
-            _dbcontext.Products.Add(products);
+            await _dbcontext.Products.AddAsync(product);
             await _dbcontext.SaveChangesAsync();
-            return products;
-        }
-        public async Task<Products> UpdateAsync(Products products)
-        {
-            var data = await _dbcontext.Products.FirstOrDefaultAsync(p => p.ID == products.ID);
-
-            data.name = products.name;
-            data.description = products.description;
-            data.code = products.code;
-            data.barcode = products.barcode;
-            data.price = products.price;
-
-            await _dbcontext.SaveChangesAsync();
-
-            return products;
-        }
-        public async Task<bool> isCodeUniqueAsync(string code)
-        {
-            return !await _dbcontext.Products.AnyAsync(p => p.code == code);
-
+            return product;
         }
 
-        public async Task<PaginatedDto> GetByPageAsync(GetProductByPageQuery data)
+        public async Task<bool> DeleteAsync(int productID)
         {
-            int pageSize = 50;
-            PaginatedDto paginate = new PaginatedDto(); 
-
-            IQueryable<Products> query = _dbcontext.Products.AsQueryable();
-
-            if (!string.IsNullOrEmpty(data.search))
+            var existingProduct = await _dbcontext.Products.FirstOrDefaultAsync(c => c.ID == productID);
+            if (existingProduct != null)
             {
-                query = query.Where(c => c.code == data.search
-                        || c.name.Contains(data.search)
-                        || c.barcode.Contains(data.search)
+                _dbcontext.Products.Remove(existingProduct);
+                await _dbcontext.SaveChangesAsync();
+                return true;
+            }
+            return false;
+        }
+
+        public async Task<IEnumerable<Products>> GetByPageAsync(ProductPageQuery query)
+        {
+            var pageSize = query.Size ?? 10;
+            var pageNumber = query.Nro ?? 1;
+
+            IQueryable<Product> queryable = _dbcontext.Products.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(query.search))
+            {
+                queryable = queryable.Where(p => 
+                    p.name.Contains(query.search) ||
+                    p.code.Contains(query.search) ||
+                    (p.description != null && p.description.Contains(query.search)) ||
+                    (p.barcode != null && p.barcode.Contains(query.search))
                 );
             }
 
-            int pagesCount = (int)Math.Ceiling((decimal)await query.CountAsync() / pageSize);
-
-            var products = await query
-                .OrderByDescending(c => c.ID)
-                .Skip((data.Page - 1) * pageSize)
+            var results = await queryable
+                .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Select(s => new
-                {
-                    s.ID,
-                    s.name,
-                    s.barcode,
-                    s.description,
-                    s.price
-                })
                 .ToListAsync();
 
-            paginate.sizePage = pagesCount;
-            paginate.page = data.Page;
-            paginate.totalPages = pagesCount;
-            paginate.data = products;
-
-            return paginate;
+            // Convertir Product a Products usando cast explícito
+            return results.Select(p => (Products)p);
         }
 
-        public async Task<Products> GetByIdAsync(int productID)
+        public async Task<Products?> GetByIdAsync(int productID)
         {
-            return await _dbcontext.Products.FirstOrDefaultAsync(c => c.ID == productID);
+            var product = await _dbcontext.Products.FirstOrDefaultAsync(c => c.ID == productID);
+            return product != null ? (Products)product : null;
+        }
+
+        public async Task<Products?> UpdateAsync(Products product)
+        {
+            var existingProduct = await _dbcontext.Products.FirstOrDefaultAsync(c => c.ID == product.ID);
+            if (existingProduct != null)
+            {
+                existingProduct.name = product.name;
+                existingProduct.description = product.description;
+                existingProduct.code = product.code;
+                existingProduct.barcode = product.barcode;
+                existingProduct.price = product.price;
+                existingProduct.Brand = product.Brand;
+                existingProduct.Model = product.Model;
+                existingProduct.CategoryId = product.CategoryId;
+                existingProduct.SubcategoryId = product.SubcategoryId;
+                existingProduct.SatCode = product.SatCode;
+                existingProduct.SatUnit = product.SatUnit;
+                existingProduct.BaseCost = product.BaseCost;
+                existingProduct.TaxRate = product.TaxRate;
+                existingProduct.MinimumStock = product.MinimumStock;
+                existingProduct.MaximumStock = product.MaximumStock;
+                existingProduct.ReorderPoint = product.ReorderPoint;
+                existingProduct.Unit = product.Unit;
+                existingProduct.Weight = product.Weight;
+                existingProduct.Length = product.Length;
+                existingProduct.Width = product.Width;
+                existingProduct.Height = product.Height;
+                existingProduct.Color = product.Color;
+                existingProduct.Size = product.Size;
+                existingProduct.IsActive = product.IsActive;
+                existingProduct.IsService = product.IsService;
+                existingProduct.AllowFractionalQuantities = product.AllowFractionalQuantities;
+                existingProduct.TrackSerial = product.TrackSerial;
+                existingProduct.TrackExpiry = product.TrackExpiry;
+                existingProduct.PrimarySupplierId = product.PrimarySupplierId;
+                existingProduct.SupplierCode = product.SupplierCode;
+                existingProduct.UpdatedAt = DateTime.UtcNow;
+                existingProduct.UpdatedByUserId = product.UpdatedByUserId;
+
+                await _dbcontext.SaveChangesAsync();
+                return (Products)existingProduct;
+            }
+            return null;
         }
     }
 }
