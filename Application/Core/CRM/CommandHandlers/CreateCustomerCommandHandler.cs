@@ -24,21 +24,17 @@ namespace Application.Core.CRM.CommandHandlers
         {
             try
             {
-                // ✅ GENERAR CÓDIGO INCREMENTAL ÚNICO
                 var generatedCode = await _codeGenerator.GenerateNextCustomerCodeAsync();
                 
                 Console.WriteLine($"Generated customer code: {generatedCode}");
 
-                // ✅ VALIDACIÓN ADICIONAL DE CÓDIGO ÚNICO (por seguridad)
                 var existingCustomer = await _repository.GetByCodeAsync(generatedCode);
                 if (existingCustomer != null)
                 {
-                    // Si existe, usar método de búsqueda avanzada
                     generatedCode = await _codeGenerator.GetNextAvailableCodeAsync();
                     Console.WriteLine($"Code collision detected, using: {generatedCode}");
                 }
 
-                // ✅ VALIDACIÓN DE PRICELIST (si se proporciona)
                 if (request.CustomerData.PriceListId.HasValue)
                 {
                     if (request.CustomerData.PriceListId.Value <= 0)
@@ -47,13 +43,9 @@ namespace Application.Core.CRM.CommandHandlers
                     }
                 }
 
-                // ✅ Crear entidad Customer con código incremental
                 var customer = new Customer
                 {
-                    // ✅ CÓDIGO INCREMENTAL ÚNICO: CLI001, CLI002, CLI003...
                     Code = generatedCode,
-                    
-                    // Información básica
                     Name = request.CustomerData.Name,
                     LastName = request.CustomerData.LastName,
                     Phone = request.CustomerData.Phone,
@@ -66,9 +58,7 @@ namespace Application.Core.CRM.CommandHandlers
                     StateId = request.CustomerData.StateId,
                     InteriorNumber = request.CustomerData.InteriorNumber,
                     ExteriorNumber = request.CustomerData.ExteriorNumber,
-                    StatusId = request.CustomerData.StatusId,
-                    
-                    // ✅ Campos ERP avanzados
+                    StatusId = request.CustomerData.StatusId,                    
                     CompanyName = request.CustomerData.CompanyName,
                     SatTaxRegime = request.CustomerData.SatTaxRegime,
                     SatCfdiUse = request.CustomerData.SatCfdiUse ?? "G03",
@@ -77,23 +67,19 @@ namespace Application.Core.CRM.CommandHandlers
                     CreditLimit = request.CustomerData.CreditLimit,
                     PaymentTermsDays = request.CustomerData.PaymentTermsDays,
                     IsActive = request.CustomerData.IsActive,
-                    
-                    // Auditoría
-                    CreatedAtOriginal = DateTime.UtcNow,  // Campo original
-                    CreatedAt = DateTime.UtcNow,          // Campo nuevo
+                    CreatedAtOriginal = DateTime.UtcNow,  
+                    CreatedAt = DateTime.UtcNow,          
                     CreatedByUserId = request.CreatedByUserId
                 };
 
-                // ✅ Guardar en la base de datos
                 var createdCustomer = await _repository.CreateAsync(customer);
 
                 Console.WriteLine($"Customer created successfully with ID: {createdCustomer.ID} and Code: {createdCustomer.Code}");
 
-                // Mapear a DTO de respuesta con TODOS los campos
                 var response = new CustomerResponseDto
                 {
                     Id = createdCustomer.ID,
-                    Code = createdCustomer.Code, // ✅ Código incremental generado
+                    Code = createdCustomer.Code, 
                     Name = createdCustomer.Name,
                     LastName = createdCustomer.LastName,
                     Phone = createdCustomer.Phone,
@@ -108,7 +94,6 @@ namespace Application.Core.CRM.CommandHandlers
                     ExteriorNumber = createdCustomer.ExteriorNumber,
                     StatusId = createdCustomer.StatusId,
                     
-                    // ✅ CAMPOS ERP AVANZADOS
                     CompanyName = createdCustomer.CompanyName,
                     SatTaxRegime = createdCustomer.SatTaxRegime,
                     SatCfdiUse = createdCustomer.SatCfdiUse,
@@ -126,12 +111,10 @@ namespace Application.Core.CRM.CommandHandlers
             }
             catch (InvalidOperationException)
             {
-                // Re-lanzar errores de negocio
                 throw;
             }
             catch (Exception ex)
             {
-                // Log y re-lanzar otros errores con más detalle
                 var innerMessage = ex.InnerException?.Message ?? "";
                 var fullMessage = $"Error al crear el cliente: {ex.Message}";
                 

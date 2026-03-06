@@ -1,0 +1,180 @@
+# ?? Endpoints de Permisos por Rol
+
+## ?? Descripción
+
+Endpoints adicionales agregados al `PermissionsController` para consultar permisos de roles de forma directa.
+
+---
+
+## ?? Nuevos Endpoints
+
+### 1?? Obtener Permisos de un Rol
+
+```http
+GET /api/Permissions/role/{roleId}
+Authorization: Bearer {token}
+```
+
+**Ejemplo:**
+```http
+GET http://localhost:7254/api/Permissions/role/1
+Authorization: Bearer {token}
+```
+
+**Respuesta:**
+```json
+{
+  "message": "Permisos del rol obtenidos exitosamente",
+  "error": 0,
+  "data": {
+    "roleId": 1,
+    "roleName": "Administrador",
+    "permissions": [
+      {
+        "id": 1,
+        "name": "Create",
+        "resource": "Customer",
+        "description": "Crear clientes"
+      },
+      {
+        "id": 2,
+        "name": "Read",
+        "resource": "Customer",
+        "description": "Ver clientes"
+      },
+      {
+        "id": 15,
+        "name": "Create",
+        "resource": "Sale",
+        "description": "Crear ventas"
+      }
+    ],
+    "totalPermissions": 77
+  }
+}
+```
+
+---
+
+### 2?? Obtener Todos los Permisos del Sistema
+
+```http
+GET /api/Permissions/all
+Authorization: Bearer {token}
+```
+
+**Ejemplo:**
+```http
+GET http://localhost:7254/api/Permissions/all
+Authorization: Bearer {token}
+```
+
+**Respuesta:**
+```json
+{
+  "message": "Permisos del sistema obtenidos exitosamente",
+  "error": 0,
+  "data": {
+    "permissions": [
+      {
+        "id": 52,
+        "name": "ViewInvoices",
+        "resource": "Billing",
+        "description": "Ver facturas"
+      },
+      {
+        "id": 53,
+        "name": "CreateInvoice",
+        "resource": "Billing",
+        "description": "Crear facturas"
+      },
+      {
+        "id": 63,
+        "name": "ManageGeneral",
+        "resource": "Configuration",
+        "description": "Gestionar configuración general"
+      }
+    ],
+    "totalPermissions": 77
+  }
+}
+```
+
+---
+
+## ?? Resumen de Endpoints de Permisos
+
+### **Permisos por Rol**
+
+| Endpoint | Descripción | Auth |
+|----------|-------------|------|
+| `GET /api/Permissions/role/{roleId}` | Obtener permisos de un rol específico | ? |
+| `GET /api/Permissions/all` | Obtener todos los permisos del sistema | ? |
+
+### **Permisos Basados en Rol (Usuario)**
+
+| Endpoint | Descripción | Auth |
+|----------|-------------|------|
+| `GET /api/Permissions/user/{userId}/role-based` | Permisos del usuario según su rol | ? Permiso |
+| `POST /api/Permissions/user/check-role-based` | Verificar permiso de usuario (Resource + Action) | ? |
+| `GET /api/Permissions/my-permissions` | Permisos del usuario autenticado | ? |
+
+### **Permisos Personalizados (Usuario - Módulos/Submódulos)**
+
+| Endpoint | Descripción | Auth |
+|----------|-------------|------|
+| `POST /api/Permissions/user/save-custom` | Guardar permisos personalizados | ? Permiso |
+| `GET /api/Permissions/user/{userId}/custom` | Obtener permisos personalizados | ? |
+| `POST /api/Permissions/user/check-custom` | Verificar permiso personalizado | ? |
+| `DELETE /api/Permissions/user/{userId}/custom` | Eliminar permisos personalizados | ? Permiso |
+| `GET /api/Permissions/my-custom-permissions` | Permisos personalizados del usuario autenticado | ? |
+
+---
+
+## ?? Casos de Uso
+
+### **Caso 1: Obtener permisos del rol Administrador**
+```sh
+GET http://localhost:7254/api/Permissions/role/1
+Authorization: Bearer {token}
+```
+
+### **Caso 2: Obtener permisos del rol Vendedor**
+```sh
+GET http://localhost:7254/api/Permissions/role/3
+Authorization: Bearer {token}
+```
+
+### **Caso 3: Listar todos los permisos disponibles para un formulario**
+```sh
+GET http://localhost:7254/api/Permissions/all
+Authorization: Bearer {token}
+```
+
+---
+
+## ?? Seguridad
+
+**Autenticación requerida:**
+```
+Authorization: Bearer {token}
+```
+
+**Sin permiso específico:**
+- Solo requiere estar autenticado (`[RequireAuthentication]`)
+
+---
+
+## ? Ventajas
+
+1. **Consulta Directa**: Obtener permisos de un rol sin pasar por el endpoint de roles
+2. **Listar Permisos**: Ver todos los permisos disponibles del sistema
+3. **Simplicidad**: Endpoint directo y simple para consumir desde frontend
+4. **Performance**: Consulta optimizada con `Include` de EF Core
+
+---
+
+**? Endpoint Implementado**  
+**?? Ruta:** `GET /api/Permissions/role/{roleId}`  
+**?? Controller:** `PermissionsController`  
+**??? Tablas:** `Roles`, `RolePermissions`, `Permissions`

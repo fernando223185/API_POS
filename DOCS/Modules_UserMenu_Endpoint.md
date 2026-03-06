@@ -1,0 +1,463 @@
+# ?? **Endpoint: GET /api/Modules/user/{userId}/menu**
+
+## ?? **Descripción**
+
+Obtiene el menú personalizado del usuario basado en sus permisos combinados (ROL + Personalizados).
+
+---
+
+## ?? **Sistema de Permisos UNIFICADO**
+
+El endpoint combina automáticamente:
+
+1. **Permisos del ROL** (tabla `RoleModulePermissions`)
+2. **Permisos PERSONALIZADOS del usuario** (tabla `UserModulePermissions`)
+
+**Prioridad:** Los permisos personalizados del usuario tienen **prioridad** sobre los del rol.
+
+---
+
+## ?? **Ejemplo de Request**
+
+```
+GET http://localhost:7254/api/Modules/user/1/menu
+Authorization: Bearer {token}
+```
+
+---
+
+## ? **Ejemplo de Response**
+
+```json
+{
+  "message": "Menú obtenido exitosamente",
+  "error": 0,
+  "userId": 1,
+  "userName": "admin",
+  "roleName": "Administrador",
+  "menuItems": [
+    {
+      "id": 1,
+      "name": "Inicio",
+      "description": "Panel principal y dashboard del sistema",
+      "path": "/dashboard",
+      "icon": "faHome",
+      "order": 1,
+      "hasAccess": true,
+      "submodules": []
+    },
+    {
+      "id": 2,
+      "name": "Ventas",
+      "description": "Gestión de ventas, cotizaciones y devoluciones",
+      "path": "/sales",
+      "icon": "faShoppingCart",
+      "order": 2,
+      "hasAccess": true,
+      "submodules": [
+        {
+          "id": 21,
+          "name": "Nueva Venta",
+          "description": "Crear ticket y capturar productos",
+          "path": "/sales/new",
+          "icon": "faPlus",
+          "order": 1,
+          "color": "from-emerald-500 to-teal-600",
+          "hasAccess": true,
+          "permissions": {
+            "canView": true,
+            "canCreate": true,
+            "canEdit": true,
+            "canDelete": false
+          },
+          "source": "role"
+        },
+        {
+          "id": 22,
+          "name": "Historial de Ventas",
+          "description": "Ventas recientes y filtros",
+          "path": "/sales/history",
+          "icon": "faHistory",
+          "order": 2,
+          "color": "from-sky-500 to-blue-600",
+          "hasAccess": true,
+          "permissions": {
+            "canView": true,
+            "canCreate": false,
+            "canEdit": false,
+            "canDelete": false
+          },
+          "source": "role"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Productos",
+      "description": "Catálogo de productos, categorías y precios",
+      "path": "/products",
+      "icon": "faBoxOpen",
+      "order": 3,
+      "hasAccess": true,
+      "submodules": [
+        {
+          "id": 31,
+          "name": "Catálogo de Productos",
+          "description": "Ver, buscar y gestionar productos",
+          "path": "/products/catalog",
+          "icon": "faList",
+          "order": 1,
+          "color": "from-blue-500 to-indigo-600",
+          "hasAccess": true,
+          "permissions": {
+            "canView": true,
+            "canCreate": false,
+            "canEdit": false,
+            "canDelete": false
+          },
+          "source": "role"
+        },
+        {
+          "id": 32,
+          "name": "Nuevo Producto",
+          "description": "Alta rápida con códigos y precios",
+          "path": "/products/new",
+          "icon": "faPlus",
+          "order": 2,
+          "color": "from-emerald-500 to-teal-600",
+          "hasAccess": true,
+          "permissions": {
+            "canView": true,
+            "canCreate": true,
+            "canEdit": false,
+            "canDelete": false
+          },
+          "source": "user"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "CFDI",
+      "description": "Facturación electrónica y timbrado SAT",
+      "path": "/billing",
+      "icon": "faFileInvoice",
+      "order": 6,
+      "hasAccess": true,
+      "submodules": [
+        {
+          "id": 62,
+          "name": "Facturas Emitidas",
+          "description": "Listado de todas las facturas",
+          "path": "/billing/invoices",
+          "icon": "faFileInvoice",
+          "order": 2,
+          "color": "from-sky-500 to-indigo-600",
+          "hasAccess": true,
+          "permissions": {
+            "canView": true,
+            "canCreate": false,
+            "canEdit": false,
+            "canDelete": false
+          },
+          "source": "user"
+        }
+      ]
+    }
+  ],
+  "totalModules": 4,
+  "totalSubmodules": 5
+}
+```
+
+---
+
+## ?? **Estructura de Permisos**
+
+### **Campo `source`:**
+- `"role"` - El permiso viene del **ROL** del usuario
+- `"user"` - El permiso es **PERSONALIZADO** del usuario (tiene prioridad)
+
+### **Campo `permissions`:**
+- `canView` - Puede ver/leer
+- `canCreate` - Puede crear
+- `canEdit` - Puede editar
+- `canDelete` - Puede eliminar
+
+---
+
+## ?? **Lógica de Combinación**
+
+```javascript
+// Pseudocódigo
+for each module:
+    rolePermissions = RoleModulePermissions.find(roleId, moduleId)
+    userPermissions = UserModulePermissions.find(userId, moduleId)
+    
+    for each submodule:
+        roleSubPermission = RoleModulePermissions.find(roleId, moduleId, submoduleId)
+        userSubPermission = UserModulePermissions.find(userId, moduleId, submoduleId)
+        
+        // Los permisos del usuario tienen PRIORIDAD
+        finalPermissions = userSubPermission ?? roleSubPermission
+```
+
+---
+
+## ?? **Ejemplo de Escenario**
+
+### **Usuario: Juan (userId: 7, roleId: 3 - Vendedor)**
+
+#### **Permisos del ROL "Vendedor":**
+```json
+{
+  "moduleId": 2,
+  "moduleName": "Ventas",
+  "submodules": [
+    {
+      "submoduleId": 21,
+      "submoduleName": "Nueva Venta",
+      "canView": true,
+      "canCreate": true,
+      "canEdit": false,
+      "canDelete": false
+    },
+    {
+      "submoduleId": 22,
+      "submoduleName": "Historial de Ventas",
+      "canView": true,
+      "canCreate": false,
+      "canEdit": false,
+      "canDelete": false
+    }
+  ]
+}
+```
+
+#### **Permisos PERSONALIZADOS de Juan:**
+```json
+{
+  "userId": 7,
+  "modules": [
+    {
+      "moduleId": 6,
+      "moduleName": "CFDI",
+      "submodules": [
+        {
+          "submoduleId": 62,
+          "submoduleName": "Facturas Emitidas",
+          "canView": true,
+          "canCreate": false,
+          "canEdit": false,
+          "canDelete": false
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### **Menú Final de Juan:**
+```json
+{
+  "menuItems": [
+    {
+      "id": 2,
+      "name": "Ventas",
+      "submodules": [
+        {
+          "id": 21,
+          "name": "Nueva Venta",
+          "permissions": { "canView": true, "canCreate": true },
+          "source": "role"
+        },
+        {
+          "id": 22,
+          "name": "Historial de Ventas",
+          "permissions": { "canView": true },
+          "source": "role"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "CFDI",
+      "submodules": [
+        {
+          "id": 62,
+          "name": "Facturas Emitidas",
+          "permissions": { "canView": true },
+          "source": "user"
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## ?? **Seguridad**
+
+- ? Requiere autenticación (`[RequireAuthentication]`)
+- ? Solo puedes ver tu propio menú (o si eres administrador)
+- ? Filtra módulos/submódulos sin acceso
+- ? Combina permisos de rol + personalizados
+
+---
+
+## ?? **Otros Endpoints Disponibles**
+
+### **1. Obtener todos los módulos del sistema:**
+```
+GET /api/Modules
+Authorization: Bearer {token}
+```
+
+**Response:**
+```json
+{
+  "message": "Módulos obtenidos exitosamente",
+  "error": 0,
+  "modules": [
+    {
+      "id": 1,
+      "name": "Inicio",
+      "description": "Panel principal y dashboard del sistema",
+      "path": "/dashboard",
+      "icon": "faHome",
+      "order": 1,
+      "isActive": true,
+      "submodules": []
+    },
+    {
+      "id": 2,
+      "name": "Ventas",
+      "description": "Gestión de ventas, cotizaciones y devoluciones",
+      "path": "/sales",
+      "icon": "faShoppingCart",
+      "order": 2,
+      "isActive": true,
+      "submodules": [
+        {
+          "id": 21,
+          "name": "Nueva Venta",
+          "description": "Crear ticket y capturar productos",
+          "path": "/sales/new",
+          "icon": "faPlus",
+          "order": 1,
+          "color": "from-emerald-500 to-teal-600",
+          "isActive": true
+        }
+      ]
+    }
+  ],
+  "totalModules": 8,
+  "totalSubmodules": 30
+}
+```
+
+### **2. Obtener un módulo específico:**
+```
+GET /api/Modules/2
+Authorization: Bearer {token}
+```
+
+**Response:**
+```json
+{
+  "message": "Módulo obtenido exitosamente",
+  "error": 0,
+  "data": {
+    "id": 2,
+    "name": "Ventas",
+    "description": "Gestión de ventas, cotizaciones y devoluciones",
+    "path": "/sales",
+    "icon": "faShoppingCart",
+    "order": 2,
+    "isActive": true,
+    "submodules": [...]
+  }
+}
+```
+
+---
+
+## ? **Uso en Frontend (React)**
+
+```javascript
+// Obtener menú del usuario autenticado
+const getUserMenu = async (userId, token) => {
+  const response = await fetch(`http://localhost:7254/api/Modules/user/${userId}/menu`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  const data = await response.json();
+  
+  if (data.error === 0) {
+    // Construir menú dinámico
+    data.menuItems.forEach(module => {
+      console.log(`Módulo: ${module.name}`);
+      
+      module.submodules.forEach(sub => {
+        console.log(`  - ${sub.name}`);
+        console.log(`    Permisos: View=${sub.permissions.canView}, Create=${sub.permissions.canCreate}`);
+        console.log(`    Fuente: ${sub.source}`);
+      });
+    });
+  }
+};
+
+// Renderizar menú en React
+const renderMenu = (menuItems) => {
+  return menuItems.map(module => (
+    <MenuItem key={module.id} icon={module.icon} path={module.path}>
+      {module.name}
+      <Submenu>
+        {module.submodules.map(sub => (
+          <SubMenuItem 
+            key={sub.id}
+            path={sub.path}
+            permissions={sub.permissions}
+          >
+            {sub.name}
+          </SubMenuItem>
+        ))}
+      </Submenu>
+    </MenuItem>
+  ));
+};
+
+// Verificar permiso específico
+const canCreateSale = (menuItems) => {
+  const salesModule = menuItems.find(m => m.id === 2);
+  const newSaleSubmenu = salesModule?.submodules.find(s => s.id === 21);
+  return newSaleSubmenu?.permissions.canCreate ?? false;
+};
+```
+
+---
+
+## ?? **Códigos de Error**
+
+| Error | Mensaje | Descripción |
+|-------|---------|-------------|
+| 0 | Success | Menú obtenido exitosamente |
+| 1 | Not Found | Usuario no encontrado o inactivo |
+| 2 | Internal Error | Error del servidor |
+| 403 | Forbidden | No tienes permiso para ver este menú |
+
+---
+
+## ?? **Resumen**
+
+? **Endpoint:** `GET /api/Modules/user/{userId}/menu`  
+? **Sistema:** UNIFICADO (combina ROL + Personalizados)  
+? **Prioridad:** Permisos de usuario > Permisos de rol  
+? **Seguridad:** Solo tu propio menú o administrador  
+? **Response:** Menú filtrado con permisos granulares  
+
+**¡El endpoint está listo para construir menús dinámicos en tu frontend!** ??

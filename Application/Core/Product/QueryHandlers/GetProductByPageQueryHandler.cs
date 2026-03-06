@@ -1,11 +1,11 @@
 ﻿using Application.Abstractions.Catalogue;
 using Application.Core.Product.Queries;
-using Domain.DTOs;
+using Application.DTOs.Product;
 using MediatR;
 
 namespace Application.Core.Product.QueryHandlers
 {
-    public class GetProductByPageQueryHandler : IRequestHandler<GetProductByPageQuery, PaginatedDto>
+    public class GetProductByPageQueryHandler : IRequestHandler<GetProductByPageQuery, GetProductsPagedResponseDto>
     {
         private readonly IProductRepository _repository;
 
@@ -14,26 +14,89 @@ namespace Application.Core.Product.QueryHandlers
             _repository = repository;
         }
 
-        public async Task<PaginatedDto> Handle(GetProductByPageQuery request, CancellationToken cancellationToken)
+        public async Task<GetProductsPagedResponseDto> Handle(GetProductByPageQuery request, CancellationToken cancellationToken)
         {
-            // Convertir de GetProductByPageQuery a ProductPageQuery
-            var repoQuery = new ProductPageQuery
+            try
             {
-                Size = 10, // Tamaño fijo por defecto
-                Nro = request.Page, // Usar Page como número de página
-                search = request.search
-            };
+                // Convertir de GetProductByPageQuery a ProductPageQuery
+                var repoQuery = new ProductPageQuery
+                {
+                    Size = request.PageSize,
+                    Nro = request.Page,
+                    search = request.Search,
+                    CategoryId = request.CategoryId,
+                    IsActive = request.IsActive,
+                    SortBy = request.SortBy,
+                    SortOrder = request.SortOrder
+                };
 
-            var products = await _repository.GetByPageAsync(repoQuery);
-            var productsList = products.ToList();
+                // Obtener productos con conteo total
+                var (products, totalCount) = await _repository.GetPagedWithCountAsync(repoQuery);
+                var productsList = products.ToList();
 
-            return new PaginatedDto
+                // Mapear a ProductTableDto
+                var mappedProducts = productsList.Select(p => new ProductTableDto
+                {
+                    ID = p.ID,
+                    Code = p.code,
+                    Name = p.name,
+                    Brand = p.Brand,
+                    Model = p.Model,
+                    CategoryName = p.Category?.Name,
+                    Price = p.price,
+                    BaseCost = p.BaseCost,
+                    MinimumStock = p.MinimumStock,
+                    MaximumStock = p.MaximumStock,
+                    Location = p.Location,
+                    IsActive = p.IsActive,
+                    CreatedAt = p.CreatedAt,
+                    ABCClassification = p.ABCClassification,
+                    VelocityCode = p.VelocityCode,
+                    LastSaleDate = p.LastSaleDate,
+                    TotalSalesQuantity = p.TotalSalesQuantity
+                }).ToList();
+
+                // Obtener estadísticas
+                var (totalProducts, activeProducts, inactiveProducts, totalValue, lowStockProducts) = 
+                    await _repository.GetStatisticsAsync();
+
+                // Obtener top categorías usando el repositorio
+                var topCategories = await _repository.GetTopCategoriesAsync(5);
+
+                return new GetProductsPagedResponseDto
+                {
+                    Message = "Productos obtenidos exitosamente",
+                    Error = 0,
+                    Data = mappedProducts,
+                    Pagination = new PaginationMetadata
+                    {
+                        Page = request.Page,
+                        PageSize = request.PageSize,
+                        TotalItems = totalCount
+                    },
+                    Statistics = new ProductsStatistics
+                    {
+                        TotalProducts = totalProducts,
+                        ActiveProducts = activeProducts,
+                        InactiveProducts = inactiveProducts,
+                        TotalValue = totalValue,
+                        LowStockProducts = lowStockProducts,
+                        OutOfStockProducts = await _repository.GetOutOfStockCountAsync(),
+                        TopCategories = topCategories
+                    }
+                };
+            }
+            catch (Exception ex)
             {
-                page = request.Page,
-                totalPages = (int)Math.Ceiling((double)productsList.Count / 10), // Calcular páginas
-                sizePage = 10,
-                data = productsList
-            };
+                return new GetProductsPagedResponseDto
+                {
+                    Message = $"Error al obtener productos: {ex.Message}",
+                    Error = 2,
+                    Data = new List<ProductTableDto>(),
+                    Pagination = new PaginationMetadata(),
+                    Statistics = new ProductsStatistics()
+                };
+            }
         }
     }
 }

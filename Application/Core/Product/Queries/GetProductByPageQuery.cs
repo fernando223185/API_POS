@@ -1,18 +1,24 @@
-﻿using Domain.DTOs;
+﻿using Application.DTOs.Product;
 using MediatR;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Application.Core.Product.Queries
 {
-    public class GetProductByPageQuery : IRequest<PaginatedDto>
+    public class GetProductByPageQuery : IRequest<GetProductsPagedResponseDto>
     {
         [Required]
-        public int Page { get; set; }
-        public string? search { get; set; }
+        public int Page { get; set; } = 1;
+        
+        public int PageSize { get; set; } = 50;
+        
+        public string? Search { get; set; }
+        
+        public int? CategoryId { get; set; }
+        
+        public bool? IsActive { get; set; } = true;
+        
+        public string? SortBy { get; set; } = "name"; // name, price, createdAt, code
+        
+        public string? SortOrder { get; set; } = "asc"; // asc, desc
     }
 }

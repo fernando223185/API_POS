@@ -1,4 +1,5 @@
 ﻿using Domain.Entities;
+using Application.DTOs.Product;
 
 namespace Application.Abstractions.Catalogue
 {
@@ -10,13 +11,24 @@ namespace Application.Abstractions.Catalogue
         Task<bool> DeleteAsync(int productID);
         Task<Products?> GetByIdAsync(int productID);
         Task<IEnumerable<Products>> GetByPageAsync(ProductPageQuery query);
+        
+        // ✅ NUEVOS MÉTODOS PARA PAGINACIÓN AVANZADA
+        Task<int> GetTotalCountAsync(ProductPageQuery query);
+        Task<(IEnumerable<Products> Products, int TotalCount)> GetPagedWithCountAsync(ProductPageQuery query);
+        Task<(int Total, int Active, int Inactive, decimal TotalValue, int LowStock)> GetStatisticsAsync();
+        Task<List<CategoryStats>> GetTopCategoriesAsync(int count = 5);
+        Task<int> GetOutOfStockCountAsync();
     }
 
-    // Clase para query de paginación
+    // Clase para query de paginación mejorada
     public class ProductPageQuery
     {
         public int? Size { get; set; } = 10;
         public int? Nro { get; set; } = 1;
         public string? search { get; set; }
+        public int? CategoryId { get; set; }
+        public bool? IsActive { get; set; }
+        public string? SortBy { get; set; } = "name";
+        public string? SortOrder { get; set; } = "asc";
     }
 }

@@ -16,9 +16,14 @@ namespace Infrastructure.Persistence
         public DbSet<Sales> Sales { get; set; }
         public DbSet<User> User { get; set; }
         public DbSet<Role> Roles { get; set; }
-        public DbSet<Module> Modules { get; set; }
-        public DbSet<Permission> Permissions { get; set; }
-        public DbSet<RolePermission> RolePermissions { get; set; }
+        
+        // ✅ SISTEMA UNIFICADO DE PERMISOS (Módulos/Submódulos)
+        public DbSet<UserModulePermission> UserModulePermissions { get; set; }
+        public DbSet<RoleModulePermission> RoleModulePermissions { get; set; }
+
+        // ✅ DEFINICIONES DE MÓDULOS Y SUBMÓDULOS DEL SISTEMA
+        public DbSet<SystemModule> SystemModules { get; set; }
+        public DbSet<SystemSubmodule> SystemSubmodules { get; set; }
 
         // Nuevas entidades de productos y precios
         public DbSet<ProductCategory> ProductCategories { get; set; }
@@ -114,22 +119,63 @@ namespace Infrastructure.Persistence
                 .WithMany(r => r.Users)
                 .HasForeignKey(u => u.RoleId);
 
-            // Configurar relación Module -> Permission
-            modelBuilder.Entity<Permission>()
-                .HasOne(p => p.Module)
-                .WithMany(m => m.Permissions)
-                .HasForeignKey(p => p.ModuleId);
+            // ✅ CONFIGURACIÓN DE PERMISOS DE USUARIO POR MÓDULO/SUBMÓDULO
+            modelBuilder.Entity<UserModulePermission>(entity =>
+            {
+                entity.HasKey(ump => ump.Id);
+                
+                entity.HasOne(ump => ump.User)
+                    .WithMany()
+                    .HasForeignKey(ump => ump.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-            // Configurar relación Role -> RolePermission -> Permission
-            modelBuilder.Entity<RolePermission>()
-                .HasOne(rp => rp.Role)
-                .WithMany(r => r.RolePermissions)
-                .HasForeignKey(rp => rp.RoleId);
+                // Índice único para evitar duplicados (userId + moduleId + submoduleId)
+                entity.HasIndex(ump => new { ump.UserId, ump.ModuleId, ump.SubmoduleId })
+                    .IsUnique();
+                
+                entity.HasIndex(ump => ump.UserId);
+                entity.HasIndex(ump => ump.ModuleId);
+            });
 
-            modelBuilder.Entity<RolePermission>()
-                .HasOne(rp => rp.Permission)
-                .WithMany()
-                .HasForeignKey(rp => rp.PermissionId);
+            // ✅ CONFIGURACIÓN DE PERMISOS DE ROL POR MÓDULO/SUBMÓDULO (NUEVO - UNIFICADO)
+            modelBuilder.Entity<RoleModulePermission>(entity =>
+            {
+                entity.HasKey(rmp => rmp.Id);
+                
+                entity.HasOne(rmp => rmp.Role)
+                    .WithMany()
+                    .HasForeignKey(rmp => rmp.RoleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Índice único para evitar duplicados (roleId + moduleId + submoduleId)
+                entity.HasIndex(rmp => new { rmp.RoleId, rmp.ModuleId, rmp.SubmoduleId })
+                    .IsUnique();
+                
+                entity.HasIndex(rmp => rmp.RoleId);
+                entity.HasIndex(rmp => rmp.ModuleId);
+            });
+
+            // ✅ CONFIGURACIÓN DE MÓDULOS Y SUBMÓDULOS DEL SISTEMA
+            modelBuilder.Entity<SystemModule>(entity =>
+            {
+                entity.HasKey(sm => sm.Id);
+                entity.HasIndex(sm => sm.Order);
+                entity.HasIndex(sm => sm.IsActive);
+            });
+
+            modelBuilder.Entity<SystemSubmodule>(entity =>
+            {
+                entity.HasKey(ss => ss.Id);
+                
+                entity.HasOne(ss => ss.Module)
+                    .WithMany(sm => sm.Submodules)
+                    .HasForeignKey(ss => ss.ModuleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                
+                entity.HasIndex(ss => ss.ModuleId);
+                entity.HasIndex(ss => ss.Order);
+                entity.HasIndex(ss => ss.IsActive);
+            });
 
             // ✅ CONFIGURACIÓN DE PRICE LIST
             modelBuilder.Entity<PriceList>(entity =>

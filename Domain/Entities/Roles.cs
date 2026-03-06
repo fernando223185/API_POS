@@ -4,6 +4,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Domain.Entities
 {
+    /// <summary>
+    /// Entidad de Rol del sistema
+    /// Sistema UNIFICADO - Usa RoleModulePermissions
+    /// </summary>
     public class Role
     {
         [Key]
@@ -20,7 +24,7 @@ namespace Domain.Entities
         [Required]
         public bool IsActive { get; set; } = true;
 
-        public ICollection<User> Users { get; set; } = new List<User>();  // Relación con usuarios
-        public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>(); // Relación con permisos
+        // ✅ Relaciones
+        public ICollection<User> Users { get; set; } = new List<User>();  // Usuarios con este rol
     }
 }

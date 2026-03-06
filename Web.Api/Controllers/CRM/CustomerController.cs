@@ -1,4 +1,5 @@
 ﻿using Application.Core.CRM.Commands;
+using Application.Core.CRM.Queries;
 using Application.DTOs.Customer;
 using Application.Common.Services;
 using MediatR;
@@ -114,32 +115,76 @@ namespace Web.Api.Controllers.CRM
             }
         }
 
+        /// <summary>
+        /// Obtener clientes con paginación, filtros y ordenamiento avanzado
+        /// Optimizado para tablas de frontend con toda la información necesaria
+        /// </summary>
+        /// <param name="page">Número de página (inicia en 1)</param>
+        /// <param name="pageSize">Tamaño de página (máximo 100)</param>
+        /// <param name="searchTerm">Término de búsqueda (nombre, código, email, RFC, empresa)</param>
+        /// <param name="sortBy">Campo para ordenar: name, code, email, company, created_at, status</param>
+        /// <param name="sortDirection">Dirección: asc o desc</param>
+        /// <param name="isActive">Filtro por estado activo: true/false</param>
+        /// <param name="statusId">Filtro por ID de estado</param>
+        /// <param name="priceListId">Filtro por lista de precios</param>
+        /// <returns>Datos paginados optimizados para tabla de clientes</returns>
         [HttpGet]
         [RequirePermission("Customer", "ViewList")]
-        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int page = 1, 
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? searchTerm = null,
+            [FromQuery] string? sortBy = "name",
+            [FromQuery] string? sortDirection = "asc",
+            [FromQuery] bool? isActive = null,
+            [FromQuery] int? statusId = null,
+            [FromQuery] int? priceListId = null)
         {
             try
             {
-                // Simular datos de clientes (implementar lógica real después)
-                var customers = new[] {
-                    new { id = 1, name = "Cliente 1", code = "CLI001", email = "cliente1@email.com", active = true },
-                    new { id = 2, name = "Cliente 2", code = "CLI002", email = "cliente2@email.com", active = true }
+                Console.WriteLine($"CustomerController.GetAll - Page: {page}, PageSize: {pageSize}, Search: '{searchTerm}'");
+
+                // Crear query con validaciones
+                var query = new GetCustomersPagedQuery
+                {
+                    Page = Math.Max(1, page),
+                    PageSize = Math.Min(100, Math.Max(1, pageSize)),
+                    SearchTerm = searchTerm,
+                    SortBy = sortBy ?? "name",
+                    SortDirection = sortDirection ?? "asc",
+                    IsActive = isActive,
+                    StatusId = statusId,
+                    PriceListId = priceListId
                 };
+
+                // Ejecutar query a través de MediatR
+                var result = await _mediator.Send(query);
                 
-                return Ok(new { 
-                    message = "Customers retrieved successfully", 
+                return Ok(new 
+                { 
+                    message = "Clientes obtenidos exitosamente", 
                     error = 0, 
-                    data = customers,
-                    pagination = new {
-                        page,
-                        pageSize,
-                        totalItems = customers.Length
+                    data = result.Customers,
+                    pagination = result.Pagination,
+                    filters = result.Filters,
+                    summary = new {
+                        totalItems = result.Pagination.TotalItems,
+                        currentPage = result.Pagination.CurrentPage,
+                        totalPages = result.Pagination.TotalPages,
+                        pageSize = result.Pagination.PageSize,
+                        hasMore = result.Pagination.HasNextPage,
+                        activeFilters = result.Filters.ActiveFiltersCount
                     }
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                Console.WriteLine($"Error in CustomerController.GetAll: {ex.Message}");
+                return StatusCode(500, new { 
+                    message = "Error al obtener clientes", 
+                    error = 2, 
+                    details = ex.Message 
+                });
             }
         }
 
@@ -215,40 +260,34 @@ namespace Web.Api.Controllers.CRM
             }
         }
 
+        /// <summary>
+        /// Búsqueda de clientes (método alternativo para compatibilidad)
+        /// Redirige a GetAll con parámetros de búsqueda
+        /// </summary>
         [HttpGet("search")]
         [RequirePermission("Customer", "ViewList")]
-        public async Task<IActionResult> Search([FromQuery] string term, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> Search(
+            [FromQuery] string term, 
+            [FromQuery] int page = 1, 
+            [FromQuery] int pageSize = 10)
         {
             try
             {
-                if (string.IsNullOrEmpty(term))
+                if (string.IsNullOrWhiteSpace(term))
                 {
-                    return BadRequest(new { message = "Search term is required", error = 1 });
+                    return BadRequest(new { message = "Término de búsqueda requerido", error = 1 });
                 }
 
-                // Simular búsqueda de clientes
-                var customers = new[] {
-                    new { id = 1, name = "Cliente 1", code = "CLI001", email = "cliente1@email.com" },
-                    new { id = 2, name = "Cliente 2", code = "CLI002", email = "cliente2@email.com" }
-                };
-
-                var filteredResult = customers.Where(c => 
-                    c.name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                    c.code.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                    c.email.Contains(term, StringComparison.OrdinalIgnoreCase)
-                );
-                
-                return Ok(new { 
-                    message = "Search completed successfully", 
-                    error = 0, 
-                    searchTerm = term,
-                    data = filteredResult,
-                    totalResults = filteredResult.Count()
-                });
+                // Redirigir a GetAll con término de búsqueda
+                return await GetAll(page, pageSize, term);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                return StatusCode(500, new { 
+                    message = "Error en búsqueda", 
+                    error = 2, 
+                    details = ex.Message 
+                });
             }
         }
     }

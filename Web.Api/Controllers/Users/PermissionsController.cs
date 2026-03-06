@@ -1,119 +1,284 @@
 using Application.Abstractions.Authorization;
+using Application.Core.Authorization.Commands;
+using Application.Core.Authorization.Queries;
+using Application.DTOs.UserPermissions;
+using Infrastructure.Persistence;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Web.Api.Authorization;
 
 namespace Web.Api.Controllers.Users
 {
+    /// <summary>
+    /// Controlador unificado para gestión de permisos
+    /// - Permisos por ROL (sistema antiguo: Permission/RolePermission)
+    /// - Permisos personalizados por USUARIO (sistema nuevo: UserModulePermission)
+    /// </summary>
     [Route("api/[controller]")]
     [ApiController]
     public class PermissionsController : ControllerBase
     {
+        private readonly IMediator _mediator;
         private readonly IPermissionService _permissionService;
+        private readonly POSDbContext _context;
 
-        public PermissionsController(IPermissionService permissionService)
+        public PermissionsController(IMediator mediator, IPermissionService permissionService, POSDbContext context)
         {
+            _mediator = mediator;
             _permissionService = permissionService;
+            _context = context;
         }
 
-        [HttpGet("user/{userId}")]
-        [RequirePermission("Configuration", "ManagePermissions")] // Solo admin puede ver permisos de usuarios
-        public async Task<IActionResult> GetUserPermissions(int userId)
+        #region ?? PERMISOS PERSONALIZADOS POR USUARIO (Sistema Nuevo - UserModulePermission)
+
+        /// <summary>
+        /// ?? Guardar permisos personalizados de usuario por módulos/submódulos
+        /// Sistema NUEVO con control granular (View, Create, Edit, Delete)
+        /// </summary>
+        [HttpPost("user/save-custom")]
+        [RequirePermission("Configuration", "ManagePermissions")]
+        public async Task<IActionResult> SaveUserCustomPermissions([FromBody] SaveUserPermissionsRequestDto request)
         {
             try
             {
-                var permissions = await _permissionService.GetUserPermissionsAsync(userId);
-                
-                return Ok(new 
-                { 
-                    message = "User permissions retrieved successfully",
-                    error = 0,
-                    userId = userId,
-                    permissions = permissions.Select(p => new {
-                        p.Id,
-                        p.Name,
-                        p.Resource,
-                        p.Description,
-                        Module = p.Module.Name
-                    }).ToArray()
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
-            }
-        }
+                var requestingUserId = HttpContext.Items["UserId"] as int? ?? 0;
 
-        [HttpPost("check")]
-        [RequireAuthentication] // Solo requiere estar autenticado
-        public async Task<IActionResult> CheckPermission([FromBody] CheckPermissionRequest request)
-        {
-            try
-            {
-                // Si no especifica userId, usar el del token JWT
-                var userId = request.UserId;
-                if (userId == 0)
+                if (requestingUserId == 0)
                 {
-                    userId = HttpContext.Items["UserId"] as int? ?? 0;
+                    return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
                 }
 
-                var hasPermission = await _permissionService.HasPermissionAsync(userId, request.Resource, request.Action);
-                
-                return Ok(new 
-                { 
-                    message = "Permission checked successfully",
-                    error = 0,
-                    userId = userId,
-                    resource = request.Resource,
-                    action = request.Action,
-                    hasPermission = hasPermission
-                });
+                Console.WriteLine($"?? Guardando permisos personalizados para usuario {request.UserId} por usuario {requestingUserId}");
+
+                var command = new SaveUserPermissionsCommand(request, requestingUserId);
+                var result = await _mediator.Send(command);
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                Console.WriteLine($"? Error al guardar permisos personalizados: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al guardar permisos personalizados",
+                    error = 2,
+                    details = ex.Message
+                });
             }
         }
 
-        [HttpGet("my-permissions")]
-        [RequireAuthentication] // Ver propios permisos
-        public async Task<IActionResult> GetMyPermissions()
+        /// <summary>
+        /// ?? Obtener permisos personalizados de usuario (módulos/submódulos con acciones)
+        /// Sistema NUEVO
+        /// </summary>
+        [HttpGet("user/{userId}/custom")]
+        [RequireAuthentication]
+        public async Task<IActionResult> GetUserCustomPermissions(int userId)
         {
             try
             {
-                var userId = HttpContext.Items["UserId"] as int? ?? 0;
-                
-                if (userId == 0)
+                var currentUserId = HttpContext.Items["UserId"] as int? ?? 0;
+                var roleId = HttpContext.Items["RoleId"] as int? ?? 0;
+
+                // Solo puede ver sus propios permisos o si es administrador
+                if (currentUserId != userId && roleId != 1)
                 {
-                    return Unauthorized(new { message = "User not found in token", error = 1 });
+                    return Forbid();
                 }
 
-                var permissions = await _permissionService.GetUserPermissionsAsync(userId);
-                
-                return Ok(new 
-                { 
-                    message = "Your permissions retrieved successfully",
+                Console.WriteLine($"?? Obteniendo permisos personalizados de usuario {userId}");
+
+                var query = new GetUserPermissionsQuery(userId);
+                var result = await _mediator.Send(query);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Error al obtener permisos personalizados: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al obtener permisos personalizados",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// ? Verificar si un usuario tiene un permiso específico en módulo/submódulo
+        /// Sistema NUEVO
+        /// </summary>
+        [HttpPost("user/check-custom")]
+        [RequireAuthentication]
+        public async Task<IActionResult> CheckUserCustomPermission([FromBody] CheckUserPermissionRequestDto request)
+        {
+            try
+            {
+                var currentUserId = HttpContext.Items["UserId"] as int? ?? 0;
+
+                // Si no especifica userId, usar el del token
+                if (request.UserId == 0)
+                {
+                    request.UserId = currentUserId;
+                }
+
+                Console.WriteLine($"?? Verificando permiso personalizado: Usuario={request.UserId}, Módulo={request.ModuleId}, Submódulo={request.SubmoduleId}, Acción={request.Action}");
+
+                var query = new CheckUserPermissionQuery(
+                    request.UserId,
+                    request.ModuleId,
+                    request.SubmoduleId,
+                    request.Action
+                );
+
+                var result = await _mediator.Send(query);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Error al verificar permiso personalizado: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al verificar permiso personalizado",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// ??? Eliminar todos los permisos personalizados de un usuario
+        /// Sistema NUEVO
+        /// </summary>
+        [HttpDelete("user/{userId}/custom")]
+        [RequirePermission("Configuration", "ManagePermissions")]
+        public async Task<IActionResult> DeleteUserCustomPermissions(int userId)
+        {
+            try
+            {
+                var requestingUserId = HttpContext.Items["UserId"] as int? ?? 0;
+
+                if (requestingUserId == 0)
+                {
+                    return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
+                }
+
+                Console.WriteLine($"??? Eliminando permisos personalizados del usuario {userId}");
+
+                // Guardar array vacío equivale a eliminar permisos
+                var command = new SaveUserPermissionsCommand(
+                    new SaveUserPermissionsRequestDto { UserId = userId, Modules = new List<UserModulePermissionItemDto>() },
+                    requestingUserId
+                );
+
+                await _mediator.Send(command);
+
+                return Ok(new
+                {
+                    message = "Permisos personalizados eliminados exitosamente",
                     error = 0,
-                    userId = userId,
-                    permissions = permissions.Select(p => new {
-                        p.Id,
-                        p.Name,
-                        p.Resource,
-                        p.Description,
-                        Module = p.Module.Name
-                    }).ToArray()
+                    userId = userId
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                Console.WriteLine($"? Error al eliminar permisos personalizados: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al eliminar permisos personalizados",
+                    error = 2,
+                    details = ex.Message
+                });
             }
         }
+
+        #endregion
+
+        #region ?? PERMISOS POR ROL (Consultas directas)
+
+        /// <summary>
+        /// ?? Obtener todos los permisos de un rol específico (NUEVO SISTEMA)
+        /// </summary>
+        [HttpGet("role/{roleId}")]
+        [RequireAuthentication]
+        public async Task<IActionResult> GetRolePermissions(int roleId)
+        {
+            try
+            {
+                var role = await _context.Roles
+                    .FirstOrDefaultAsync(r => r.Id == roleId);
+
+                if (role == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Rol no encontrado",
+                        error = 1
+                    });
+                }
+
+                // Obtener permisos del nuevo sistema (RoleModulePermissions)
+                var permissions = await _context.RoleModulePermissions
+                    .Where(rp => rp.RoleId == roleId)
+                    .Select(rp => new
+                    {
+                        id = rp.Id,
+                        moduleId = rp.ModuleId,
+                        moduleName = rp.Name,
+                        submoduleId = rp.SubmoduleId,
+                        hasAccess = rp.HasAccess,
+                        canView = rp.CanView,
+                        canCreate = rp.CanCreate,
+                        canEdit = rp.CanEdit,
+                        canDelete = rp.CanDelete
+                    })
+                    .ToListAsync();
+
+                Console.WriteLine($"? Permisos del rol '{role.Name}' obtenidos: {permissions.Count}");
+
+                return Ok(new
+                {
+                    message = "Permisos del rol obtenidos exitosamente",
+                    error = 0,
+                    data = new
+                    {
+                        roleId = role.Id,
+                        roleName = role.Name,
+                        permissions,
+                        totalPermissions = permissions.Count
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Error al obtener permisos del rol: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al obtener permisos del rol",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        #endregion
+
+        #region ?? PERMISOS POR ROL (Sistema Antiguo - ELIMINADO)
+        // NOTA: Los endpoints antiguos basados en Permissions/RolePermissions han sido eliminados
+        // Usa los nuevos endpoints en RolesController: GET /api/Roles/{id}/module-permissions
+        #endregion
     }
 
-    public class CheckPermissionRequest
+    /// <summary>
+    /// Request DTO para verificar permisos basados en ROL
+    /// </summary>
+    public class CheckRolePermissionRequest
     {
-        public int UserId { get; set; } // Opcional, si es 0 usa el del token
-        public string Resource { get; set; } = string.Empty;
-        public string Action { get; set; } = string.Empty;
+        public int UserId { get; set; }
+        public string Resource { get; set; }
+        public string Action { get; set; }
     }
 }
