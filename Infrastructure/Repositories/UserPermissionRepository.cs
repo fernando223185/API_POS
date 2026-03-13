@@ -28,7 +28,7 @@ namespace Infrastructure.Repositories
             }
 
             // Obtener todos los módulos del sistema
-            var systemModules = await _context.SystemModules
+            var systemModules = await _context.Modules
                 .Include(m => m.Submodules.Where(s => s.IsActive))
                 .Where(m => m.IsActive)
                 .OrderBy(m => m.Order)

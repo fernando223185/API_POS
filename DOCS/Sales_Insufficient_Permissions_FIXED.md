@@ -1,0 +1,268 @@
+# ?? **Solución al Error: "Insufficient permissions" - RESUELTO**
+
+## ? **Problema Original**
+
+Al intentar crear una venta, el sistema retornaba:
+
+```json
+{
+  "message": "Insufficient permissions",
+  "error": 1
+}
+```
+
+---
+
+## ?? **Causa Raíz del Problema**
+
+El `SalesController` usaba el atributo:
+
+```csharp
+[RequirePermission("Sales", "Create")]
+```
+
+Pero el `PermissionService` solo tenía mapeo para **"Sale"** (singular), no para **"Sales"** (plural).
+
+### **Flujo del Error:**
+
+1. ? Usuario hace login ? Token JWT generado
+2. ? Request a `POST /api/sales` con token válido
+3. ? Controller verifica permiso: `[RequirePermission("Sales", "Create")]`
+4. ? `PermissionService.MapResourceActionToModule("Sales", "Create")` ? **NO encuentra mapeo**
+5. ? Retorna `(moduleId: 0, null, "")` ? Permiso denegado
+6. ? Respuesta: `{"message": "Insufficient permissions"}`
+
+---
+
+## ? **Solución Implementada**
+
+### **Cambio 1: Agregar Soporte para "Sales" (Plural)**
+
+Actualicé el método `MapResourceActionToModule` en `PermissionService.cs`:
+
+```csharp
+// ANTES (solo singular):
+if (resource.Equals("Sale", StringComparison.OrdinalIgnoreCase))
+{
+    // ...
+}
+
+// DESPUÉS (singular Y plural):
+if (resource.Equals("Sale", StringComparison.OrdinalIgnoreCase) ||
+    resource.Equals("Sales", StringComparison.OrdinalIgnoreCase))
+{
+    if (action.Equals("Create", StringComparison.OrdinalIgnoreCase))
+        return (2, 10, "Create"); // Módulo Ventas ? Nueva Venta (ID: 10)
+    
+    if (action.Equals("View", StringComparison.OrdinalIgnoreCase))
+        return (2, 11, "View"); // Módulo Ventas ? Lista de Ventas (ID: 11)
+    
+    if (action.Equals("Cancel", StringComparison.OrdinalIgnoreCase))
+        return (2, 11, "Delete"); // Módulo Ventas ? Lista de Ventas
+    
+    if (action.Equals("Complete", StringComparison.OrdinalIgnoreCase))
+        return (2, 13, "Create"); // Módulo Ventas ? Cobranza (ID: 13)
+    
+    if (action.Equals("ViewReports", StringComparison.OrdinalIgnoreCase))
+        return (2, 12, "View"); // Módulo Ventas ? Reportes (ID: 12)
+}
+```
+
+### **Cambio 2: Actualizar Prefijo del Recurso**
+
+Cambié el método `GetModuleResourcePrefix`:
+
+```csharp
+private string GetModuleResourcePrefix(int moduleId, int? submoduleId)
+{
+    return moduleId switch
+    {
+        2 => "Sales", // CAMBIÓ de "Sale" a "Sales"
+        3 => "Product",
+        4 => "Inventory",
+        5 => "Customer",
+        6 => "Billing",
+        7 => "Reports",
+        8 => "Configuration",
+        _ => ""
+    };
+}
+```
+
+---
+
+## ?? **Mapeo Completo de Ventas**
+
+| Controller | Resource | Action | Mapea a Módulo | Submódulo | Permiso |
+|------------|----------|--------|----------------|-----------|---------|
+| `POST /api/sales` | Sales | Create | 2 (Ventas) | 10 (Nueva Venta) | Create |
+| `GET /api/sales` | Sales | View | 2 (Ventas) | 11 (Lista de Ventas) | View |
+| `GET /api/sales/{id}` | Sales | View | 2 (Ventas) | 11 (Lista de Ventas) | View |
+| `POST /api/sales/{id}/payments` | Sales | Complete | 2 (Ventas) | 13 (Cobranza) | Create |
+| `PUT /api/sales/{id}/cancel` | Sales | Cancel | 2 (Ventas) | 11 (Lista de Ventas) | Delete |
+| `GET /api/sales/statistics` | Sales | ViewReports | 2 (Ventas) | 12 (Reportes) | View |
+
+---
+
+## ?? **Verificación de la Solución**
+
+### **Paso 1: Compilar**
+```bash
+dotnet build
+```
+? **Resultado:** Compilación exitosa
+
+### **Paso 2: Verificar Permisos en BD**
+```sql
+SELECT 
+    m.Name AS Modulo,
+    s.Name AS Submodulo,
+    rmp.CanView, rmp.CanCreate, rmp.CanEdit, rmp.CanDelete
+FROM RoleModulePermissions rmp
+INNER JOIN Modules m ON m.Id = rmp.ModuleId
+LEFT JOIN Submodules s ON s.Id = rmp.SubmoduleId
+WHERE rmp.RoleId = 1 AND m.Id = 2;
+```
+
+? **Resultado Esperado:**
+| Modulo | Submodulo | CanView | CanCreate | CanEdit | CanDelete |
+|--------|-----------|---------|-----------|---------|-----------|
+| Ventas | NULL | 1 | 1 | 1 | 1 |
+| Ventas | Nueva Venta | 1 | 1 | 1 | 1 |
+| Ventas | Lista de Ventas | 1 | 1 | 1 | 1 |
+| Ventas | Reportes de Ventas | 1 | 1 | 1 | 1 |
+| Ventas | Cobranza | 1 | 1 | 1 | 1 |
+
+### **Paso 3: Probar el Endpoint**
+```http
+POST http://localhost:7254/api/sales
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "customerId": 3,
+  "warehouseId": 1,
+  "discountPercentage": 0,
+  "requiresInvoice": false,
+  "details": [
+    {
+      "productId": 8,
+      "quantity": 1,
+      "unitPrice": 26,
+      "discountPercentage": 0
+    }
+  ]
+}
+```
+
+? **Antes:** `{"message": "Insufficient permissions", "error": 1}`  
+? **Ahora:** `{"message": "Venta creada exitosamente", "error": 0, "data": {...}}`
+
+---
+
+## ?? **Flujo Correcto Después del Fix**
+
+```
+1. Usuario ? POST /api/sales con token JWT
+   ?
+2. Middleware extrae UserId del token
+   ?
+3. Controller: [RequirePermission("Sales", "Create")]
+   ?
+4. PermissionService.HasPermissionAsync(userId, "Sales", "Create")
+   ?
+5. MapResourceActionToModule("Sales", "Create")
+   ? Encuentra mapeo: (ModuleId: 2, SubmoduleId: 10, Type: "Create")
+   ?
+6. Busca permisos en base de datos:
+   - RoleModulePermissions WHERE RoleId=1 AND ModuleId=2 AND SubmoduleId=10
+   ?
+7. Encuentra permiso con CanCreate=1 ?
+   ?
+8. Retorna TRUE ? Permiso concedido ?
+   ?
+9. Controller ejecuta CreateSaleCommand
+   ?
+10. Venta creada exitosamente ??
+```
+
+---
+
+## ?? **Lecciones Aprendidas**
+
+### **1. Consistencia Singular/Plural**
+- Los controllers deben usar nombres consistentes en `[RequirePermission]`
+- El `PermissionService` debe soportar ambas variantes (singular y plural)
+- Recomendación: **Usar siempre plural** para recursos: "Sales", "Products", "Customers"
+
+### **2. Mapeo Completo de Acciones**
+Cada endpoint debe tener su acción mapeada correctamente:
+
+| Acción HTTP | Acción de Permiso | Tipo de Permiso |
+|-------------|-------------------|-----------------|
+| POST | Create | CanCreate |
+| GET (lista) | View | CanView |
+| GET (item) | View | CanView |
+| PUT | Edit | CanEdit |
+| DELETE | Delete | CanDelete |
+
+### **3. Debugging de Permisos**
+Cuando hay error "Insufficient permissions":
+
+1. ? Verificar que el token JWT es válido
+2. ? Verificar que el usuario tiene el rol correcto
+3. ? Verificar que el rol tiene permisos en BD
+4. ? Verificar que el mapeo en `PermissionService` existe
+5. ? Verificar que el nombre del recurso coincide (singular/plural)
+
+---
+
+## ?? **Archivos Modificados**
+
+1. ? **`Infrastructure/Services/PermissionService.cs`**
+   - Agregado soporte para "Sales" (plural)
+   - Actualizado mapeo completo de acciones
+   - Cambiado prefijo del módulo 2 a "Sales"
+
+---
+
+## ?? **Para AWS/Producción**
+
+**No requiere cambios en base de datos**, solo desplegar el código actualizado:
+
+```bash
+# 1. Compilar
+dotnet publish -c Release -o ./publish
+
+# 2. Subir a AWS
+scp -i tu-key.pem -r ./publish/* ec2-user@servidor:/var/www/erpapi/
+
+# 3. Reiniciar servicio
+sudo systemctl restart erpapi
+```
+
+---
+
+## ? **Estado Final**
+
+- ? Permisos de "Sales" funcionando correctamente
+- ? Soporta tanto "Sale" como "Sales"
+- ? Todos los endpoints mapeados
+- ? Compilación exitosa
+- ? Listo para producción
+
+---
+
+## ?? **Documentos Relacionados**
+
+- `DOCS/Sales_Module_Permissions_Complete.md` - Permisos del módulo
+- `DOCS/How_To_Verify_Sales_Permissions.md` - Guía de verificación
+- `Infrastructure/Scripts/AddSalesModulePermissions.sql` - Script de permisos
+- `Infrastructure/Scripts/VerifySalesModulePermissions.sql` - Script de verificación
+
+---
+
+**?? PROBLEMA RESUELTO - SISTEMA DE PERMISOS FUNCIONANDO CORRECTAMENTE** ?
+
+**Fecha:** 2026-03-11  
+**Estado:** ? **IMPLEMENTADO Y PROBADO**

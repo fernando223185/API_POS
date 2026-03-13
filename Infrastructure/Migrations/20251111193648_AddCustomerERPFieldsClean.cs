@@ -13,46 +13,14 @@ namespace Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DeleteData(
-                table: "Roles",
-                keyColumn: "Id",
-                keyValue: 2);
-
-            migrationBuilder.DeleteData(
-                table: "Roles",
-                keyColumn: "Id",
-                keyValue: 3);
-
-            migrationBuilder.DeleteData(
-                table: "Roles",
-                keyColumn: "Id",
-                keyValue: 4);
-
-            migrationBuilder.DeleteData(
-                table: "Roles",
-                keyColumn: "Id",
-                keyValue: 10);
-
-            migrationBuilder.DeleteData(
-                table: "Roles",
-                keyColumn: "Id",
-                keyValue: 11);
-
-            migrationBuilder.DeleteData(
-                table: "Users",
-                keyColumn: "Id",
-                keyValue: 1);
-
-            migrationBuilder.DeleteData(
-                table: "Roles",
-                keyColumn: "Id",
-                keyValue: 1);
-
+            // ✅ COMENTADO: No modificar RolePermissions porque ya no existe (sistema obsoleto)
+            /*
             migrationBuilder.AddColumn<int>(
                 name: "PermissionId1",
                 table: "RolePermissions",
                 type: "int",
                 nullable: true);
+            */
 
             migrationBuilder.AlterColumn<string>(
                 name: "name",
@@ -688,11 +656,6 @@ namespace Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_RolePermissions_PermissionId1",
-                table: "RolePermissions",
-                column: "PermissionId1");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Products_CategoryId",
                 table: "Products",
                 column: "CategoryId");
@@ -843,13 +806,6 @@ namespace Infrastructure.Migrations
                 column: "UpdatedByUserId",
                 principalTable: "Users",
                 principalColumn: "Id");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_RolePermissions_Permissions_PermissionId1",
-                table: "RolePermissions",
-                column: "PermissionId1",
-                principalTable: "Permissions",
-                principalColumn: "Id");
         }
 
         /// <inheritdoc />
@@ -887,10 +843,6 @@ namespace Infrastructure.Migrations
                 name: "FK_Products_Users_UpdatedByUserId",
                 table: "Products");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_RolePermissions_Permissions_PermissionId1",
-                table: "RolePermissions");
-
             migrationBuilder.DropTable(
                 name: "ProductImages");
 
@@ -911,10 +863,6 @@ namespace Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Suppliers");
-
-            migrationBuilder.DropIndex(
-                name: "IX_RolePermissions_PermissionId1",
-                table: "RolePermissions");
 
             migrationBuilder.DropIndex(
                 name: "IX_Products_CategoryId",
@@ -959,10 +907,6 @@ namespace Infrastructure.Migrations
             migrationBuilder.DropIndex(
                 name: "IX_Customer_UpdatedByUserId",
                 table: "Customer");
-
-            migrationBuilder.DropColumn(
-                name: "PermissionId1",
-                table: "RolePermissions");
 
             migrationBuilder.DropColumn(
                 name: "AllowFractionalQuantities",

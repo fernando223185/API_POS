@@ -363,10 +363,15 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # =============================================
-# CONFIGURACIONES ESPECÍFICAS DEL PROYECTO ERP
+# CONFIGURACIONES ESPECï¿½FICAS DEL PROYECTO ERP
 # =============================================
 
-# Archivos de configuración con datos sensibles
+# ?? ARCHIVOS DE CONFIGURACIï¿½N CON CREDENCIALES - NUNCA SUBIR
+**/appsettings.json
+**/appsettings.*.json
+!**/appsettings.Example.json
+
+# Archivos de configuraciï¿½n con datos sensibles
 appsettings.local.json
 appsettings.Development.local.json
 appsettings.Production.local.json
@@ -391,7 +396,7 @@ ConnectionStrings.json
 LocalDatabase.mdf
 LocalDatabase_log.ldf
 
-# Logs específicos del ERP
+# Logs especï¿½ficos del ERP
 ErrorLogs/
 AccessLogs/
 AuditLogs/
@@ -402,7 +407,7 @@ CFDILogs/
 *.bakx
 *.trn
 
-# Archivos temporales de migración y testing
+# Archivos temporales de migraciï¿½n y testing
 **/Migrations/Temp/
 **/Migrations/Backup/
 TestData/
@@ -419,10 +424,15 @@ Desktop.ini
 ~$*.xlsx
 ~$*.pptx
 
+# Carpeta de publicaciï¿½n
+**/publish/
+*.zip
+
 # =============================================
-# ARCHIVOS QUE SÍ DEBEN INCLUIRSE (EJEMPLOS)
+# ARCHIVOS DE EJEMPLO (Sï¿½ SE INCLUYEN)
 # =============================================
-!**/appsettings.json
+!**/appsettings.Example.json
+!**/appsettings.Template.json
 !Scripts/
 !DatabaseScripts/
 !README.md

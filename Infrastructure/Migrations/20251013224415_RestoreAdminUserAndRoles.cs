@@ -13,66 +13,53 @@ namespace Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.InsertData(
-                table: "Roles",
-                columns: new[] { "Id", "Description", "IsActive", "Name" },
-                values: new object[,]
-                {
-                    { 1, "Acceso completo al sistema", true, "Administrador" },
-                    { 2, "Acceso básico al sistema", true, "Usuario" },
-                    { 3, "Personal de ventas", true, "Vendedor" },
-                    { 4, "Gestión de inventario", true, "Almacenista" },
-                    { 10, "Operación de punto de venta", true, "Cajero" },
-                    { 11, "Supervisión y reportes", true, "Gerente" }
-                });
+            // ✅ PASO 1: Agregar columna IsActive primero
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[Roles]') AND name = 'IsActive')
+                BEGIN
+                    ALTER TABLE [Roles] ADD [IsActive] BIT NOT NULL DEFAULT 1;
+                END
+            ");
 
-            migrationBuilder.UpdateData(
-                table: "Users",
-                keyColumn: "Id",
-                keyValue: 1,
-                column: "CreatedAt",
-                value: new DateTime(2025, 10, 13, 22, 44, 15, 62, DateTimeKind.Utc).AddTicks(1224));
+            // ✅ PASO 2: Insertar roles (en un comando separado para que reconozca la columna IsActive)
+            migrationBuilder.Sql(@"
+                SET IDENTITY_INSERT [Roles] ON;
+                
+                IF NOT EXISTS (SELECT 1 FROM [Roles] WHERE Id = 1)
+                    INSERT INTO [Roles] ([Id], [Description], [Name], [IsActive]) VALUES (1, N'Acceso completo al sistema', N'Administrador', 1);
+                
+                IF NOT EXISTS (SELECT 1 FROM [Roles] WHERE Id = 2)
+                    INSERT INTO [Roles] ([Id], [Description], [Name], [IsActive]) VALUES (2, N'Acceso básico al sistema', N'Usuario', 1);
+                
+                IF NOT EXISTS (SELECT 1 FROM [Roles] WHERE Id = 3)
+                    INSERT INTO [Roles] ([Id], [Description], [Name], [IsActive]) VALUES (3, N'Personal de ventas', N'Vendedor', 1);
+                
+                IF NOT EXISTS (SELECT 1 FROM [Roles] WHERE Id = 4)
+                    INSERT INTO [Roles] ([Id], [Description], [Name], [IsActive]) VALUES (4, N'Gestión de inventario', N'Almacenista', 1);
+                
+                IF NOT EXISTS (SELECT 1 FROM [Roles] WHERE Id = 10)
+                    INSERT INTO [Roles] ([Id], [Description], [Name], [IsActive]) VALUES (10, N'Operación de punto de venta', N'Cajero', 1);
+                
+                IF NOT EXISTS (SELECT 1 FROM [Roles] WHERE Id = 11)
+                    INSERT INTO [Roles] ([Id], [Description], [Name], [IsActive]) VALUES (11, N'Supervisión y reportes', N'Gerente', 1);
+                
+                SET IDENTITY_INSERT [Roles] OFF;
+            ");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DeleteData(
-                table: "Roles",
-                keyColumn: "Id",
-                keyValue: 1);
+            migrationBuilder.Sql(@"
+                DELETE FROM [Roles] WHERE Id IN (1, 2, 3, 4, 10, 11);
+            ");
 
-            migrationBuilder.DeleteData(
-                table: "Roles",
-                keyColumn: "Id",
-                keyValue: 2);
-
-            migrationBuilder.DeleteData(
-                table: "Roles",
-                keyColumn: "Id",
-                keyValue: 3);
-
-            migrationBuilder.DeleteData(
-                table: "Roles",
-                keyColumn: "Id",
-                keyValue: 4);
-
-            migrationBuilder.DeleteData(
-                table: "Roles",
-                keyColumn: "Id",
-                keyValue: 10);
-
-            migrationBuilder.DeleteData(
-                table: "Roles",
-                keyColumn: "Id",
-                keyValue: 11);
-
-            migrationBuilder.UpdateData(
-                table: "Users",
-                keyColumn: "Id",
-                keyValue: 1,
-                column: "CreatedAt",
-                value: new DateTime(2025, 10, 13, 22, 37, 1, 645, DateTimeKind.Utc).AddTicks(6397));
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[Roles]') AND name = 'IsActive')
+                BEGIN
+                    ALTER TABLE [Roles] DROP COLUMN [IsActive];
+                END
+            ");
         }
     }
 }

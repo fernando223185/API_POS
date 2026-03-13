@@ -347,7 +347,7 @@ namespace Web.Api.Controllers.Config
                 }
 
                 // Obtener todos los módulos y submódulos
-                var modules = await _context.SystemModules
+                var modules = await _context.Modules
                     .Include(m => m.Submodules.Where(s => s.IsActive))
                     .Where(m => m.IsActive)
                     .OrderBy(m => m.Order)
@@ -444,7 +444,7 @@ namespace Web.Api.Controllers.Config
 
                 foreach (var module in dto.Modules)
                 {
-                    var systemModule = await _context.SystemModules.FindAsync(module.ModuleId);
+                    var systemModule = await _context.Modules.FindAsync(module.ModuleId);
                     if (systemModule == null) continue;
 
                     // Permiso a nivel módulo

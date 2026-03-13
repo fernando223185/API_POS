@@ -210,6 +210,9 @@ namespace Application.DTOs.Product
         public string? SupplierCode { get; set; }
     }
 
+    /// <summary>
+    /// DTO de respuesta detallada de producto
+    /// </summary>
     public class ProductResponseDto
     {
         public int ID { get; set; } // ? CORREGIDO: ID en lugar de Id
@@ -335,6 +338,28 @@ namespace Application.DTOs.Product
         public DateTime? UpdatedAt { get; set; }
         public string? CreatedByName { get; set; }
         public string? UpdatedByName { get; set; }
+
+        // ? NUEVO: Imagen principal
+        public string? ImageUrl { get; set; }
+
+        // ? NUEVO: Inventario por bodega
+        public List<ProductWarehouseStockDto>? WarehouseStock { get; set; }
+    }
+
+    /// <summary>
+    /// DTO para stock de producto por bodega
+    /// </summary>
+    public class ProductWarehouseStockDto
+    {
+        public int WarehouseId { get; set; }
+        public string WarehouseCode { get; set; } = string.Empty;
+        public string WarehouseName { get; set; } = string.Empty;
+        public decimal Quantity { get; set; }
+        public decimal? MinimumStock { get; set; }  // ? Cambiado a nullable
+        public decimal? MaximumStock { get; set; }  // ? Cambiado a nullable
+        public DateTime? LastMovementDate { get; set; }
+        public string? BranchName { get; set; }
+        public bool IsActive { get; set; }
     }
 
     // ? DTO específico para tabla de productos (optimizado para frontend)
@@ -361,6 +386,10 @@ namespace Application.DTOs.Product
         public string? VelocityCode { get; set; }
         public DateTime? LastSaleDate { get; set; }
         public decimal TotalSalesQuantity { get; set; }
+
+        // ? NUEVO: Imagen principal del producto
+        public string? ImageUrl { get; set; }
+        public string? ImageS3Key { get; set; }
     }
 
     // ? DTO DE RESPUESTA PAGINADA
@@ -395,6 +424,39 @@ namespace Application.DTOs.Product
     }
 
     public class CategoryStats
+    {
+        public string CategoryName { get; set; } = string.Empty;
+        public int ProductCount { get; set; }
+        public decimal TotalValue { get; set; }
+    }
+
+    // ? NUEVO: DTO de respuesta paginada con ProductResponseDto (más completo)
+    public class ProductPagedResponseDto
+    {
+        public string Message { get; set; } = string.Empty;
+        public int Error { get; set; } = 0;
+        public List<ProductResponseDto> Data { get; set; } = new();
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalRecords { get; set; }
+        public int TotalPages { get; set; }
+        public bool HasPreviousPage => Page > 1;
+        public bool HasNextPage => Page < TotalPages;
+        public ProductStatisticsDto? Statistics { get; set; }
+    }
+
+    public class ProductStatisticsDto
+    {
+        public int TotalProducts { get; set; }
+        public int ActiveProducts { get; set; }
+        public int InactiveProducts { get; set; }
+        public decimal TotalValue { get; set; }
+        public int LowStockProducts { get; set; }
+        public int OutOfStockProducts { get; set; }
+        public List<CategoryStatsDto> TopCategories { get; set; } = new();
+    }
+
+    public class CategoryStatsDto
     {
         public string CategoryName { get; set; } = string.Empty;
         public int ProductCount { get; set; }

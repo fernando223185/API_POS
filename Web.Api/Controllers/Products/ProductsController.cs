@@ -1,9 +1,12 @@
 using Application.Core.Product.Commands;
 using Application.Core.Product.Queries;
 using Application.DTOs.Product;
+using Application.Abstractions.Storage;
+using Application.Abstractions.Catalogue;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Web.Api.Authorization;
+using Domain.Entities;
 
 namespace Web.Api.Controllers.Products
 {
@@ -12,10 +15,17 @@ namespace Web.Api.Controllers.Products
     public class ProductsController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly IS3StorageService _s3Service;
+        private readonly IProductImageRepository _imageRepository;
 
-        public ProductsController(IMediator mediator)
+        public ProductsController(
+            IMediator mediator,
+            IS3StorageService s3Service,
+            IProductImageRepository imageRepository)
         {
             _mediator = mediator;
+            _s3Service = s3Service;
+            _imageRepository = imageRepository;
         }
 
         /// <summary>
@@ -31,13 +41,21 @@ namespace Web.Api.Controllers.Products
             [FromQuery] int? categoryId = null,
             [FromQuery] bool? isActive = true,
             [FromQuery] string? sortBy = "name",
-            [FromQuery] string? sortOrder = "asc")
+            [FromQuery] string? sortOrder = "asc",
+            // ? NUEVO: Parámetros de inventario
+            [FromQuery] bool includeWarehouseStock = false,
+            [FromQuery] int? warehouseId = null,
+            [FromQuery] bool? onlyWithStock = null,
+            [FromQuery] bool? onlyBelowMinimum = null)
         {
             try
             {
-                Console.WriteLine($"?? Getting products - Page: {page}, PageSize: {pageSize}, Search: '{search}'");
+                if (page < 1) page = 1;
+                if (pageSize < 1) pageSize = 20;
+                if (pageSize > 100) pageSize = 100;
 
-                var userId = HttpContext.Items["UserId"] as int? ?? 0;
+                Console.WriteLine($"?? Getting products - Page: {page}, PageSize: {pageSize}, Search: '{search}', " +
+                                $"Category: {categoryId}, IncludeStock: {includeWarehouseStock}, Warehouse: {warehouseId}");
 
                 // Validar parámetros
                 if (page < 1) page = 1;
@@ -52,13 +70,18 @@ namespace Web.Api.Controllers.Products
                     CategoryId = categoryId,
                     IsActive = isActive,
                     SortBy = sortBy,
-                    SortOrder = sortOrder
+                    SortDirection = sortOrder,
+                    // ? NUEVO: Parámetros de inventario
+                    IncludeWarehouseStock = includeWarehouseStock,
+                    WarehouseId = warehouseId,
+                    OnlyWithStock = onlyWithStock,
+                    OnlyBelowMinimum = onlyBelowMinimum
                 };
 
                 // Ejecutar query usando MediatR
                 var result = await _mediator.Send(query);
 
-                Console.WriteLine($"? Products retrieved: {result.Data.Count} items, Total: {result.Pagination.TotalItems}");
+                Console.WriteLine($"?? Products retrieved: {result.Data.Count} items, Page: {result.Page}/{result.TotalPages}");
 
                 return Ok(result);
             }
@@ -433,6 +456,340 @@ namespace Web.Api.Controllers.Products
                     message = "Error al eliminar producto", 
                     error = 2, 
                     details = ex.Message 
+                });
+            }
+        }
+
+        /// <summary>
+        /// ?? SUBIR IMAGEN DE PRODUCTO A AWS S3
+        /// Sube una imagen al bucket S3 y guarda el registro en la base de datos
+        /// </summary>
+        /// <param name="productId">ID del producto</param>
+        /// <param name="file">Archivo de imagen (JPEG, PNG, GIF, WebP)</param>
+        /// <param name="isPrimary">Marcar como imagen principal</param>
+        /// <param name="altText">Texto alternativo para SEO</param>
+        /// <returns>Información de la imagen subida incluyendo el S3 Key</returns>
+        [HttpPost("{productId}/upload-image")]
+        [RequirePermission("Product", "Update")]
+        public async Task<IActionResult> UploadProductImage(
+            int productId,
+            [FromForm] IFormFile file,
+            [FromForm] bool isPrimary = false,
+            [FromForm] string? altText = null)
+        {
+            try
+            {
+                Console.WriteLine($"?? Uploading image for product {productId}");
+
+                // Validar que el producto existe
+                var productQuery = new GetProductByIdQuery { ID = productId };
+                var product = await _mediator.Send(productQuery);
+
+                if (product == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Producto no encontrado",
+                        error = 1,
+                        productId
+                    });
+                }
+
+                // Validar archivo
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Archivo de imagen requerido",
+                        error = 1
+                    });
+                }
+
+                // Validar tipo de archivo
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+                if (!allowedExtensions.Contains(extension))
+                {
+                    return BadRequest(new
+                    {
+                        message = "Formato de archivo no válido. Solo se permiten: JPG, JPEG, PNG, GIF, WebP",
+                        error = 1,
+                        allowedFormats = allowedExtensions
+                    });
+                }
+
+                // Validar tamaño (máximo 5MB)
+                if (file.Length > 5 * 1024 * 1024)
+                {
+                    return BadRequest(new
+                    {
+                        message = "El archivo es demasiado grande. Tamaño máximo: 5MB",
+                        error = 1,
+                        fileSize = file.Length,
+                        maxSize = 5 * 1024 * 1024
+                    });
+                }
+
+                // Obtener usuario actual
+                var userId = HttpContext.Items["UserId"] as int? ?? 0;
+                var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
+
+                if (userId == 0)
+                {
+                    return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
+                }
+
+                Console.WriteLine($"?? Uploading {file.FileName} ({file.Length} bytes) to S3...");
+
+                // Subir a S3
+                string s3Key;
+                using (var stream = file.OpenReadStream())
+                {
+                    s3Key = await _s3Service.UploadImageAsync(
+                        stream,
+                        file.FileName,
+                        file.ContentType,
+                        $"products/{productId}"); // Carpeta por producto
+                }
+
+                Console.WriteLine($"? S3 Upload successful: {s3Key}");
+
+                // Obtener URL pública
+                var publicUrl = _s3Service.GetPublicUrl(s3Key);
+
+                // Obtener siguiente orden de visualización
+                var displayOrder = await _imageRepository.GetNextDisplayOrderAsync(productId);
+
+                // Si es primary, quitar primary de las demás
+                if (isPrimary)
+                {
+                    await _imageRepository.SetAsPrimaryAsync(productId, -1); // -1 para quitar de todas
+                }
+
+                // Crear registro en base de datos
+                var productImage = new ProductImage
+                {
+                    ProductId = productId,
+                    ImageUrl = publicUrl,
+                    ImageName = file.FileName,
+                    AltText = altText ?? product.name,
+                    IsPrimary = isPrimary,
+                    DisplayOrder = displayOrder,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UploadedByUserId = userId
+                };
+
+                var savedImage = await _imageRepository.CreateAsync(productImage);
+
+                Console.WriteLine($"? Image saved to database with ID: {savedImage.Id}");
+
+                // Mapear a DTO
+                var response = new ProductImageDto
+                {
+                    Id = savedImage.Id,
+                    ProductId = savedImage.ProductId,
+                    S3Key = s3Key,  // ? RETORNAR EL KEY DE S3
+                    PublicUrl = publicUrl,
+                    ImageName = savedImage.ImageName ?? "",
+                    AltText = savedImage.AltText,
+                    IsPrimary = savedImage.IsPrimary,
+                    DisplayOrder = savedImage.DisplayOrder,
+                    UploadedAt = savedImage.CreatedAt,
+                    UploadedBy = userName
+                };
+
+                return Ok(new UploadProductImageResponseDto
+                {
+                    Message = "Imagen subida exitosamente",
+                    Error = 0,
+                    Data = response
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Error uploading image: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return StatusCode(500, new
+                {
+                    message = "Error al subir imagen",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// ??? OBTENER IMÁGENES DE UN PRODUCTO
+        /// </summary>
+        [HttpGet("{productId}/images")]
+        [RequirePermission("Product", "ViewCatalog")]
+        public async Task<IActionResult> GetProductImages(int productId)
+        {
+            try
+            {
+                // Verificar que el producto existe
+                var productQuery = new GetProductByIdQuery { ID = productId };
+                var product = await _mediator.Send(productQuery);
+
+                if (product == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Producto no encontrado",
+                        error = 1,
+                        productId
+                    });
+                }
+
+                // Obtener imágenes
+                var images = await _imageRepository.GetByProductIdAsync(productId);
+
+                var imageDtos = images.Select(img => new ProductImageDto
+                {
+                    Id = img.Id,
+                    ProductId = img.ProductId,
+                    S3Key = img.ImageUrl.Replace(_s3Service.GetPublicUrl(""), ""), // Extraer key de URL
+                    PublicUrl = img.ImageUrl,
+                    ImageName = img.ImageName ?? "",
+                    AltText = img.AltText,
+                    IsPrimary = img.IsPrimary,
+                    DisplayOrder = img.DisplayOrder,
+                    UploadedAt = img.CreatedAt,
+                    UploadedBy = img.UploadedBy?.Name ?? "Unknown"
+                }).ToList();
+
+                return Ok(new ProductImagesResponseDto
+                {
+                    Message = "Imágenes obtenidas exitosamente",
+                    Error = 0,
+                    Data = imageDtos,
+                    TotalImages = imageDtos.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Error getting product images: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al obtener imágenes",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// ??? ELIMINAR IMAGEN DE PRODUCTO
+        /// Elimina la imagen de S3 y marca como inactiva en la BD
+        /// </summary>
+        [HttpDelete("images/{imageId}")]
+        [RequirePermission("Product", "Update")]
+        public async Task<IActionResult> DeleteProductImage(int imageId)
+        {
+            try
+            {
+                // Obtener imagen
+                var image = await _imageRepository.GetByIdAsync(imageId);
+
+                if (image == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Imagen no encontrada",
+                        error = 1,
+                        imageId
+                    });
+                }
+
+                // Extraer S3 Key de la URL
+                var s3Key = image.ImageUrl.Replace(_s3Service.GetPublicUrl(""), "");
+
+                // Eliminar de S3
+                var deletedFromS3 = await _s3Service.DeleteImageAsync(s3Key);
+
+                // Soft delete en BD
+                var deletedFromDb = await _imageRepository.DeleteAsync(imageId);
+
+                if (deletedFromDb)
+                {
+                    return Ok(new
+                    {
+                        message = "Imagen eliminada exitosamente",
+                        error = 0,
+                        imageId,
+                        deletedFromS3,
+                        deletedFromDatabase = deletedFromDb
+                    });
+                }
+
+                return StatusCode(500, new
+                {
+                    message = "Error al eliminar imagen de la base de datos",
+                    error = 2
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Error deleting image: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al eliminar imagen",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// ? ESTABLECER IMAGEN COMO PRINCIPAL
+        /// </summary>
+        [HttpPut("images/{imageId}/set-primary")]
+        [RequirePermission("Product", "Update")]
+        public async Task<IActionResult> SetPrimaryImage(int imageId)
+        {
+            try
+            {
+                var image = await _imageRepository.GetByIdAsync(imageId);
+
+                if (image == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Imagen no encontrada",
+                        error = 1,
+                        imageId
+                    });
+                }
+
+                var result = await _imageRepository.SetAsPrimaryAsync(image.ProductId, imageId);
+
+                if (result)
+                {
+                    return Ok(new
+                    {
+                        message = "Imagen establecida como principal",
+                        error = 0,
+                        imageId,
+                        productId = image.ProductId
+                    });
+                }
+
+                return StatusCode(500, new
+                {
+                    message = "Error al establecer imagen como principal",
+                    error = 2
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Error setting primary image: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al establecer imagen principal",
+                    error = 2,
+                    details = ex.Message
                 });
             }
         }

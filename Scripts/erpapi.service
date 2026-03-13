@@ -1,0 +1,54 @@
+# ============================================
+# SERVICIO SYSTEMD PARA API ERP POS
+# ============================================
+
+[Unit]
+Description=ERP POS API - .NET 8
+After=network.target
+
+[Service]
+Type=notify
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/api/publish
+ExecStart=/usr/bin/dotnet /home/ubuntu/api/publish/Web.Api.dll
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=erpapi
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+
+[Install]
+WantedBy=multi-user.target
+
+# ============================================
+# INSTRUCCIONES DE INSTALACIÓN:
+# ============================================
+#
+# 1. Copiar este archivo a /etc/systemd/system/
+#    sudo nano /etc/systemd/system/erpapi.service
+#    (Copiar el contenido de este archivo)
+#
+# 2. Recargar systemd
+#    sudo systemctl daemon-reload
+#
+# 3. Habilitar el servicio (inicia automáticamente al arrancar)
+#    sudo systemctl enable erpapi
+#
+# 4. Iniciar el servicio
+#    sudo systemctl start erpapi
+#
+# 5. Ver estado
+#    sudo systemctl status erpapi
+#
+# 6. Ver logs
+#    sudo journalctl -u erpapi -f
+#
+# 7. Detener el servicio
+#    sudo systemctl stop erpapi
+#
+# 8. Reiniciar el servicio
+#    sudo systemctl restart erpapi
+#
+# ============================================

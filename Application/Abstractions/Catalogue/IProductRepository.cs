@@ -18,6 +18,11 @@ namespace Application.Abstractions.Catalogue
         Task<(int Total, int Active, int Inactive, decimal TotalValue, int LowStock)> GetStatisticsAsync();
         Task<List<CategoryStats>> GetTopCategoriesAsync(int count = 5);
         Task<int> GetOutOfStockCountAsync();
+
+        // ✅ NUEVO: Métodos para inventario por bodega
+        Task<List<ProductStock>> GetProductStockByWarehouseAsync(int productId, int? warehouseId = null);
+        Task<decimal> GetTotalStockByProductAsync(int productId);
+        Task<List<ProductWarehouseStockDto>> GetWarehouseStockOrZeroAsync(int productId, int? warehouseId, List<ProductStock> existingStock);
     }
 
     // Clase para query de paginación mejorada
@@ -30,5 +35,11 @@ namespace Application.Abstractions.Catalogue
         public bool? IsActive { get; set; }
         public string? SortBy { get; set; } = "name";
         public string? SortOrder { get; set; } = "asc";
+
+        // ✅ NUEVO: Opciones de inventario
+        public bool IncludeWarehouseStock { get; set; } = false;
+        public int? WarehouseId { get; set; }
+        public bool? OnlyWithStock { get; set; }
+        public bool? OnlyBelowMinimum { get; set; }
     }
 }

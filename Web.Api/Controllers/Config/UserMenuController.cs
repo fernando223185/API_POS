@@ -64,7 +64,7 @@ namespace Web.Api.Controllers.Config
                     .ToListAsync();
 
                 // 3. Obtener todos los módulos y submódulos
-                var modules = await _context.SystemModules
+                var modules = await _context.Modules
                     .Include(m => m.Submodules.Where(s => s.IsActive))
                     .Where(m => m.IsActive)
                     .OrderBy(m => m.Order)

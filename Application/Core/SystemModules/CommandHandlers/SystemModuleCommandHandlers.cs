@@ -87,9 +87,9 @@ namespace Application.Core.SystemModules.CommandHandlers
                     IsActive = request.ModuleData.IsActive
                 };
 
-                var updated = await _repository.UpdateModuleAsync(request.ModuleId, module);
+                var success = await _repository.UpdateModuleAsync(request.ModuleId, module);
 
-                if (updated == null)
+                if (!success)
                 {
                     return new ModuleCommandResponseDto
                     {
@@ -99,24 +99,16 @@ namespace Application.Core.SystemModules.CommandHandlers
                     };
                 }
 
-                Console.WriteLine($"? Módulo actualizado: {updated.Name} (ID: {updated.Id})");
+                // Obtener el módulo actualizado
+                var updatedModule = await _repository.GetModuleByIdAsync(request.ModuleId);
+
+                Console.WriteLine($"? Módulo actualizado: {updatedModule.Name} (ID: {updatedModule.Id})");
 
                 return new ModuleCommandResponseDto
                 {
                     Message = "Módulo actualizado exitosamente",
                     Error = 0,
-                    Data = new ModuleResponseDto
-                    {
-                        Id = updated.Id,
-                        Name = updated.Name,
-                        Description = updated.Description,
-                        Path = updated.Path,
-                        Icon = updated.Icon,
-                        Order = updated.Order,
-                        IsActive = updated.IsActive,
-                        CreatedAt = updated.CreatedAt,
-                        UpdatedAt = updated.UpdatedAt
-                    }
+                    Data = updatedModule
                 };
             }
             catch (Exception ex)
@@ -266,9 +258,9 @@ namespace Application.Core.SystemModules.CommandHandlers
                     IsActive = request.SubmoduleData.IsActive
                 };
 
-                var updated = await _repository.UpdateSubmoduleAsync(request.SubmoduleId, submodule);
+                var success = await _repository.UpdateSubmoduleAsync(request.SubmoduleId, submodule);
 
-                if (updated == null)
+                if (!success)
                 {
                     return new SubmoduleCommandResponseDto
                     {
@@ -278,26 +270,16 @@ namespace Application.Core.SystemModules.CommandHandlers
                     };
                 }
 
-                Console.WriteLine($"? Submódulo actualizado: {updated.Name} (ID: {updated.Id})");
+                // Obtener el submódulo actualizado
+                var updatedSubmodule = await _repository.GetSubmoduleByIdAsync(request.SubmoduleId);
+
+                Console.WriteLine($"? Submódulo actualizado: {updatedSubmodule.Name} (ID: {updatedSubmodule.Id})");
 
                 return new SubmoduleCommandResponseDto
                 {
                     Message = "Submódulo actualizado exitosamente",
                     Error = 0,
-                    Data = new SubmoduleResponseDto
-                    {
-                        Id = updated.Id,
-                        ModuleId = updated.ModuleId,
-                        Name = updated.Name,
-                        Description = updated.Description,
-                        Path = updated.Path,
-                        Icon = updated.Icon,
-                        Order = updated.Order,
-                        Color = updated.Color,
-                        IsActive = updated.IsActive,
-                        CreatedAt = updated.CreatedAt,
-                        UpdatedAt = updated.UpdatedAt
-                    }
+                    Data = updatedSubmodule
                 };
             }
             catch (Exception ex)

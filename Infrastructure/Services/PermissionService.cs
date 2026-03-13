@@ -130,22 +130,40 @@ namespace Infrastructure.Services
                     return (5, 51, "Delete"); // Módulo Clientes ? Listado de Clientes
             }
 
-            // Mapeo Sale
-            if (resource.Equals("Sale", StringComparison.OrdinalIgnoreCase))
+            // Mapeo Sale / Sales (singular y plural)
+            if (resource.Equals("Sale", StringComparison.OrdinalIgnoreCase) ||
+                resource.Equals("Sales", StringComparison.OrdinalIgnoreCase))
             {
                 if (action.Equals("Create", StringComparison.OrdinalIgnoreCase) ||
                     action.Equals("CreateSale", StringComparison.OrdinalIgnoreCase) ||
                     action.Equals("ProcessPayment", StringComparison.OrdinalIgnoreCase))
-                    return (2, 21, "Create"); // Módulo Ventas ? Nueva Venta
-                if (action.Equals("Read", StringComparison.OrdinalIgnoreCase) ||
+                    return (2, 10, "Create"); // Módulo Ventas ? Nueva Venta (ID: 10)
+                
+                if (action.Equals("View", StringComparison.OrdinalIgnoreCase) ||
+                    action.Equals("Read", StringComparison.OrdinalIgnoreCase) ||
                     action.Equals("ViewHistory", StringComparison.OrdinalIgnoreCase))
-                    return (2, 22, "View"); // Módulo Ventas ? Historial de Ventas
-                if (action.Equals("Update", StringComparison.OrdinalIgnoreCase))
-                    return (2, 22, "Edit"); // Módulo Ventas ? Historial de Ventas
+                    return (2, 11, "View"); // Módulo Ventas ? Lista de Ventas (ID: 11)
+                
+                if (action.Equals("Update", StringComparison.OrdinalIgnoreCase) ||
+                    action.Equals("Edit", StringComparison.OrdinalIgnoreCase))
+                    return (2, 11, "Edit"); // Módulo Ventas ? Lista de Ventas (ID: 11)
+                
                 if (action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
-                    return (2, 22, "Delete"); // Módulo Ventas ? Historial de Ventas
+                    return (2, 11, "Delete"); // Módulo Ventas ? Lista de Ventas (ID: 11)
+                
+                if (action.Equals("Cancel", StringComparison.OrdinalIgnoreCase))
+                    return (2, 11, "Delete"); // Módulo Ventas ? Lista de Ventas (permite cancelar)
+                
+                if (action.Equals("Complete", StringComparison.OrdinalIgnoreCase) ||
+                    action.Equals("ProcessPayments", StringComparison.OrdinalIgnoreCase))
+                    return (2, 13, "Create"); // Módulo Ventas ? Cobranza (ID: 13)
+                
+                if (action.Equals("ViewReports", StringComparison.OrdinalIgnoreCase) ||
+                    action.Equals("ViewStatistics", StringComparison.OrdinalIgnoreCase))
+                    return (2, 12, "View"); // Módulo Ventas ? Reportes de Ventas (ID: 12)
+                
                 if (action.Equals("ProcessRefund", StringComparison.OrdinalIgnoreCase))
-                    return (2, 24, "Create"); // Módulo Ventas ? Devoluciones
+                    return (2, null, "Create"); // Módulo Ventas ? Devoluciones (si existe)
             }
 
             // Mapeo Product
@@ -286,7 +304,7 @@ namespace Infrastructure.Services
         {
             return moduleId switch
             {
-                2 => "Sale",
+                2 => "Sales", // Módulo Ventas
                 3 => "Product",
                 4 => "Inventory",
                 5 => "Customer",

@@ -19,15 +19,19 @@ namespace Infrastructure.Repositories
         // MÓDULOS - QUERIES
         // ===================================================================
 
-        public async Task<ModulesListResponseDto> GetAllModulesAsync(bool includeInactive = false)
+        public async Task<ModulesListResponseDto> GetAllModulesAsync(bool includeInactive = false, bool includeSubmodules = true)
         {
-            var query = _context.SystemModules
-                .Include(m => m.Submodules.Where(s => includeInactive || s.IsActive))
+            var query = _context.Modules
                 .AsQueryable();
 
             if (!includeInactive)
             {
                 query = query.Where(m => m.IsActive);
+            }
+
+            if (includeSubmodules)
+            {
+                query = query.Include(m => m.Submodules.Where(s => includeInactive || s.IsActive));
             }
 
             var modules = await query
@@ -70,11 +74,11 @@ namespace Infrastructure.Repositories
             };
         }
 
-        public async Task<ModuleResponseDto?> GetModuleByIdAsync(int moduleId)
+        public async Task<ModuleResponseDto?> GetModuleByIdAsync(int id)
         {
-            var module = await _context.SystemModules
+            var module = await _context.Modules
                 .Include(m => m.Submodules)
-                .Where(m => m.Id == moduleId)
+                .Where(m => m.Id == id)
                 .Select(m => new ModuleResponseDto
                 {
                     Id = m.Id,
@@ -86,20 +90,22 @@ namespace Infrastructure.Repositories
                     IsActive = m.IsActive,
                     CreatedAt = m.CreatedAt,
                     UpdatedAt = m.UpdatedAt,
-                    Submodules = m.Submodules.OrderBy(s => s.Order).Select(s => new SubmoduleResponseDto
-                    {
-                        Id = s.Id,
-                        ModuleId = s.ModuleId,
-                        Name = s.Name,
-                        Description = s.Description,
-                        Path = s.Path,
-                        Icon = s.Icon,
-                        Order = s.Order,
-                        Color = s.Color,
-                        IsActive = s.IsActive,
-                        CreatedAt = s.CreatedAt,
-                        UpdatedAt = s.UpdatedAt
-                    }).ToList()
+                    Submodules = m.Submodules
+                        .Select(s => new SubmoduleResponseDto
+                        {
+                            Id = s.Id,
+                            ModuleId = s.ModuleId,
+                            Name = s.Name,
+                            Description = s.Description,
+                            Path = s.Path,
+                            Icon = s.Icon,
+                            Order = s.Order,
+                            Color = s.Color,
+                            IsActive = s.IsActive,
+                            CreatedAt = s.CreatedAt,
+                            UpdatedAt = s.UpdatedAt
+                        })
+                        .ToList()
                 })
                 .FirstOrDefaultAsync();
 
@@ -112,31 +118,32 @@ namespace Infrastructure.Repositories
 
         public async Task<SystemModule> CreateModuleAsync(SystemModule module)
         {
-            _context.SystemModules.Add(module);
+            _context.Modules.Add(module);
             await _context.SaveChangesAsync();
             return module;
         }
 
-        public async Task<SystemModule?> UpdateModuleAsync(int moduleId, SystemModule module)
+        public async Task<bool> UpdateModuleAsync(int moduleId, SystemModule updatedModule)
         {
-            var existing = await _context.SystemModules.FindAsync(moduleId);
-            if (existing == null) return null;
+            var existing = await _context.Modules.FindAsync(moduleId);
+            if (existing == null)
+                return false;
 
-            existing.Name = module.Name;
-            existing.Description = module.Description;
-            existing.Path = module.Path;
-            existing.Icon = module.Icon;
-            existing.Order = module.Order;
-            existing.IsActive = module.IsActive;
+            existing.Name = updatedModule.Name;
+            existing.Description = updatedModule.Description;
+            existing.Path = updatedModule.Path;
+            existing.Icon = updatedModule.Icon;
+            existing.Order = updatedModule.Order;
+            existing.IsActive = updatedModule.IsActive;
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-            return existing;
+            return true;
         }
 
         public async Task<bool> DeleteModuleAsync(int moduleId)
         {
-            var module = await _context.SystemModules
+            var module = await _context.Modules
                 .Include(m => m.Submodules)
                 .FirstOrDefaultAsync(m => m.Id == moduleId);
 
@@ -159,7 +166,7 @@ namespace Infrastructure.Repositories
 
         public async Task<bool> ModuleExistsAsync(int moduleId)
         {
-            return await _context.SystemModules.AnyAsync(m => m.Id == moduleId);
+            return await _context.Modules.AnyAsync(m => m.Id == moduleId);
         }
 
         // ===================================================================
@@ -168,7 +175,7 @@ namespace Infrastructure.Repositories
 
         public async Task<SubmodulesListResponseDto> GetSubmodulesByModuleAsync(int moduleId, bool includeInactive = false)
         {
-            var module = await _context.SystemModules
+            var module = await _context.Modules
                 .Where(m => m.Id == moduleId)
                 .Select(m => new { m.Id, m.Name })
                 .FirstOrDefaultAsync();
@@ -183,7 +190,7 @@ namespace Infrastructure.Repositories
                 };
             }
 
-            var query = _context.SystemSubmodules
+            var query = _context.Submodules
                 .Where(s => s.ModuleId == moduleId);
 
             if (!includeInactive)
@@ -222,7 +229,7 @@ namespace Infrastructure.Repositories
 
         public async Task<SubmoduleResponseDto?> GetSubmoduleByIdAsync(int submoduleId)
         {
-            var submodule = await _context.SystemSubmodules
+            var submodule = await _context.Submodules
                 .Where(s => s.Id == submoduleId)
                 .Select(s => new SubmoduleResponseDto
                 {
@@ -249,33 +256,35 @@ namespace Infrastructure.Repositories
 
         public async Task<SystemSubmodule> CreateSubmoduleAsync(SystemSubmodule submodule)
         {
-            _context.SystemSubmodules.Add(submodule);
+            _context.Submodules.Add(submodule);
             await _context.SaveChangesAsync();
             return submodule;
         }
 
-        public async Task<SystemSubmodule?> UpdateSubmoduleAsync(int submoduleId, SystemSubmodule submodule)
+        public async Task<bool> UpdateSubmoduleAsync(int submoduleId, SystemSubmodule updatedSubmodule)
         {
-            var existing = await _context.SystemSubmodules.FindAsync(submoduleId);
-            if (existing == null) return null;
+            var existing = await _context.Submodules.FindAsync(submoduleId);
+            if (existing == null)
+                return false;
 
-            existing.Name = submodule.Name;
-            existing.Description = submodule.Description;
-            existing.Path = submodule.Path;
-            existing.Icon = submodule.Icon;
-            existing.Order = submodule.Order;
-            existing.Color = submodule.Color;
-            existing.IsActive = submodule.IsActive;
+            existing.Name = updatedSubmodule.Name;
+            existing.Description = updatedSubmodule.Description;
+            existing.Path = updatedSubmodule.Path;
+            existing.Icon = updatedSubmodule.Icon;
+            existing.Order = updatedSubmodule.Order;
+            existing.Color = updatedSubmodule.Color;
+            existing.IsActive = updatedSubmodule.IsActive;
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-            return existing;
+            return true;
         }
 
         public async Task<bool> DeleteSubmoduleAsync(int submoduleId)
         {
-            var submodule = await _context.SystemSubmodules.FindAsync(submoduleId);
-            if (submodule == null) return false;
+            var submodule = await _context.Submodules.FindAsync(submoduleId);
+            if (submodule == null)
+                return false;
 
             // Soft delete
             submodule.IsActive = false;
@@ -287,7 +296,7 @@ namespace Infrastructure.Repositories
 
         public async Task<bool> SubmoduleExistsAsync(int submoduleId)
         {
-            return await _context.SystemSubmodules.AnyAsync(s => s.Id == submoduleId);
+            return await _context.Submodules.AnyAsync(s => s.Id == submoduleId);
         }
     }
 }

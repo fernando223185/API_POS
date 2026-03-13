@@ -20,16 +20,13 @@ namespace Web.Api.Controllers.LoginController
 		}
 
         /// <summary>
-        /// Endpoint de login con soporte completo para CORS
+        /// Endpoint de login
         /// </summary>
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginCommand command)
         {
             try
             {
-                // ✅ Agregar headers de CORS explícitos
-                AddCorsHeaders();
-
                 if (string.IsNullOrWhiteSpace(command.Code) || string.IsNullOrWhiteSpace(command.Password))
                 {
                     return BadRequest(new { 
@@ -88,28 +85,20 @@ namespace Web.Api.Controllers.LoginController
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Login error: {ex.Message}");
+                Console.WriteLine($"❌ Login error: {ex.Message}");
+                Console.WriteLine($"   Stack: {ex.StackTrace}");
                 return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
             }
         }
 
         /// <summary>
-        /// Manejo de preflight OPTIONS para CORS
+        /// Validar si un token JWT es válido
         /// </summary>
-        [HttpOptions("login")]
-        public IActionResult PreflightLogin()
-        {
-            AddCorsHeaders();
-            return Ok();
-        }
-
         [HttpPost("validate-token")]
         public async Task<IActionResult> ValidateToken([FromHeader] string authorization)
         {
             try
             {
-                AddCorsHeaders();
-
                 if (string.IsNullOrEmpty(authorization) || !authorization.StartsWith("Bearer "))
                 {
                     return BadRequest(new { message = "Invalid authorization header", error = 1 });
@@ -135,25 +124,19 @@ namespace Web.Api.Controllers.LoginController
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Token validation error: {ex.Message}");
+                Console.WriteLine($"❌ Token validation error: {ex.Message}");
                 return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
             }
         }
 
-        [HttpOptions("validate-token")]
-        public IActionResult PreflightValidateToken()
-        {
-            AddCorsHeaders();
-            return Ok();
-        }
-
+        /// <summary>
+        /// Refrescar token JWT (placeholder)
+        /// </summary>
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromHeader] string authorization)
         {
             try
             {
-                AddCorsHeaders();
-
                 if (string.IsNullOrEmpty(authorization) || !authorization.StartsWith("Bearer "))
                 {
                     return BadRequest(new { message = "Invalid authorization header", error = 1 });
@@ -167,8 +150,7 @@ namespace Web.Api.Controllers.LoginController
                     return Unauthorized(new { message = "Invalid token", error = 1 });
                 }
 
-                // Aquí podrías obtener información actualizada del usuario desde la base de datos
-                // Por ahora retornamos un nuevo token básico
+                // TODO: Implementar lógica de refresh token completa
                 
                 return Ok(new { 
                     message = "Token refresh endpoint - implement as needed", 
@@ -178,59 +160,8 @@ namespace Web.Api.Controllers.LoginController
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Token refresh error: {ex.Message}");
+                Console.WriteLine($"❌ Token refresh error: {ex.Message}");
                 return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
-            }
-        }
-
-        [HttpOptions("refresh-token")]
-        public IActionResult PreflightRefreshToken()
-        {
-            AddCorsHeaders();
-            return Ok();
-        }
-
-        /// <summary>
-        /// Agregar headers de CORS manualmente para compatibilidad máxima
-        /// ✅ ACTUALIZADO: Incluye soporte para IPs de red local
-        /// </summary>
-        private void AddCorsHeaders()
-        {
-            var origin = Request.Headers["Origin"].FirstOrDefault();
-            
-            if (!string.IsNullOrEmpty(origin))
-            {
-                var uri = new Uri(origin);
-                
-                // Verificar si el origin es localhost
-                var isLocalhost = uri.Host == "localhost" || 
-                                 uri.Host == "127.0.0.1" || 
-                                 uri.Host == "::1";
-                
-                // ✅ Verificar si el origin es una IP de red privada
-                var isPrivateNetwork = uri.Host.StartsWith("192.168.") ||
-                                      uri.Host.StartsWith("10.") ||
-                                      (uri.Host.StartsWith("172.") && 
-                                       int.TryParse(uri.Host.Split('.')[1], out var secondOctet) && 
-                                       secondOctet >= 16 && secondOctet <= 31);
-                
-                // ✅ Permitir localhost Y redes privadas
-                if (isLocalhost || isPrivateNetwork)
-                {
-                    Response.Headers.Add("Access-Control-Allow-Origin", origin);
-                    Response.Headers.Add("Access-Control-Allow-Credentials", "true");
-                    Response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-                    Response.Headers.Add("Access-Control-Allow-Headers", 
-                        "Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma");
-                    Response.Headers.Add("Access-Control-Max-Age", "86400");
-                    
-                    var networkType = isLocalhost ? "localhost" : "private network";
-                    Console.WriteLine($"🌐 CORS headers added for {networkType} origin: {origin}");
-                }
-                else
-                {
-                    Console.WriteLine($"🚫 CORS blocked for non-local origin: {origin}");
-                }
             }
         }
     }

@@ -10,45 +10,66 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.EntityFrameworkCore;
 using Application;
 using Application.Abstractions.Authorization;
 using Application.Abstractions.Security;
 using Application.Abstractions.CRM;
 using Application.Abstractions.Catalogue;
-using Application.Abstractions.Sales_Orders;
 using Application.Abstractions.Login;
 using Application.Abstractions.Config;
+using Application.Abstractions.Storage;
+using Application.Abstractions.Common;
+using Application.Abstractions.Purchasing;
+using Application.Abstractions.Inventory;
+using Application.Abstractions.Documents;  // ✅ NUEVO
+using Application.Abstractions.Sales;      // ✅ NUEVO - Sistema de ventas
 using Application.Common.Services; 
 using Infrastructure;
 using Infrastructure.Services;
 using Infrastructure.Repositories;
+using Infrastructure.Persistence;
+using Domain.Entities;
 using Web.Api.Configuration;
 using Web.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// CONFIGURAR KESTREL PARA ESCUCHAR EN TODAS LAS INTERFACES
+// ============================================
+// CONFIGURAR KESTREL - HTTP SOLO (SIN HTTPS EN LINUX)
+// ============================================
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
-    // Escuchar en todas las interfaces (0.0.0.0) en el puerto 7254
+    // Escuchar en todas las interfaces (0.0.0.0) en el puerto 7254 (HTTP)
     serverOptions.Listen(IPAddress.Any, 7254);
     
-    // También escuchar en localhost con HTTPS (si tienes certificado)
-    serverOptions.Listen(IPAddress.Loopback, 7255, listenOptions =>
+    // Solo configurar HTTPS en Windows (donde tenemos certificado de desarrollo)
+    if (OperatingSystem.IsWindows())
     {
-        listenOptions.UseHttps(); 
-    });
-    
-    Console.WriteLine("🌐 Kestrel configured to listen on:");
-    Console.WriteLine("   - http://0.0.0.0:7254 (All interfaces - HTTP)");
-    Console.WriteLine("   - https://localhost:7255 (Localhost only - HTTPS)");
+        // También escuchar en localhost con HTTPS (solo Windows)
+        serverOptions.Listen(IPAddress.Loopback, 7255, listenOptions =>
+        {
+            listenOptions.UseHttps(); 
+        });
+        
+        Console.WriteLine("🌐 Kestrel configured to listen on:");
+        Console.WriteLine("   - http://0.0.0.0:7254 (All interfaces - HTTP)");
+        Console.WriteLine("   - https://localhost:7255 (Localhost only - HTTPS - Windows)");
+    }
+    else
+    {
+        // En Linux/macOS solo HTTP
+        Console.WriteLine("🌐 Kestrel configured to listen on:");
+        Console.WriteLine("   - http://0.0.0.0:7254 (All interfaces - HTTP)");
+        Console.WriteLine("   - HTTPS disabled (Linux/macOS - no certificate)");
+    }
 });
 
 // Agregar servicios al contenedor
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// ✅ CONFIGURAR SWAGGER PARA MÚLTIPLES URLs
+// ✅ CONFIGURAR SWAGGER
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
@@ -84,120 +105,14 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// ✅ CONFIGURACIÓN CORS MEJORADA PARA DESARROLLO CON IPs DE RED
+// ✅ CONFIGURACIÓN CORS - PERMITIR TODO (PARA AWS/DEMO)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowDevelopment", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins(
-                // React/Next.js dev servers - localhost
-                "http://localhost:3000",
-                "https://localhost:3000", 
-                "http://localhost:3001",
-                "https://localhost:3001",
-                "http://localhost:3002",
-                "https://localhost:3002",
-                "http://localhost:3003",
-                "https://localhost:3003",
-                
-                // Vite dev servers - localhost
-                "http://localhost:5173",
-                "https://localhost:5173",
-                "http://localhost:5174",
-                "https://localhost:5174",
-                
-                // Angular dev servers - localhost
-                "http://localhost:4200",
-                "https://localhost:4200",
-                "http://localhost:4201",
-                "https://localhost:4201",
-                
-                // IPv4 localhost
-                "http://127.0.0.1:3000",
-                "https://127.0.0.1:3000",
-                "http://127.0.0.1:5173",
-                "https://127.0.0.1:5173",
-                "http://127.0.0.1:4200",
-                "https://127.0.0.1:4200",
-                
-                // ✅ TU IP ESPECÍFICA - 192.168.0.72
-                "http://192.168.0.72:3000",
-                "https://192.168.0.72:3000",
-                "http://192.168.0.72:3001",
-                "https://192.168.0.72:3001",
-                "http://192.168.0.72:5173",
-                "https://192.168.0.72:5173",
-                "http://192.168.0.72:4200",
-                "https://192.168.0.72:4200",
-                "http://192.168.0.72:8080",
-                "https://192.168.0.72:8080",
-
-                // ✅ NUEVA IP ESPECÍFICA - 192.168.192.57
-                "http://192.168.192.57:3000",
-                "https://192.168.192.57:3000",
-                "http://192.168.192.57:3001",
-                "https://192.168.192.57:3001",
-                "http://192.168.192.57:5173",
-                "https://192.168.192.57:5173",
-                "http://192.168.192.57:4200",
-                "https://192.168.192.57:4200",
-                "http://192.168.192.57:8080",
-                "https://192.168.192.57:8080",
-
-                // Puertos adicionales comunes - localhost
-                "http://localhost:8080",
-                "https://localhost:8080",
-                "http://localhost:8081",
-                "https://localhost:8081"
-              )
+        policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials()
-              .SetIsOriginAllowedToAllowWildcardSubdomains();
-    });
-
-    // ✅ POLÍTICA PERMISIVA PARA DESARROLLO LOCAL Y RED (usar solo en desarrollo)
-    options.AddPolicy("AllowAllLocal", policy =>
-    {
-        policy.SetIsOriginAllowed(origin => 
-        {
-            if (string.IsNullOrEmpty(origin)) return false;
-            
-            var uri = new Uri(origin);
-            
-            // Permitir localhost
-            var isLocalhost = uri.Host == "localhost" || 
-                             uri.Host == "127.0.0.1" || 
-                             uri.Host == "::1";
-            
-            // ✅ Permitir IPs de red local (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
-            var isPrivateNetwork = uri.Host.StartsWith("192.168.") ||
-                                  uri.Host.StartsWith("10.") ||
-                                  (uri.Host.StartsWith("172.") && 
-                                   int.TryParse(uri.Host.Split('.')[1], out var secondOctet) && 
-                                   secondOctet >= 16 && secondOctet <= 31);
-            
-            var isAllowed = isLocalhost || isPrivateNetwork;
-            
-            if (isAllowed)
-            {
-                Console.WriteLine($"🌐 CORS: Allowing origin {origin} (localhost: {isLocalhost}, private: {isPrivateNetwork})");
-            }
-            
-            return isAllowed;
-        })
-        .AllowAnyMethod()
-        .AllowAnyHeader()
-        .AllowCredentials();
-    });
-
-    // Política más restrictiva para producción
-    options.AddPolicy("Production", policy =>
-    {
-        policy.WithOrigins("https://tudominio.com")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+              .AllowAnyHeader();
     });
 });
 
@@ -213,11 +128,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
-            ClockSkew = TimeSpan.Zero // Eliminar tolerancia de tiempo
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "default-key")),
+            ClockSkew = TimeSpan.Zero
         };
 
-        // Configurar eventos para debugging
         options.Events = new JwtBearerEvents
         {
             OnAuthenticationFailed = context =>
@@ -227,35 +141,210 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
             OnTokenValidated = context =>
             {
-                Console.WriteLine($"Token validated for user: {context.Principal.Identity.Name}");
+                Console.WriteLine($"Token validated for user: {context.Principal?.Identity?.Name}");
                 return Task.CompletedTask;
             }
         };
     });
 
-// ✅ CONFIGURACIÓN CORRECTA DE SERVICIOS (SIN DUPLICACIONES)
+// ✅ CONFIGURACIÓN DE SERVICIOS
 builder.Services
-    .AddDatabase(builder.Configuration)             // DbContext como Scoped
-    .AddApplication()                               // MediatR y handlers
-    .AddInfrastructure();                          // Servicios de infraestructura
+    .AddDatabase(builder.Configuration)
+    .AddApplication()
+    .AddInfrastructure();
 
-// ✅ REGISTRAR REPOSITORIOS MANUALMENTE COMO SCOPED
+// ✅ REGISTRAR REPOSITORIOS
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<ISalesRepository, SalesRepository>();
-builder.Services.AddScoped<ILoginRepository, LoginRepository>();  // ⚡ AGREGAR LoginRepository
-builder.Services.AddScoped<IUserPermissionRepository, UserPermissionRepository>();  // ✅ NUEVO: UserPermissionRepository
-builder.Services.AddScoped<ISystemModuleRepository, SystemModuleRepository>();  // ✅ NUEVO: SystemModuleRepository
+builder.Services.AddScoped<ILoginRepository, LoginRepository>();
+builder.Services.AddScoped<IUserPermissionRepository, UserPermissionRepository>();
+builder.Services.AddScoped<ISystemModuleRepository, SystemModuleRepository>();
+builder.Services.AddScoped<IProductImageRepository, ProductImageRepository>();
+builder.Services.AddScoped<IBranchRepository, BranchRepository>();  // ✅ NUEVO
+builder.Services.AddScoped<IWarehouseRepository, WarehouseRepository>();  // ✅ NUEVO
+builder.Services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();  // ✅ NUEVO - Órdenes de Compra
+builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();  // ✅ NUEVO - Proveedores
+builder.Services.AddScoped<IPurchaseOrderReceivingRepository, PurchaseOrderReceivingRepository>();  // ✅ NUEVO - Recepciones
+builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();  // ✅ NUEVO - Empresas
+
+// ✅ NUEVO: Sistema de ventas con cobranza
+builder.Services.AddScoped<Application.Abstractions.Sales.ISaleRepository, SaleRepository>();
 
 // ✅ REGISTRAR SERVICIOS ADICIONALES
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
-
-// ✅ REGISTRAR SERVICIO DE GENERACIÓN DE CÓDIGOS
 builder.Services.AddScoped<ICustomerCodeGeneratorService, CustomerCodeGeneratorService>();
+builder.Services.AddScoped<IS3StorageService, S3StorageService>();  // ✅ NUEVO - Servicio S3
+builder.Services.AddScoped<ICodeGeneratorService, CodeGeneratorService>();  // ✅ NUEVO - Generador de códigos centralizado
+builder.Services.AddScoped<IInventoryService, InventoryService>();  // ✅ NUEVO - Servicio de inventario
+builder.Services.AddScoped<IPurchaseDocumentService, PurchaseDocumentService>();  // ✅ NUEVO - Generación de PDFs
+builder.Services.AddScoped<IThermalTicketService, ThermalTicketService>();  // ✅ NUEVO - Tickets térmicos
+builder.Services.AddScoped<ISaleDocumentService, SaleDocumentService>();  // ✅ NUEVO - Documentos de venta
+builder.Services.AddScoped<IKardexDocumentService, KardexDocumentService>();  // ✅ NUEVO - Documentos de kardex
+
+// ✅ REGISTRAR MEDIATR (Handlers automáticos)
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(typeof(Application.AssemblyReference).Assembly);
+    cfg.RegisterServicesFromAssembly(typeof(Infrastructure.AssemblyReference).Assembly); // ✅ NUEVO - Escanear Infrastructure
+});
 
 var app = builder.Build();
+
+// ============================================
+// ✅ EJECUTAR MIGRACIONES AUTOMÁTICAMENTE
+// ============================================
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<POSDbContext>();
+        
+        Console.WriteLine("🔄 Verificando migraciones de base de datos...");
+        
+        // Verificar si hay migraciones pendientes
+        var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+        if (pendingMigrations.Any())
+        {
+            Console.WriteLine($"⚠️  Hay {pendingMigrations.Count()} migraciones pendientes");
+            Console.WriteLine("🔄 Aplicando migraciones...");
+            
+            await context.Database.MigrateAsync();
+            
+            Console.WriteLine("✅ Migraciones aplicadas exitosamente");
+        }
+        else
+        {
+            Console.WriteLine("✅ Base de datos actualizada - No hay migraciones pendientes");
+        }
+
+        // ============================================
+        // ✅ VERIFICAR Y CREAR ROLES SI NO EXISTEN
+        // ============================================
+        Console.WriteLine("🔄 Verificando roles del sistema...");
+        
+        var rolesCount = await context.Roles.CountAsync();
+        
+        if (rolesCount == 0)
+        {
+            Console.WriteLine("⚠️  No hay roles en la base de datos, creando roles básicos...");
+            
+            var roles = new[]
+            {
+                new Role { Id = 1, Name = "Administrador", Description = "Acceso completo al sistema ERP", IsActive = true },
+                new Role { Id = 2, Name = "Usuario", Description = "Acceso básico al sistema", IsActive = true },
+                new Role { Id = 3, Name = "Vendedor", Description = "Personal de ventas y atención a clientes", IsActive = true },
+                new Role { Id = 4, Name = "Almacenista", Description = "Gestión de inventario y productos", IsActive = true },
+                new Role { Id = 5, Name = "Gerente", Description = "Supervisión y reportes", IsActive = true },
+                new Role { Id = 6, Name = "Cajero", Description = "Operación de punto de venta", IsActive = true },
+                new Role { Id = 7, Name = "Contador", Description = "Gestión fiscal y contable", IsActive = true },
+                new Role { Id = 8, Name = "Comprador", Description = "Gestión de compras y proveedores", IsActive = true }
+            };
+            
+            context.Roles.AddRange(roles);
+            await context.SaveChangesAsync();
+            
+            Console.WriteLine($"✅ {roles.Length} roles creados exitosamente");
+        }
+        else
+        {
+            Console.WriteLine($"✅ Roles ya existen en la base de datos ({rolesCount} roles)");
+        }
+
+        // ============================================
+        // ✅ VERIFICAR Y CREAR USUARIO ADMINISTRADOR
+        // ============================================
+        Console.WriteLine("🔄 Verificando usuario administrador...");
+        
+        var adminUser = await context.User.FirstOrDefaultAsync(u => u.Code == "ADMIN001");
+        
+        if (adminUser == null)
+        {
+            Console.WriteLine("⚠️  Usuario ADMIN001 no existe, creando...");
+            
+            // Verificar que el rol Administrador existe
+            var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.Id == 1);
+            if (adminRole == null)
+            {
+                Console.WriteLine("❌ Error: Rol Administrador (ID=1) no existe. No se puede crear el usuario.");
+            }
+            else
+            {
+                // Hash correcto de "admin123" - el mismo que usan las migraciones
+                var passwordHash = new byte[] { 97, 100, 109, 105, 110, 49, 50, 51 }; // "admin123" en bytes
+                
+                var newAdmin = new User
+                {
+                    Code = "ADMIN001",
+                    Name = "Administrador",
+                    Email = "admin@sistema.com",
+                    Phone = "1234567890",
+                    RoleId = 1,
+                    PasswordHash = passwordHash,
+                    Active = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                
+                context.User.Add(newAdmin);
+                await context.SaveChangesAsync();
+                
+                Console.WriteLine("✅ Usuario ADMIN001 creado exitosamente");
+                Console.WriteLine("   📧 Email: admin@sistema.com");
+                Console.WriteLine("   🔑 Password: admin123");
+            }
+        }
+        else
+        {
+            Console.WriteLine("✅ Usuario ADMIN001 ya existe");
+            Console.WriteLine($"   📧 Email: {adminUser.Email}");
+            Console.WriteLine($"   👤 Rol: {adminUser.RoleId}");
+            Console.WriteLine("   🔑 Password: admin123");
+            
+            // Verificar que el password hash sea correcto
+            var correctHash = new byte[] { 97, 100, 109, 105, 110, 49, 50, 51 };
+            if (!adminUser.PasswordHash.SequenceEqual(correctHash))
+            {
+                Console.WriteLine("⚠️  Password hash incorrecto, actualizando...");
+                adminUser.PasswordHash = correctHash;
+                await context.SaveChangesAsync();
+                Console.WriteLine("✅ Password hash actualizado correctamente");
+            }
+        }
+        
+        // ============================================
+        // ✅ RESUMEN DE CONFIGURACIÓN
+        // ============================================
+        var totalUsers = await context.User.CountAsync();
+        var totalRoles = await context.Roles.CountAsync();
+        
+        // ✅ CORREGIDO: Manejar error si la tabla SystemModules no existe
+        int totalModules = 0;
+        try
+        {
+            totalModules = await context.Modules.CountAsync();
+        }
+        catch (Exception)
+        {
+            // Si falla, intentar contar en la tabla sin validar existencia
+            Console.WriteLine("⚠️  No se pudo contar módulos (tabla puede no existir aún)");
+        }
+        
+        Console.WriteLine();
+        Console.WriteLine("📊 Resumen de Base de Datos:");
+        Console.WriteLine($"   👥 Usuarios: {totalUsers}");
+        Console.WriteLine($"   🔐 Roles: {totalRoles}");
+        Console.WriteLine($"   📦 Módulos: {totalModules}");
+        Console.WriteLine();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Error al aplicar migraciones: {ex.Message}");
+        Console.WriteLine($"   Detalles: {ex.InnerException?.Message}");
+        Console.WriteLine("⚠️  La API continuará ejecutándose, pero puede tener problemas");
+    }
+}
 
 // Configurar manejo de errores global
 app.UseExceptionHandler(errorApp =>
@@ -269,76 +358,26 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
-// ✅ SWAGGER CONFIGURADO PARA MÚLTIPLES URLs
-if (app.Environment.IsDevelopment())
+// ✅ SWAGGER (HABILITADO EN PRODUCCIÓN PARA DEMO)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "ERP POS API V1");
-        c.RoutePrefix = "swagger"; // Swagger disponible en /swagger
-        
-        // Configurar Swagger para JWT
-        c.OAuthClientId("swagger");
-        c.OAuthAppName("ERP POS API");
-        c.OAuthUsePkce();
-        
-        // Información adicional
-        c.DocumentTitle = "ERP POS API - Swagger UI";
-        c.DisplayRequestDuration();
-    });
-    
-    Console.WriteLine("📚 Swagger UI available at:");
-    Console.WriteLine("   - http://localhost:7254/swagger");
-    Console.WriteLine("   - http://192.168.192.57:7254/swagger");
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "ERP POS API V1");
+    c.RoutePrefix = "swagger";
+    c.DocumentTitle = "ERP POS API - Swagger UI";
+    c.DisplayRequestDuration();
+});
 
-// ⚠️ DESHABILITAR HTTPS REDIRECT PARA PERMITIR HTTP EN RED
-// app.UseHttpsRedirection(); // Comentado para permitir acceso HTTP desde IP de red
-
-// Habilitar HSTS solo en producción con HTTPS
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-}
+// ⚠️ NO USAR HTTPS REDIRECT (COMENTADO PARA FACILITAR TESTING EN POSTMAN)
+// if (OperatingSystem.IsWindows())
+// {
+//     app.UseHttpsRedirection();
+// }
 
 app.UseRouting();
 
-// ✅ USAR CORS PERMISIVO EN DESARROLLO
-if (app.Environment.IsDevelopment())
-{
-    // Usar política más permisiva para desarrollo
-    app.UseCors("AllowAllLocal");
-    Console.WriteLine("🌐 CORS: Using AllowAllLocal policy for development");
-}
-else
-{
-    app.UseCors("Production");
-    Console.WriteLine("🌐 CORS: Using Production policy");
-}
-
-// ✅ MIDDLEWARE DE LOGGING CON INFORMACIÓN DE CORS
-app.Use(async (context, next) =>
-{
-    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-    
-    // Log información de CORS y acceso para debugging
-    var origin = context.Request.Headers["Origin"].FirstOrDefault();
-    var method = context.Request.Method;
-    var path = context.Request.Path;
-    var host = context.Request.Host.ToString();
-    
-    if (!string.IsNullOrEmpty(origin))
-    {
-        logger.LogInformation($"🌐 CORS Request: {method} {path} from origin: {origin} to host: {host}");
-    }
-    else
-    {
-        logger.LogInformation($"📡 Direct Request: {method} {path} to host: {host}");
-    }
-    
-    await next.Invoke();
-});
+// ✅ USAR CORS PERMISIVO
+app.UseCors("AllowAll");
 
 // Autenticación y Autorización
 app.UseAuthentication();
@@ -349,28 +388,44 @@ app.UseJwtUser();
 
 app.MapControllers();
 
-// ✅ INFORMACIÓN DE INICIO MEJORADA
+// ✅ INFORMACIÓN DE INICIO
 Console.WriteLine("🚀 ERP POS API Server started successfully");
 Console.WriteLine($"🌍 Environment: {app.Environment.EnvironmentName}");
+Console.WriteLine($"💻 Operating System: {(OperatingSystem.IsWindows() ? "Windows" : OperatingSystem.IsLinux() ? "Linux" : "macOS")}");
 Console.WriteLine();
 Console.WriteLine("📡 API Access URLs:");
 Console.WriteLine("   - http://localhost:7254 (Local access)");
-Console.WriteLine("   - http://192.168.192.57:7254 (Network access)");
-Console.WriteLine("   - https://localhost:7255 (HTTPS - if certificate available)");
+Console.WriteLine("   - http://0.0.0.0:7254 (All interfaces)");
+
+if (OperatingSystem.IsWindows())
+{
+    Console.WriteLine("   - https://localhost:7255 (HTTPS - Windows only)");
+}
+else
+{
+    Console.WriteLine("   - http://<server-ip>:7254 (Network access - Linux/AWS)");
+}
+
 Console.WriteLine();
-Console.WriteLine("📚 Swagger UI URLs:");
+Console.WriteLine("📚 Swagger UI:");
 Console.WriteLine("   - http://localhost:7254/swagger");
-Console.WriteLine("   - http://192.168.192.57:7254/swagger");
-Console.WriteLine();
-Console.WriteLine("📋 Allowed CORS origins in development:");
-Console.WriteLine("   - http://localhost:3000-3003 (React/Next.js)");
-Console.WriteLine("   - http://localhost:5173-5174 (Vite)");
-Console.WriteLine("   - http://localhost:4200-4201 (Angular)");
-Console.WriteLine("   - http://localhost:8080-8081 (General)");
-Console.WriteLine("   - ✅ http://192.168.0.72:3000-8080 (IP de red 1)");
-Console.WriteLine("   - ✅ http://192.168.192.57:3000-8080 (IP de red 2)");
-Console.WriteLine("   - All localhost and private network IPs allowed dynamically");
+
+if (!OperatingSystem.IsWindows())
+{
+    Console.WriteLine("   - http://<ec2-public-ip>:7254/swagger");
+}
+
 Console.WriteLine();
 Console.WriteLine("🔑 Test credentials: ADMIN001 / admin123");
+Console.WriteLine();
+
+if (!OperatingSystem.IsWindows())
+{
+    Console.WriteLine("⚠️  AWS/Linux Notes:");
+    Console.WriteLine("   - HTTPS is disabled (no certificate)");
+    Console.WriteLine("   - Make sure port 7254 is open in Security Group");
+    Console.WriteLine("   - Access via: http://<ec2-public-ip>:7254");
+    Console.WriteLine();
+}
 
 app.Run();

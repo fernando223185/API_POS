@@ -1,177 +1,502 @@
+using Application.Core.Sales.Commands;
+using Application.Core.Sales.Queries;
+using Application.DTOs.Sales;
+using Application.Abstractions.Documents;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Web.Api.Authorization;
 
 namespace Web.Api.Controllers.Sales
 {
-    [Route("api/[controller]")]
+    /// <summary>
+    /// Controlador de ventas con cobranza multi-forma de pago
+    /// </summary>
+    [Route("api/sales")]
     [ApiController]
     public class SalesController : ControllerBase
     {
+        private readonly IMediator _mediator;
+        private readonly IThermalTicketService _thermalTicketService;
+        private readonly ISaleDocumentService _saleDocumentService;
+
+        public SalesController(
+            IMediator mediator,
+            IThermalTicketService thermalTicketService,
+            ISaleDocumentService saleDocumentService)
+        {
+            _mediator = mediator;
+            _thermalTicketService = thermalTicketService;
+            _saleDocumentService = saleDocumentService;
+        }
+
+        /// <summary>
+        /// Crear una nueva venta (estado Draft)
+        /// </summary>
         [HttpPost]
-        [RequirePermission("Sale", "CreateSale")]
-        public async Task<IActionResult> CreateSale([FromBody] dynamic saleData)
+        [RequirePermission("Sales", "Create")]
+        public async Task<IActionResult> CreateSale([FromBody] CreateSaleRequestDto request)
         {
             try
             {
                 var userId = HttpContext.Items["UserId"] as int? ?? 0;
                 var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
 
+                if (userId == 0)
+                {
+                    return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
+                }
+
+                Console.WriteLine($"?? Creando venta - Usuario: {userName}, Almacén: {request.WarehouseId}, " +
+                                $"Productos: {request.Details.Count}");
+
+                var command = new CreateSaleCommand(request, userId);
+                var result = await _mediator.Send(command);
+
                 return Ok(new
                 {
-                    message = "Sale created successfully",
+                    message = "Venta creada exitosamente",
                     error = 0,
-                    saleId = 1001,
-                    saleNumber = "VTA-2025-001",
-                    createdBy = userName,
-                    total = 1250.00
+                    data = result
                 });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                Console.WriteLine($"? Not found: {ex.Message}");
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"? Validation error: {ex.Message}");
+                return BadRequest(new { message = ex.Message, error = 1 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                Console.WriteLine($"? Error creating sale: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return StatusCode(500, new
+                {
+                    message = "Error al crear venta",
+                    error = 2,
+                    details = ex.Message
+                });
             }
         }
 
-        [HttpGet]
-        [RequirePermission("Sale", "ViewHistory")]
-        public async Task<IActionResult> GetSales([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+        /// <summary>
+        /// Procesar pagos y completar la venta
+        /// Descuenta inventario automáticamente
+        /// </summary>
+        [HttpPost("{saleId}/payments")]
+        [RequirePermission("Sales", "Complete")]
+        public async Task<IActionResult> ProcessPayments(
+            int saleId,
+            [FromBody] ProcessSalePaymentsRequestDto request)
         {
             try
             {
-                return Ok(new
+                var userId = HttpContext.Items["UserId"] as int? ?? 0;
+                var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
+
+                if (userId == 0)
                 {
-                    message = "Sales retrieved successfully",
-                    error = 0,
-                    data = new[] {
-                        new { 
-                            id = 1, 
-                            saleNumber = "VTA-2025-001", 
-                            customerName = "Cliente 1", 
-                            total = 1250.00,
-                            date = DateTime.UtcNow.AddDays(-1),
-                            status = "Completed"
-                        },
-                        new { 
-                            id = 2, 
-                            saleNumber = "VTA-2025-002", 
-                            customerName = "Cliente 2", 
-                            total = 875.50,
-                            date = DateTime.UtcNow.AddHours(-3),
-                            status = "Pending"
-                        }
-                    },
-                    pagination = new { page, pageSize, totalItems = 2 }
-                });
+                    return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
+                }
+
+                Console.WriteLine($"?? Procesando pagos para venta {saleId} - Usuario: {userName}, " +
+                                $"Formas de pago: {request.Payments.Count}");
+
+                var command = new ProcessSalePaymentsCommand(saleId, request, userId);
+                var result = await _mediator.Send(command);
+
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                Console.WriteLine($"? Not found: {ex.Message}");
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"? Validation error: {ex.Message}");
+                return BadRequest(new { message = ex.Message, error = 1 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                Console.WriteLine($"? Error processing payments: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return StatusCode(500, new
+                {
+                    message = "Error al procesar pagos",
+                    error = 2,
+                    details = ex.Message
+                });
             }
         }
 
+        /// <summary>
+        /// Obtener venta por ID
+        /// </summary>
         [HttpGet("{id}")]
-        [RequirePermission("Sale", "ViewHistory")]
+        [RequirePermission("Sales", "View")]
         public async Task<IActionResult> GetSale(int id)
         {
             try
             {
+                var query = new GetSaleByIdQuery(id);
+                var result = await _mediator.Send(query);
+
                 return Ok(new
                 {
-                    message = "Sale retrieved successfully",
+                    message = "Venta obtenida exitosamente",
                     error = 0,
-                    data = new {
-                        id,
-                        saleNumber = $"VTA-2025-{id:D3}",
-                        customerName = $"Cliente {id}",
-                        items = new[] {
-                            new { productId = 1, productName = "Producto 1", quantity = 2, unitPrice = 100.00, total = 200.00 },
-                            new { productId = 2, productName = "Producto 2", quantity = 1, unitPrice = 150.00, total = 150.00 }
-                        },
-                        subtotal = 350.00,
-                        tax = 56.00,
-                        total = 406.00,
-                        status = "Completed"
-                    }
+                    data = result
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Error getting sale: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al obtener venta",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Obtener ventas paginadas con filtros
+        /// </summary>
+        [HttpGet]
+        [RequirePermission("Sales", "View")]
+        public async Task<IActionResult> GetSales(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] int? warehouseId = null,
+            [FromQuery] int? customerId = null,
+            [FromQuery] int? userId = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] string? status = null,
+            [FromQuery] bool? isPaid = null,
+            [FromQuery] bool? requiresInvoice = null)
+        {
+            try
+            {
+                if (page < 1) page = 1;
+                if (pageSize < 1) pageSize = 20;
+                if (pageSize > 100) pageSize = 100;
+
+                Console.WriteLine($"?? Getting sales - Page: {page}, PageSize: {pageSize}, " +
+                                $"Warehouse: {warehouseId}, Status: {status}");
+
+                var query = new GetSalesPagedQuery(
+                    page,
+                    pageSize,
+                    warehouseId,
+                    customerId,
+                    userId,
+                    fromDate,
+                    toDate,
+                    status,
+                    isPaid,
+                    requiresInvoice
+                );
+
+                var result = await _mediator.Send(query);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Error getting sales: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al obtener ventas",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Obtener estadísticas de ventas
+        /// </summary>
+        [HttpGet("statistics")]
+        [RequirePermission("Sales", "ViewReports")]
+        public async Task<IActionResult> GetStatistics(
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] int? warehouseId = null)
+        {
+            try
+            {
+                var query = new GetSalesStatisticsQuery(fromDate, toDate, warehouseId);
+                var result = await _mediator.Send(query);
+
+                return Ok(new
+                {
+                    message = "Estadísticas obtenidas exitosamente",
+                    error = 0,
+                    data = result
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                Console.WriteLine($"? Error getting statistics: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al obtener estadísticas",
+                    error = 2,
+                    details = ex.Message
+                });
             }
         }
 
-        [HttpPost("{id}/payment")]
-        [RequirePermission("Sale", "ProcessPayment")]
-        public async Task<IActionResult> ProcessPayment(int id, [FromBody] dynamic paymentData)
+        /// <summary>
+        /// Cancelar una venta
+        /// </summary>
+        [HttpPut("{id}/cancel")]
+        [RequirePermission("Sales", "Cancel")]
+        public async Task<IActionResult> CancelSale(
+            int id,
+            [FromBody] CancelSaleRequestDto request)
         {
             try
             {
                 var userId = HttpContext.Items["UserId"] as int? ?? 0;
                 var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
 
+                if (userId == 0)
+                {
+                    return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
+                }
+
+                Console.WriteLine($"? Cancelando venta {id} - Usuario: {userName}, Razón: {request.Reason}");
+
+                var command = new CancelSaleCommand(id, request.Reason, userId);
+                var result = await _mediator.Send(command);
+
                 return Ok(new
                 {
-                    message = "Payment processed successfully",
+                    message = "Venta cancelada exitosamente",
                     error = 0,
-                    saleId = id,
-                    paymentId = 2001,
-                    processedBy = userName,
-                    amount = 406.00,
-                    method = "Cash"
+                    data = result
                 });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                Console.WriteLine($"? Error cancelling sale: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al cancelar venta",
+                    error = 2,
+                    details = ex.Message
+                });
             }
         }
 
-        [HttpGet("today-summary")]
-        [RequirePermission("Sale", "ViewHistory")]
-        public async Task<IActionResult> GetTodaySummary()
+        /// <summary>
+        /// Obtener pagos de una venta
+        /// </summary>
+        [HttpGet("{saleId}/payments")]
+        [RequirePermission("Sales", "View")]
+        public async Task<IActionResult> GetSalePayments(int saleId)
         {
             try
             {
+                var query = new GetSaleByIdQuery(saleId);
+                var sale = await _mediator.Send(query);
+
                 return Ok(new
                 {
-                    message = "Today's sales summary retrieved successfully",
+                    message = "Pagos obtenidos exitosamente",
                     error = 0,
-                    data = new {
-                        totalSales = 15,
-                        totalAmount = 12750.00,
-                        averageTicket = 850.00,
-                        cashSales = 8,
-                        cardSales = 7,
-                        topSellingProduct = "Producto 1"
+                    data = new
+                    {
+                        saleId = sale.Id,
+                        saleCode = sale.Code,
+                        total = sale.Total,
+                        amountPaid = sale.AmountPaid,
+                        changeAmount = sale.ChangeAmount,
+                        payments = sale.Payments
                     }
                 });
             }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                Console.WriteLine($"? Error getting payments: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al obtener pagos",
+                    error = 2,
+                    details = ex.Message
+                });
             }
         }
 
-        [HttpPost("{id}/cancel")]
-        [RequirePermission("Sale", "Update")]
-        public async Task<IActionResult> CancelSale(int id, [FromBody] dynamic cancelData)
+        /// <summary>
+        /// Generar ticket térmico de venta (formato texto para impresoras térmicas)
+        /// </summary>
+        /// <param name="id">ID de la venta</param>
+        /// <param name="width">Ancho del papel (48=80mm, 32=58mm)</param>
+        [HttpGet("{id}/ticket/thermal")]
+        [RequirePermission("Sales", "View")]
+        public async Task<IActionResult> GetThermalTicket(int id, [FromQuery] int width = 48)
         {
             try
             {
-                var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
+                Console.WriteLine($"?? Generando ticket térmico para venta {id} - Ancho: {width}");
+
+                var ticketContent = await _thermalTicketService.GenerateSaleTicketAsync(id, width);
 
                 return Ok(new
                 {
-                    message = "Sale cancelled successfully",
+                    message = "Ticket térmico generado exitosamente",
                     error = 0,
-                    saleId = id,
-                    cancelledBy = userName,
-                    reason = "Customer request"
+                    data = new
+                    {
+                        saleId = id,
+                        content = ticketContent,
+                        width = width,
+                        format = "text/plain"
+                    }
                 });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                Console.WriteLine($"? Error generating thermal ticket: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al generar ticket térmico",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Generar ticket térmico de venta (formato binario ESC/POS)
+        /// Para enviar directamente a impresora térmica
+        /// </summary>
+        /// <param name="id">ID de la venta</param>
+        /// <param name="width">Ancho del papel (48=80mm, 32=58mm)</param>
+        [HttpGet("{id}/ticket/thermal/binary")]
+        [RequirePermission("Sales", "View")]
+        public async Task<IActionResult> GetThermalTicketBinary(int id, [FromQuery] int width = 48)
+        {
+            try
+            {
+                Console.WriteLine($"??? Generando ticket térmico binario para venta {id}");
+
+                var ticketBytes = await _thermalTicketService.GenerateSaleTicketBinaryAsync(id, width);
+
+                return File(ticketBytes, "application/octet-stream", $"ticket-{id}.bin");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Error generating thermal ticket binary: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al generar ticket térmico",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Generar ticket de venta en formato PDF
+        /// Para impresoras láser o compartir digitalmente
+        /// </summary>
+        /// <param name="id">ID de la venta</param>
+        /// <param name="includeLogo">Incluir logo de la empresa</param>
+        [HttpGet("{id}/ticket/pdf")]
+        [RequirePermission("Sales", "View")]
+        public async Task<IActionResult> GetTicketPdf(int id, [FromQuery] bool includeLogo = true)
+        {
+            try
+            {
+                Console.WriteLine($"?? Generando ticket PDF para venta {id}");
+
+                var pdfBytes = await _saleDocumentService.GenerateSaleTicketPdfAsync(id, includeLogo);
+
+                return File(pdfBytes, "application/pdf", $"ticket-{id}.pdf");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Error generating PDF ticket: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al generar ticket PDF",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Generar factura de venta en formato PDF
+        /// Requiere que la venta tenga RequiresInvoice = true
+        /// </summary>
+        /// <param name="id">ID de la venta</param>
+        [HttpGet("{id}/invoice/pdf")]
+        [RequirePermission("Sales", "View")]
+        public async Task<IActionResult> GetInvoicePdf(int id)
+        {
+            try
+            {
+                Console.WriteLine($"?? Generando factura PDF para venta {id}");
+
+                var pdfBytes = await _saleDocumentService.GenerateSaleInvoicePdfAsync(id);
+
+                return File(pdfBytes, "application/pdf", $"factura-{id}.pdf");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Error generating invoice PDF: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al generar factura PDF",
+                    error = 2,
+                    details = ex.Message
+                });
             }
         }
     }

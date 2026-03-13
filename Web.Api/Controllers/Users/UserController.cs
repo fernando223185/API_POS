@@ -62,6 +62,8 @@ namespace Web.Api.Controllers.Users
                         phone = user.Phone,
                         roleId = user.RoleId,
                         active = user.Active,
+                        defaultWarehouseId = user.DefaultWarehouseId,
+                        canSellFromMultipleWarehouses = user.CanSellFromMultipleWarehouses,
                         createdAt = user.CreatedAt
                     },
                     createdBy = currentUserName

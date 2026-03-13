@@ -13,7 +13,6 @@ namespace Infrastructure.Persistence
 
         public DbSet<Product> Products { get; set; }
         public DbSet<Customer> Customer { get; set; }
-        public DbSet<Sales> Sales { get; set; }
         public DbSet<User> User { get; set; }
         public DbSet<Role> Roles { get; set; }
         
@@ -22,8 +21,8 @@ namespace Infrastructure.Persistence
         public DbSet<RoleModulePermission> RoleModulePermissions { get; set; }
 
         // ✅ DEFINICIONES DE MÓDULOS Y SUBMÓDULOS DEL SISTEMA
-        public DbSet<SystemModule> SystemModules { get; set; }
-        public DbSet<SystemSubmodule> SystemSubmodules { get; set; }
+        public DbSet<SystemModule> Modules { get; set; }
+        public DbSet<SystemSubmodule> Submodules { get; set; }
 
         // Nuevas entidades de productos y precios
         public DbSet<ProductCategory> ProductCategories { get; set; }
@@ -33,6 +32,30 @@ namespace Infrastructure.Persistence
         public DbSet<Supplier> Suppliers { get; set; }
         public DbSet<ProductSupplier> ProductSuppliers { get; set; }
         public DbSet<ProductImage> ProductImages { get; set; }
+        
+        // ✅ NUEVO: Gestión de sucursales
+        public DbSet<Branch> Branches { get; set; }
+        
+        // ✅ NUEVO: Gestión de almacenes
+        public DbSet<Warehouse> Warehouses { get; set; }
+        
+        // ✅ NUEVO: Sistema de compras y recepción
+        public DbSet<PurchaseOrder> PurchaseOrders { get; set; }
+        public DbSet<PurchaseOrderDetail> PurchaseOrderDetails { get; set; }
+        public DbSet<PurchaseOrderReceiving> PurchaseOrderReceivings { get; set; }
+        public DbSet<PurchaseOrderReceivingDetail> PurchaseOrderReceivingDetails { get; set; }
+        
+        // ✅ NUEVO: Control de inventario
+        public DbSet<InventoryMovement> InventoryMovements { get; set; }
+        public DbSet<ProductStock> ProductStock { get; set; }
+
+        // ✅ NUEVO: Sistema de ventas con cobranza
+        public DbSet<Sale> SalesNew { get; set; }
+        public DbSet<SaleDetail> SaleDetails { get; set; }
+        public DbSet<SalePayment> SalePayments { get; set; }
+
+        // ✅ NUEVO: Gestión de empresas
+        public DbSet<Company> Companies { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -63,50 +86,11 @@ namespace Infrastructure.Persistence
                 entity.Property(c => c.IsActive)
                     .HasDefaultValue(true);
 
-                // Configurar relaciones (comentadas temporalmente para evitar errores en migración)
-                /*
-                entity.HasOne(c => c.PriceList)
-                    .WithMany(p => p.Customers)
-                    .HasForeignKey(c => c.PriceListId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                entity.HasOne(c => c.CreatedBy)
-                    .WithMany()
-                    .HasForeignKey(c => c.CreatedByUserId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                entity.HasOne(c => c.UpdatedBy)
-                    .WithMany()
-                    .HasForeignKey(c => c.UpdatedByUserId)
-                    .OnDelete(DeleteBehavior.SetNull);
-                */
-
                 // Configurar índices
                 entity.HasIndex(c => c.Code).IsUnique();
                 entity.HasIndex(c => c.TaxId);
                 entity.HasIndex(c => c.IsActive);
             });
-
-            // Configurar precisión decimal para Sales
-            modelBuilder.Entity<Sales>()
-                .Property(s => s.Importe)
-                .HasPrecision(18, 2);
-
-            modelBuilder.Entity<Sales>()
-                .Property(s => s.Impuestos)
-                .HasPrecision(18, 2);
-
-            modelBuilder.Entity<Sales>()
-                .Property(s => s.Saldo)
-                .HasPrecision(18, 2);
-
-            modelBuilder.Entity<Sales>()
-                .Property(s => s.Discount)
-                .HasPrecision(18, 2);
-
-            modelBuilder.Entity<Sales>()
-                .Property(s => s.PrecioTotal)
-                .HasPrecision(18, 2);
 
             // Configurar precisión decimal para Products
             modelBuilder.Entity<Product>()
@@ -118,6 +102,20 @@ namespace Infrastructure.Persistence
                 .HasOne(u => u.Role)
                 .WithMany(r => r.Users)
                 .HasForeignKey(u => u.RoleId);
+
+            // ✅ CONFIGURACIÓN DE ALMACÉN ASIGNADO AL USUARIO
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.DefaultWarehouse)
+                .WithMany()
+                .HasForeignKey(u => u.DefaultWarehouseId)
+                .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+            modelBuilder.Entity<User>()
+                .Property(u => u.CanSellFromMultipleWarehouses)
+                .HasDefaultValue(false);
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.DefaultWarehouseId);
 
             // ✅ CONFIGURACIÓN DE PERMISOS DE USUARIO POR MÓDULO/SUBMÓDULO
             modelBuilder.Entity<UserModulePermission>(entity =>
@@ -137,7 +135,7 @@ namespace Infrastructure.Persistence
                 entity.HasIndex(ump => ump.ModuleId);
             });
 
-            // ✅ CONFIGURACIÓN DE PERMISOS DE ROL POR MÓDULO/SUBMÓDULO (NUEVO - UNIFICADO)
+            // ✅ CONFIGURACIÓN DE PERMISOS DE ROL POR MÓDULO/SUBMÓDULO
             modelBuilder.Entity<RoleModulePermission>(entity =>
             {
                 entity.HasKey(rmp => rmp.Id);
@@ -159,6 +157,7 @@ namespace Infrastructure.Persistence
             modelBuilder.Entity<SystemModule>(entity =>
             {
                 entity.HasKey(sm => sm.Id);
+                entity.ToTable("Modules"); // Asegurar nombre correcto
                 entity.HasIndex(sm => sm.Order);
                 entity.HasIndex(sm => sm.IsActive);
             });
@@ -166,6 +165,7 @@ namespace Infrastructure.Persistence
             modelBuilder.Entity<SystemSubmodule>(entity =>
             {
                 entity.HasKey(ss => ss.Id);
+                entity.ToTable("Submodules"); // Asegurar nombre correcto
                 
                 entity.HasOne(ss => ss.Module)
                     .WithMany(sm => sm.Submodules)
@@ -181,7 +181,7 @@ namespace Infrastructure.Persistence
             modelBuilder.Entity<PriceList>(entity =>
             {
                 entity.Property(p => p.DefaultDiscountPercentage)
-                    .HasPrecision(6, 4)  // También corregir aquí
+                    .HasPrecision(6, 4)
                     .HasDefaultValue(0);
             });
 
@@ -192,7 +192,7 @@ namespace Infrastructure.Persistence
                     .HasPrecision(18, 4);
                     
                 entity.Property(pp => pp.DiscountPercentage)
-                    .HasPrecision(6, 4)  // También corregir aquí
+                    .HasPrecision(6, 4)
                     .HasDefaultValue(0);
 
                 entity.HasOne(pp => pp.Product)
@@ -204,9 +204,221 @@ namespace Infrastructure.Persistence
                     .HasForeignKey(pp => pp.PriceListId);
             });
 
-            // ✅ NO AGREGAR SEED DATA AQUÍ - Ya existe en la base de datos
-            // Los datos de Roles, Users, Modules, Permissions ya están en la BD
-            // Solo configuramos las entidades sin duplicar datos
+            // ✅ CONFIGURACIÓN DE ÓRDENAS DE COMPRA
+            modelBuilder.Entity<PurchaseOrder>(entity =>
+            {
+                entity.HasOne(po => po.Supplier)
+                    .WithMany()
+                    .HasForeignKey(po => po.SupplierId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(po => po.Warehouse)
+                    .WithMany()
+                    .HasForeignKey(po => po.WarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(po => po.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(po => po.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(po => po.UpdatedBy)
+                    .WithMany()
+                    .HasForeignKey(po => po.UpdatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+            });
+
+            // ✅ CONFIGURACIÓN DE DETALLE DE ÓRDENAS DE COMPRA
+            modelBuilder.Entity<PurchaseOrderDetail>(entity =>
+            {
+                entity.HasOne(pod => pod.PurchaseOrder)
+                    .WithMany(po => po.Details)
+                    .HasForeignKey(pod => pod.PurchaseOrderId)
+                    .OnDelete(DeleteBehavior.Cascade); // CASCADE solo con PurchaseOrder
+
+                entity.HasOne(pod => pod.Product)
+                    .WithMany()
+                    .HasForeignKey(pod => pod.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+            });
+
+            // ✅ CONFIGURACIÓN DE RECEPCIONES
+            modelBuilder.Entity<PurchaseOrderReceiving>(entity =>
+            {
+                entity.HasOne(por => por.PurchaseOrder)
+                    .WithMany(po => po.Receivings)
+                    .HasForeignKey(por => por.PurchaseOrderId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE - importante para auditoría
+
+                entity.HasOne(por => por.Warehouse)
+                    .WithMany()
+                    .HasForeignKey(por => por.WarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(por => por.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(por => por.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(por => por.UpdatedBy)
+                    .WithMany()
+                    .HasForeignKey(por => por.UpdatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+            });
+
+            // ✅ CONFIGURACIÓN DE DETALLE DE RECEPCIONES
+            modelBuilder.Entity<PurchaseOrderReceivingDetail>(entity =>
+            {
+                entity.HasOne(pord => pord.PurchaseOrderReceiving)
+                    .WithMany(por => por.Details)
+                    .HasForeignKey(pord => pord.PurchaseOrderReceivingId)
+                    .OnDelete(DeleteBehavior.Cascade); // CASCADE solo con Receiving
+
+                entity.HasOne(pord => pord.Product)
+                    .WithMany()
+                    .HasForeignKey(pord => pord.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(pord => pord.PurchaseOrderDetail)
+                    .WithMany()
+                    .HasForeignKey(pord => pord.PurchaseOrderDetailId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+            });
+
+            // ✅ CONFIGURACIÓN DE MOVIMIENTOS DE INVENTARIO
+            modelBuilder.Entity<InventoryMovement>(entity =>
+            {
+                entity.HasOne(im => im.Product)
+                    .WithMany()
+                    .HasForeignKey(im => im.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(im => im.Warehouse)
+                    .WithMany()
+                    .HasForeignKey(im => im.WarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(im => im.PurchaseOrderReceiving)
+                    .WithMany()
+                    .HasForeignKey(im => im.PurchaseOrderReceivingId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(im => im.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(im => im.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasIndex(im => im.ProductId);
+                entity.HasIndex(im => im.WarehouseId);
+                entity.HasIndex(im => im.MovementDate);
+                entity.HasIndex(im => im.MovementType);
+            });
+
+            // ✅ CONFIGURACIÓN DE STOCK DE PRODUCTOS
+            modelBuilder.Entity<ProductStock>(entity =>
+            {
+                entity.HasOne(ps => ps.Product)
+                    .WithMany()
+                    .HasForeignKey(ps => ps.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(ps => ps.Warehouse)
+                    .WithMany()
+                    .HasForeignKey(ps => ps.WarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                // Índice único: un producto solo puede tener un registro por almacén
+                entity.HasIndex(ps => new { ps.ProductId, ps.WarehouseId })
+                    .IsUnique();
+            });
+
+            // ✅ CONFIGURACIÓN DE VENTAS
+            modelBuilder.Entity<Sale>(entity =>
+            {
+                entity.HasKey(s => s.Id);
+                entity.ToTable("Sales");
+
+                entity.HasOne(s => s.Customer)
+                    .WithMany()
+                    .HasForeignKey(s => s.CustomerId)
+                    .OnDelete(DeleteBehavior.SetNull); // NO CASCADE
+
+                entity.HasOne(s => s.Warehouse)
+                    .WithMany()
+                    .HasForeignKey(s => s.WarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(s => s.User)
+                    .WithMany()
+                    .HasForeignKey(s => s.UserId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(s => s.PriceList)
+                    .WithMany()
+                    .HasForeignKey(s => s.PriceListId)
+                    .OnDelete(DeleteBehavior.SetNull); // NO CASCADE
+
+                entity.HasOne(s => s.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(s => s.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasIndex(s => s.Code).IsUnique();
+                entity.HasIndex(s => s.SaleDate);
+                entity.HasIndex(s => s.CustomerId);
+                entity.HasIndex(s => s.WarehouseId);
+                entity.HasIndex(s => s.UserId);
+                entity.HasIndex(s => s.Status);
+                entity.HasIndex(s => s.IsPostedToInventory);
+            });
+
+            // ✅ CONFIGURACIÓN DE DETALLES DE VENTA
+            modelBuilder.Entity<SaleDetail>(entity =>
+            {
+                entity.HasKey(sd => sd.Id);
+
+                entity.HasOne(sd => sd.Sale)
+                    .WithMany(s => s.Details)
+                    .HasForeignKey(sd => sd.SaleId)
+                    .OnDelete(DeleteBehavior.Cascade); // CASCADE con Sale
+
+                entity.HasOne(sd => sd.Product)
+                    .WithMany()
+                    .HasForeignKey(sd => sd.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasIndex(sd => sd.SaleId);
+                entity.HasIndex(sd => sd.ProductId);
+            });
+
+            // ✅ CONFIGURACIÓN DE PAGOS DE VENTA
+            modelBuilder.Entity<SalePayment>(entity =>
+            {
+                entity.HasKey(sp => sp.Id);
+
+                entity.HasOne(sp => sp.Sale)
+                    .WithMany(s => s.Payments)
+                    .HasForeignKey(sp => sp.SaleId)
+                    .OnDelete(DeleteBehavior.Cascade); // CASCADE con Sale
+
+                entity.HasIndex(sp => sp.SaleId);
+                entity.HasIndex(sp => sp.PaymentMethod);
+                entity.HasIndex(sp => sp.PaymentDate);
+                entity.HasIndex(sp => sp.Status);
+            });
+
+            // ✅ ACTUALIZAR INVENTORYMOVEMENT PARA SOPORTAR VENTAS
+            modelBuilder.Entity<InventoryMovement>(entity =>
+            {
+                // ...existing configuration...
+
+                entity.HasOne(im => im.Sale)
+                    .WithMany()
+                    .HasForeignKey(im => im.SaleId)
+                    .OnDelete(DeleteBehavior.SetNull); // NO CASCADE
+
+                entity.HasIndex(im => im.SaleId);
+            });
         }
     }
 }

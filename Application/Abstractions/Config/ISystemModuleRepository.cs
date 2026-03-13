@@ -12,7 +12,7 @@ namespace Application.Abstractions.Config
         /// <summary>
         /// Obtener todos los módulos con sus submódulos
         /// </summary>
-        Task<ModulesListResponseDto> GetAllModulesAsync(bool includeInactive = false);
+        Task<ModulesListResponseDto> GetAllModulesAsync(bool includeInactive = false, bool includeSubmodules = true);
 
         /// <summary>
         /// Obtener un módulo por ID con sus submódulos
@@ -31,7 +31,7 @@ namespace Application.Abstractions.Config
         /// <summary>
         /// Actualizar un módulo existente
         /// </summary>
-        Task<SystemModule?> UpdateModuleAsync(int moduleId, SystemModule module);
+        Task<bool> UpdateModuleAsync(int moduleId, SystemModule module);
 
         /// <summary>
         /// Eliminar un módulo (soft delete)
@@ -58,7 +58,7 @@ namespace Application.Abstractions.Config
         Task<SubmoduleResponseDto?> GetSubmoduleByIdAsync(int submoduleId);
 
         // ===================================================================
-        // SUBMÓDULOS - COMMANDS
+        /// SUBMÓDULOS - COMMANDS
         // ===================================================================
 
         /// <summary>
@@ -69,7 +69,7 @@ namespace Application.Abstractions.Config
         /// <summary>
         /// Actualizar un submódulo existente
         /// </summary>
-        Task<SystemSubmodule?> UpdateSubmoduleAsync(int submoduleId, SystemSubmodule submodule);
+        Task<bool> UpdateSubmoduleAsync(int submoduleId, SystemSubmodule submodule);
 
         /// <summary>
         /// Eliminar un submódulo (soft delete)
