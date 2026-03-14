@@ -20,6 +20,7 @@ namespace Infrastructure.Repositories
         public async Task<Branch?> GetByIdAsync(int id)
         {
             return await _context.Branches
+                .Include(b => b.Company)
                 .Include(b => b.CreatedBy)
                 .Include(b => b.UpdatedBy)
                 .FirstOrDefaultAsync(b => b.Id == id);
@@ -28,12 +29,14 @@ namespace Infrastructure.Repositories
         public async Task<Branch?> GetByCodeAsync(string code)
         {
             return await _context.Branches
+                .Include(b => b.Company)
                 .FirstOrDefaultAsync(b => b.Code == code);
         }
 
         public async Task<List<Branch>> GetAllAsync(bool includeInactive = false)
         {
             var query = _context.Branches
+                .Include(b => b.Company)
                 .Include(b => b.CreatedBy)
                 .Include(b => b.UpdatedBy)
                 .AsQueryable();
@@ -55,6 +58,7 @@ namespace Infrastructure.Repositories
             string? searchTerm = null)
         {
             var query = _context.Branches
+                .Include(b => b.Company)
                 .Include(b => b.CreatedBy)
                 .Include(b => b.UpdatedBy)
                 .AsQueryable();
@@ -70,7 +74,8 @@ namespace Infrastructure.Repositories
                     b.Code.Contains(searchTerm) ||
                     b.Name.Contains(searchTerm) ||
                     b.City.Contains(searchTerm) ||
-                    b.State.Contains(searchTerm));
+                    b.State.Contains(searchTerm) ||
+                    (b.Company != null && b.Company.LegalName.Contains(searchTerm)));
             }
 
             var totalRecords = await query.CountAsync();

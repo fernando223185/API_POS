@@ -154,5 +154,102 @@ namespace Infrastructure.Repositories
         {
             return await _context.SalesNew.AnyAsync(s => s.Code == code);
         }
+
+        public async Task<(IEnumerable<Sale> Sales, int TotalCount)> GetPendingInvoiceSalesAsync(
+            int page,
+            int pageSize,
+            bool? onlyRequiresInvoice = null,
+            int? warehouseId = null,
+            int? branchId = null,
+            int? companyId = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null)
+        {
+            var query = _context.SalesNew
+                .Include(s => s.Customer)
+                .Include(s => s.Warehouse)
+                    .ThenInclude(w => w.Branch)
+                        .ThenInclude(b => b.Company)
+                .Include(s => s.Branch)
+                .Include(s => s.Company)
+                .Include(s => s.User)
+                .Include(s => s.Details)
+                .AsQueryable();
+
+            // Filtro principal: Ventas completadas, pagadas y sin UUID (no timbradas)
+            query = query.Where(s => 
+                s.Status == "Completed" && 
+                s.IsPaid == true && 
+                string.IsNullOrEmpty(s.InvoiceUuid));
+
+            // Filtro por RequiresInvoice
+            if (onlyRequiresInvoice.HasValue)
+            {
+                query = query.Where(s => s.RequiresInvoice == onlyRequiresInvoice.Value);
+            }
+
+            // Filtros opcionales
+            if (warehouseId.HasValue)
+                query = query.Where(s => s.WarehouseId == warehouseId.Value);
+
+            if (branchId.HasValue)
+                query = query.Where(s => s.BranchId == branchId.Value);
+
+            if (companyId.HasValue)
+                query = query.Where(s => s.CompanyId == companyId.Value);
+
+            if (fromDate.HasValue)
+                query = query.Where(s => s.SaleDate >= fromDate.Value);
+
+            if (toDate.HasValue)
+                query = query.Where(s => s.SaleDate <= toDate.Value);
+
+            // Obtener total
+            var totalCount = await query.CountAsync();
+
+            // Ordenar y paginar (más recientes primero)
+            var sales = await query
+                .OrderByDescending(s => s.SaleDate)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .AsNoTracking()
+                .ToListAsync();
+
+            return (sales, totalCount);
+        }
+
+        public async Task<Sale?> GetSaleForInvoicingAsync(int saleId)
+        {
+            return await _context.SalesNew
+                // Relación con empresa (CRÍTICO para facturación)
+                .Include(s => s.Company)
+                
+                // Relación con sucursal
+                .Include(s => s.Branch)
+                
+                // Relación con cliente (CRÍTICO para facturación)
+                .Include(s => s.Customer)
+                
+                // Relación con almacén y su sucursal
+                .Include(s => s.Warehouse)
+                    .ThenInclude(w => w.Branch)
+                        .ThenInclude(b => b!.Company)
+                
+                // Detalles de venta con productos (para claves SAT)
+                .Include(s => s.Details)
+                    .ThenInclude(d => d.Product)
+                
+                // Pagos de la venta
+                .Include(s => s.Payments)
+                
+                // Usuario que creó la venta
+                .Include(s => s.User)
+                
+                // Lista de precios aplicada
+                .Include(s => s.PriceList)
+                
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == saleId);
+        }
     }
 }

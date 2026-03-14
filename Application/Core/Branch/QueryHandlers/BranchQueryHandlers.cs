@@ -27,6 +27,8 @@ namespace Application.Core.Branch.QueryHandlers
             {
                 Id = b.Id,
                 Code = b.Code,
+                CompanyId = b.CompanyId,
+                CompanyName = b.Company?.LegalName,
                 Name = b.Name,
                 Description = b.Description,
                 Address = b.Address,
@@ -86,6 +88,8 @@ namespace Application.Core.Branch.QueryHandlers
             {
                 Id = b.Id,
                 Code = b.Code,
+                CompanyId = b.CompanyId,
+                CompanyName = b.Company?.LegalName,
                 Name = b.Name,
                 Description = b.Description,
                 Address = b.Address,
@@ -146,6 +150,8 @@ namespace Application.Core.Branch.QueryHandlers
             {
                 Id = branch.Id,
                 Code = branch.Code,
+                CompanyId = branch.CompanyId,
+                CompanyName = branch.Company?.LegalName,
                 Name = branch.Name,
                 Description = branch.Description,
                 Address = branch.Address,
@@ -191,6 +197,8 @@ namespace Application.Core.Branch.QueryHandlers
             {
                 Id = branch.Id,
                 Code = branch.Code,
+                CompanyId = branch.CompanyId,
+                CompanyName = branch.Company?.LegalName,
                 Name = branch.Name,
                 Description = branch.Description,
                 Address = branch.Address,

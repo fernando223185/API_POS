@@ -1,4 +1,4 @@
-using Application.Core.Company.Commands;
+﻿using Application.Core.Company.Commands;
 using Application.Core.Company.Queries;
 using Application.DTOs.Company;
 using MediatR;
@@ -8,7 +8,7 @@ using Web.Api.Authorization;
 namespace Web.Api.Controllers.Config
 {
     /// <summary>
-    /// Controlador para gesti�n de empresas
+    /// Controlador para gestión de empresas
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
@@ -25,7 +25,7 @@ namespace Web.Api.Controllers.Config
         /// Crear nueva empresa
         /// </summary>
         [HttpPost]
-        [RequirePermission("Configuration", "ManageCompanies")]
+        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
         public async Task<IActionResult> CreateCompany([FromBody] CreateCompanyDto request)
         {
             try
@@ -38,7 +38,7 @@ namespace Web.Api.Controllers.Config
                     return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
                 }
 
-                Console.WriteLine($"?? Creando empresa - Usuario: {userName}, Raz�n Social: {request.LegalName}");
+                Console.WriteLine($"?? Creando empresa - Usuario: {userName}, Razón Social: {request.LegalName}");
 
                 var command = new CreateCompanyCommand(request, userId);
                 var result = await _mediator.Send(command);
@@ -71,7 +71,7 @@ namespace Web.Api.Controllers.Config
         /// Actualizar empresa existente
         /// </summary>
         [HttpPut("{id}")]
-        [RequirePermission("Configuration", "ManageCompanies")]
+        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
         public async Task<IActionResult> UpdateCompany(int id, [FromBody] UpdateCompanyDto request)
         {
             try
@@ -117,7 +117,7 @@ namespace Web.Api.Controllers.Config
         /// Obtener empresa por ID
         /// </summary>
         [HttpGet("{id}")]
-        [RequirePermission("Configuration", "View")]
+        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
         public async Task<IActionResult> GetCompany(int id)
         {
             try
@@ -152,7 +152,7 @@ namespace Web.Api.Controllers.Config
         /// Obtener todas las empresas activas
         /// </summary>
         [HttpGet("active")]
-        [RequirePermission("Configuration", "View")]
+        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
         public async Task<IActionResult> GetActiveCompanies()
         {
             try
@@ -183,7 +183,7 @@ namespace Web.Api.Controllers.Config
         /// Obtener empresas paginadas con filtros
         /// </summary>
         [HttpGet]
-        [RequirePermission("Configuration", "View")]
+        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
         public async Task<IActionResult> GetCompanies(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
@@ -219,7 +219,7 @@ namespace Web.Api.Controllers.Config
         /// Obtener empresa principal/matriz
         /// </summary>
         [HttpGet("main")]
-        [RequirePermission("Configuration", "View")]
+        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
         public async Task<IActionResult> GetMainCompany()
         {
             try
@@ -256,10 +256,10 @@ namespace Web.Api.Controllers.Config
         }
 
         /// <summary>
-        /// Desactivar empresa (baja l�gica)
+        /// Desactivar empresa (baja lógica)
         /// </summary>
         [HttpPut("{id}/deactivate")]
-        [RequirePermission("Configuration", "ManageCompanies")]
+        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
         public async Task<IActionResult> DeactivateCompany(int id)
         {
             try
@@ -307,7 +307,7 @@ namespace Web.Api.Controllers.Config
         /// Reactivar empresa
         /// </summary>
         [HttpPut("{id}/reactivate")]
-        [RequirePermission("Configuration", "ManageCompanies")]
+        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
         public async Task<IActionResult> ReactivateCompany(int id)
         {
             try
@@ -352,10 +352,10 @@ namespace Web.Api.Controllers.Config
         }
 
         /// <summary>
-        /// Actualizar configuraci�n fiscal (certificados SAT, folios)
+        /// Actualizar configuración fiscal (certificados SAT, folios)
         /// </summary>
         [HttpPut("{id}/fiscal-config")]
-        [RequirePermission("Configuration", "ManageCompanies")]
+        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
         public async Task<IActionResult> UpdateFiscalConfig(int id, [FromBody] UpdateCompanyFiscalConfigDto request)
         {
             try
@@ -368,14 +368,14 @@ namespace Web.Api.Controllers.Config
                     return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
                 }
 
-                Console.WriteLine($"?? Actualizando configuraci�n fiscal empresa {id} - Usuario: {userName}");
+                Console.WriteLine($"?? Actualizando configuración fiscal empresa {id} - Usuario: {userName}");
 
                 var command = new UpdateCompanyFiscalConfigCommand(id, request, userId);
                 var result = await _mediator.Send(command);
 
                 return Ok(new
                 {
-                    message = "Configuraci�n fiscal actualizada exitosamente",
+                    message = "Configuración fiscal actualizada exitosamente",
                     error = 0,
                     data = result
                 });
@@ -389,7 +389,7 @@ namespace Web.Api.Controllers.Config
                 Console.WriteLine($"? Error updating fiscal config: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al actualizar configuraci�n fiscal",
+                    message = "Error al actualizar configuración fiscal",
                     error = 2,
                     details = ex.Message
                 });

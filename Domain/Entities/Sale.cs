@@ -75,6 +75,22 @@ namespace Domain.Entities
         [ForeignKey("PriceListId")]
         public PriceList? PriceList { get; set; }
 
+        /// <summary>
+        /// ?? Sucursal desde la cual se realiza la venta (desnormalizado para performance)
+        /// </summary>
+        public int? BranchId { get; set; }
+
+        [ForeignKey("BranchId")]
+        public Branch? Branch { get; set; }
+
+        /// <summary>
+        /// ?? Empresa a la que pertenece la venta (desnormalizado para performance)
+        /// </summary>
+        public int? CompanyId { get; set; }
+
+        [ForeignKey("CompanyId")]
+        public Company? Company { get; set; }
+
         // ========================================
         // MONTOS
         // ========================================

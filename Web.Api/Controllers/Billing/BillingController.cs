@@ -1,3 +1,5 @@
+using Application.Core.Billing.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Web.Api.Authorization;
 
@@ -7,6 +9,112 @@ namespace Web.Api.Controllers.Billing
     [ApiController]
     public class BillingController : ControllerBase
     {
+        private readonly IMediator _mediator;
+
+        public BillingController(IMediator mediator)
+        {
+            _mediator = mediator;
+        }
+
+        /// <summary>
+        /// Obtener ventas pendientes de timbrar (facturar)
+        /// </summary>
+        /// <param name="page">Número de página</param>
+        /// <param name="pageSize">Tamaño de página</param>
+        /// <param name="onlyRequiresInvoice">Filtrar solo ventas que requieren factura (true), solo las que no requieren (false), o todas (null)</param>
+        /// <param name="warehouseId">Filtrar por almacén</param>
+        /// <param name="branchId">Filtrar por sucursal</param>
+        /// <param name="companyId">Filtrar por empresa</param>
+        /// <param name="fromDate">Fecha desde</param>
+        /// <param name="toDate">Fecha hasta</param>
+        [HttpGet("pending-sales")]
+        [RequirePermission("CFDI", "Ventas")]
+        public async Task<IActionResult> GetPendingInvoiceSales(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] bool? onlyRequiresInvoice = null,
+            [FromQuery] int? warehouseId = null,
+            [FromQuery] int? branchId = null,
+            [FromQuery] int? companyId = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+        {
+            try
+            {
+                var query = new GetPendingInvoiceSalesQuery(
+                    page,
+                    pageSize,
+                    onlyRequiresInvoice,
+                    warehouseId,
+                    branchId,
+                    companyId,
+                    fromDate,
+                    toDate
+                );
+
+                var result = await _mediator.Send(query);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Error al obtener ventas pendientes de timbrar",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Obtener una venta específica para facturación
+        /// Incluye toda la información necesaria para generar CFDI: empresa, cliente, productos, pagos
+        /// </summary>
+        /// <param name="saleId">ID de la venta</param>
+        [HttpGet("sale/{saleId}")]
+        [RequirePermission("CFDI", "Ventas")]
+        public async Task<IActionResult> GetSaleForInvoicing(int saleId)
+        {
+            try
+            {
+                var query = new GetSaleForInvoicingQuery(saleId);
+                var result = await _mediator.Send(query);
+
+                return Ok(new
+                {
+                    message = "Venta obtenida exitosamente",
+                    error = 0,
+                    data = result
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new
+                {
+                    message = ex.Message,
+                    error = 1
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message,
+                    error = 1
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Error al obtener venta para facturación",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
         [HttpGet("invoices")]
         [RequirePermission("Billing", "ViewInvoices")]
         public async Task<IActionResult> GetInvoices([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
@@ -75,7 +183,7 @@ namespace Web.Api.Controllers.Billing
         }
 
         [HttpGet("pending")]
-        [RequirePermission("Billing", "ViewPending")]
+        [RequirePermission("CFDI", "Ventas")]
         public async Task<IActionResult> GetPendingInvoices()
         {
             try

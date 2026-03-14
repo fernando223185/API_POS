@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace Application.DTOs.Branch
 {
@@ -7,6 +8,9 @@ namespace Application.DTOs.Branch
     /// </summary>
     public class CreateBranchDto
     {
+        [Required(ErrorMessage = "La empresa es requerida")]
+        public int CompanyId { get; set; }
+
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string Address { get; set; } = string.Empty;
@@ -26,6 +30,9 @@ namespace Application.DTOs.Branch
     /// </summary>
     public class UpdateBranchDto
     {
+        [Required(ErrorMessage = "La empresa es requerida")]
+        public int CompanyId { get; set; }
+
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string Address { get; set; } = string.Empty;
@@ -48,6 +55,8 @@ namespace Application.DTOs.Branch
     {
         public int Id { get; set; }
         public string Code { get; set; } = string.Empty;
+        public int? CompanyId { get; set; }
+        public string? CompanyName { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string Address { get; set; } = string.Empty;

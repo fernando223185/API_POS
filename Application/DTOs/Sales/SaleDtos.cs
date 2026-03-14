@@ -147,7 +147,10 @@ namespace Application.DTOs.Sales
         // Ubicación
         public int WarehouseId { get; set; }
         public string WarehouseName { get; set; } = string.Empty;
+        public int? BranchId { get; set; }                        // ? NUEVO
         public string? BranchName { get; set; }
+        public int? CompanyId { get; set; }                       // ? NUEVO
+        public string? CompanyName { get; set; }                  // ? NUEVO
 
         // Usuario
         public int UserId { get; set; }
@@ -263,6 +266,8 @@ namespace Application.DTOs.Sales
         public DateTime SaleDate { get; set; }
         public string? CustomerName { get; set; }
         public string WarehouseName { get; set; } = string.Empty;
+        public string? BranchName { get; set; }                   // ? NUEVO
+        public string? CompanyName { get; set; }                  // ? NUEVO
         public decimal Total { get; set; }
         public string Status { get; set; } = string.Empty;
         public bool IsPaid { get; set; }

@@ -13,20 +13,32 @@ namespace Application.Core.Branch.CommandHandlers
     public class CreateBranchCommandHandler : IRequestHandler<CreateBranchCommand, BranchResponseDto>
     {
         private readonly IBranchRepository _branchRepository;
+        private readonly ICompanyRepository _companyRepository;
 
-        public CreateBranchCommandHandler(IBranchRepository branchRepository)
+        public CreateBranchCommandHandler(
+            IBranchRepository branchRepository,
+            ICompanyRepository companyRepository)
         {
             _branchRepository = branchRepository;
+            _companyRepository = companyRepository;
         }
 
         public async Task<BranchResponseDto> Handle(CreateBranchCommand request, CancellationToken cancellationToken)
         {
+            // ? Validar que la empresa existe
+            var company = await _companyRepository.GetByIdAsync(request.BranchData.CompanyId);
+            if (company == null)
+            {
+                throw new KeyNotFoundException($"Empresa con ID {request.BranchData.CompanyId} no encontrada");
+            }
+
             // Generar código automático
             var code = await _branchRepository.GenerateNextCodeAsync();
 
             var branch = new Domain.Entities.Branch
             {
                 Code = code,
+                CompanyId = request.BranchData.CompanyId,
                 Name = request.BranchData.Name,
                 Description = request.BranchData.Description,
                 Address = request.BranchData.Address,
@@ -50,6 +62,8 @@ namespace Application.Core.Branch.CommandHandlers
             {
                 Id = createdBranch.Id,
                 Code = createdBranch.Code,
+                CompanyId = createdBranch.CompanyId,
+                CompanyName = company.LegalName,
                 Name = createdBranch.Name,
                 Description = createdBranch.Description,
                 Address = createdBranch.Address,
@@ -74,10 +88,14 @@ namespace Application.Core.Branch.CommandHandlers
     public class UpdateBranchCommandHandler : IRequestHandler<UpdateBranchCommand, BranchResponseDto>
     {
         private readonly IBranchRepository _branchRepository;
+        private readonly ICompanyRepository _companyRepository;
 
-        public UpdateBranchCommandHandler(IBranchRepository branchRepository)
+        public UpdateBranchCommandHandler(
+            IBranchRepository branchRepository,
+            ICompanyRepository companyRepository)
         {
             _branchRepository = branchRepository;
+            _companyRepository = companyRepository;
         }
 
         public async Task<BranchResponseDto> Handle(UpdateBranchCommand request, CancellationToken cancellationToken)
@@ -88,7 +106,15 @@ namespace Application.Core.Branch.CommandHandlers
                 throw new KeyNotFoundException($"Sucursal con ID {request.BranchId} no encontrada");
             }
 
+            // ? Validar que la empresa existe
+            var company = await _companyRepository.GetByIdAsync(request.BranchData.CompanyId);
+            if (company == null)
+            {
+                throw new KeyNotFoundException($"Empresa con ID {request.BranchData.CompanyId} no encontrada");
+            }
+
             // Actualizar campos
+            branch.CompanyId = request.BranchData.CompanyId;
             branch.Name = request.BranchData.Name;
             branch.Description = request.BranchData.Description;
             branch.Address = request.BranchData.Address;
@@ -111,6 +137,8 @@ namespace Application.Core.Branch.CommandHandlers
             {
                 Id = branch.Id,
                 Code = branch.Code,
+                CompanyId = branch.CompanyId,
+                CompanyName = company.LegalName,
                 Name = branch.Name,
                 Description = branch.Description,
                 Address = branch.Address,

@@ -97,7 +97,7 @@ namespace Web.Api.Controllers.Config
         /// ? Crear un nuevo módulo
         /// </summary>
         [HttpPost]
-        [RequirePermission("Configuration", "ManageModules")]
+        [RequirePermission("Configuration", "Modulos del Sistema")]
         public async Task<IActionResult> CreateModule([FromBody] CreateModuleDto dto)
         {
             try
@@ -135,7 +135,7 @@ namespace Web.Api.Controllers.Config
         /// ?? Actualizar un módulo existente
         /// </summary>
         [HttpPut("{id}")]
-        [RequirePermission("Configuration", "ManageModules")]
+        [RequirePermission("Configuracion", "ManageModules")]
         public async Task<IActionResult> UpdateModule(int id, [FromBody] UpdateModuleDto dto)
         {
             try
@@ -178,7 +178,7 @@ namespace Web.Api.Controllers.Config
         /// ??? Eliminar un módulo (soft delete)
         /// </summary>
         [HttpDelete("{id}")]
-        [RequirePermission("Configuration", "ManageModules")]
+        [RequirePermission("Configuracion", "ManageModules")]
         public async Task<IActionResult> DeleteModule(int id)
         {
             try
@@ -289,7 +289,7 @@ namespace Web.Api.Controllers.Config
         /// ? Crear un nuevo submódulo
         /// </summary>
         [HttpPost("submodules")]
-        [RequirePermission("Configuration", "ManageModules")]
+        [RequirePermission("Configuracion", "Modulos del Sistema")]
         public async Task<IActionResult> CreateSubmodule([FromBody] CreateSubmoduleDto dto)
         {
             try
@@ -332,7 +332,7 @@ namespace Web.Api.Controllers.Config
         /// ?? Actualizar un submódulo existente
         /// </summary>
         [HttpPut("submodules/{id}")]
-        [RequirePermission("Configuration", "ManageModules")]
+        [RequirePermission("Configuracion", "ManageModules")]
         public async Task<IActionResult> UpdateSubmodule(int id, [FromBody] UpdateSubmoduleDto dto)
         {
             try
@@ -375,7 +375,7 @@ namespace Web.Api.Controllers.Config
         /// ??? Eliminar un submódulo (soft delete)
         /// </summary>
         [HttpDelete("submodules/{id}")]
-        [RequirePermission("Configuration", "ManageModules")]
+        [RequirePermission("Configuracion", "ManageModules")]
         public async Task<IActionResult> DeleteSubmodule(int id)
         {
             try

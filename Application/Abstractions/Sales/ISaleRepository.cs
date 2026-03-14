@@ -44,6 +44,27 @@ namespace Application.Abstractions.Sales
         );
 
         /// <summary>
+        /// Obtener ventas pendientes de timbrar (facturar)
+        /// Ventas con Status = 'Completed', IsPaid = true, InvoiceUuid = null
+        /// </summary>
+        Task<(IEnumerable<Sale> Sales, int TotalCount)> GetPendingInvoiceSalesAsync(
+            int page,
+            int pageSize,
+            bool? onlyRequiresInvoice = null,
+            int? warehouseId = null,
+            int? branchId = null,
+            int? companyId = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null
+        );
+
+        /// <summary>
+        /// Obtener venta completa para facturación
+        /// Incluye todas las relaciones necesarias: Company, Branch, Customer, Details, Payments, Product (para claves SAT)
+        /// </summary>
+        Task<Sale?> GetSaleForInvoicingAsync(int saleId);
+
+        /// <summary>
         /// Obtener estadísticas de ventas
         /// </summary>
         Task<(int Total, int Completed, int Cancelled, int Draft, decimal TotalRevenue, decimal TotalCost)> GetStatisticsAsync(

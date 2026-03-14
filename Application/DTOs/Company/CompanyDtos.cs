@@ -43,7 +43,6 @@ namespace Application.DTOs.Company
         [StringLength(100)]
         public string Email { get; set; } = string.Empty;
 
-        [Url(ErrorMessage = "URL inválida")]
         [StringLength(200)]
         public string? Website { get; set; }
 
@@ -105,7 +104,6 @@ namespace Application.DTOs.Company
         [StringLength(100)]
         public string Email { get; set; } = string.Empty;
 
-        [Url]
         [StringLength(200)]
         public string? Website { get; set; }
 

@@ -39,7 +39,10 @@ namespace Application.Core.Sales.QueryHandlers
                 CustomerName = sale.CustomerName,
                 WarehouseId = sale.WarehouseId,
                 WarehouseName = sale.Warehouse.Name,
-                BranchName = sale.Warehouse.Branch?.Name,
+                BranchId = sale.BranchId,                           // ? NUEVO
+                BranchName = sale.Branch?.Name ?? sale.Warehouse.Branch?.Name,  // ? ACTUALIZADO
+                CompanyId = sale.CompanyId,                         // ? NUEVO
+                CompanyName = sale.Company?.LegalName ?? sale.Warehouse.Branch?.Company?.LegalName,  // ? NUEVO
                 UserId = sale.UserId,
                 UserName = sale.User.Name,
                 PriceListId = sale.PriceListId,
@@ -162,6 +165,8 @@ namespace Application.Core.Sales.QueryHandlers
                     SaleDate = s.SaleDate,
                     CustomerName = s.CustomerName,
                     WarehouseName = s.Warehouse.Name,
+                    BranchName = s.Branch?.Name ?? s.Warehouse.Branch?.Name,                      // ? NUEVO
+                    CompanyName = s.Company?.LegalName ?? s.Warehouse.Branch?.Company?.LegalName, // ? NUEVO
                     Total = s.Total,
                     Status = s.Status,
                     IsPaid = s.IsPaid,

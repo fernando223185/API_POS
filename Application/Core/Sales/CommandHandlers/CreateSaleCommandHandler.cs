@@ -1,5 +1,6 @@
 using Application.Abstractions.Catalogue;
 using Application.Abstractions.Common;
+using Application.Abstractions.Config;
 using Application.Abstractions.CRM;
 using Application.Abstractions.Inventory;
 using Application.Abstractions.Sales;
@@ -18,17 +19,20 @@ namespace Application.Core.Sales.CommandHandlers
         private readonly ISaleRepository _saleRepository;
         private readonly IProductRepository _productRepository;
         private readonly ICustomerRepository _customerRepository;
+        private readonly IWarehouseRepository _warehouseRepository;
         private readonly ICodeGeneratorService _codeGenerator;
 
         public CreateSaleCommandHandler(
             ISaleRepository saleRepository,
             IProductRepository productRepository,
             ICustomerRepository customerRepository,
+            IWarehouseRepository warehouseRepository,
             ICodeGeneratorService codeGenerator)
         {
             _saleRepository = saleRepository;
             _productRepository = productRepository;
             _customerRepository = customerRepository;
+            _warehouseRepository = warehouseRepository;
             _codeGenerator = codeGenerator;
         }
 
@@ -51,7 +55,14 @@ namespace Application.Core.Sales.CommandHandlers
                 request.SaleData.CustomerId = null;
             }
 
-            // 3. Obtener cliente si existe
+            // 3. ? OBTENER WAREHOUSE CON BRANCH Y COMPANY
+            var warehouse = await _warehouseRepository.GetByIdAsync(request.SaleData.WarehouseId);
+            if (warehouse == null)
+            {
+                throw new KeyNotFoundException($"Almacén con ID {request.SaleData.WarehouseId} no encontrado");
+            }
+
+            // 4. Obtener cliente si existe
             Customer? customer = null;
             if (request.SaleData.CustomerId.HasValue)
             {
@@ -62,10 +73,10 @@ namespace Application.Core.Sales.CommandHandlers
                 }
             }
 
-            // 4. Generar código automático
+            // 5. Generar código automático
             var code = await _codeGenerator.GenerateNextCodeAsync("VTA", "Sales");
 
-            // 5. Calcular totales
+            // 6. Calcular totales
             decimal subTotal = 0;
             decimal totalTax = 0;
             decimal totalDiscount = 0;
@@ -122,12 +133,12 @@ namespace Application.Core.Sales.CommandHandlers
                 totalDiscount += lineDiscount;
             }
 
-            // 6. Aplicar descuento global (sobre el subtotal después de descuentos individuales)
+            // 7. Aplicar descuento global (sobre el subtotal después de descuentos individuales)
             var globalDiscountAmount = subTotal * (request.SaleData.DiscountPercentage / 100);
             var finalSubTotal = subTotal - globalDiscountAmount;
             var finalTotalDiscount = totalDiscount + globalDiscountAmount;
 
-            // 7. Recalcular impuestos si hay descuento global
+            // 8. Recalcular impuestos si hay descuento global
             if (request.SaleData.DiscountPercentage > 0)
             {
                 // Redistribuir impuestos proporcionalmente
@@ -148,7 +159,7 @@ namespace Application.Core.Sales.CommandHandlers
 
             var finalTotal = finalSubTotal + totalTax;
 
-            // 8. Crear venta
+            // 9. ? CREAR VENTA CON BRANCHID Y COMPANYID AUTOMÁTICOS
             var sale = new Sale
             {
                 Code = code,
@@ -156,6 +167,8 @@ namespace Application.Core.Sales.CommandHandlers
                 CustomerId = request.SaleData.CustomerId,
                 CustomerName = customer != null ? $"{customer.Name} {customer.LastName}" : "Público General",
                 WarehouseId = request.SaleData.WarehouseId,
+                BranchId = warehouse.BranchId,                      // ? ASIGNADO AUTOMÁTICAMENTE
+                CompanyId = warehouse.Branch?.CompanyId,            // ? ASIGNADO AUTOMÁTICAMENTE
                 UserId = request.UserId,
                 PriceListId = request.SaleData.PriceListId,
                 SubTotal = subTotal, // Subtotal antes de descuento global
@@ -171,12 +184,15 @@ namespace Application.Core.Sales.CommandHandlers
                 Details = details
             };
 
-            // 9. Guardar en base de datos
+            // 10. Guardar en base de datos
             await _saleRepository.CreateAsync(sale);
 
             Console.WriteLine($"? Venta {sale.Code} creada exitosamente en estado Draft");
+            Console.WriteLine($"   ?? Warehouse: {warehouse.Name}");
+            Console.WriteLine($"   ?? Branch: {warehouse.Branch?.Name}");
+            Console.WriteLine($"   ?? Company: {warehouse.Branch?.Company?.LegalName}");
 
-            // 10. Mapear a DTO de respuesta
+            // 11. Mapear a DTO de respuesta
             return await MapToResponseDto(sale);
         }
 
@@ -202,7 +218,10 @@ namespace Application.Core.Sales.CommandHandlers
                 CustomerName = saleWithRelations.CustomerName,
                 WarehouseId = saleWithRelations.WarehouseId,
                 WarehouseName = saleWithRelations.Warehouse.Name,
-                BranchName = saleWithRelations.Warehouse.Branch?.Name,
+                BranchId = saleWithRelations.BranchId,                       // ? NUEVO
+                BranchName = saleWithRelations.Branch?.Name,                 // ? ACTUALIZADO
+                CompanyId = saleWithRelations.CompanyId,                     // ? NUEVO
+                CompanyName = saleWithRelations.Company?.LegalName,          // ? NUEVO
                 UserId = saleWithRelations.UserId,
                 UserName = saleWithRelations.User.Name,
                 PriceListId = saleWithRelations.PriceListId,

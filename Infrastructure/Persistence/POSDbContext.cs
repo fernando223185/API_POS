@@ -348,6 +348,17 @@ namespace Infrastructure.Persistence
                     .HasForeignKey(s => s.WarehouseId)
                     .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
 
+                // 🆕 NUEVAS RELACIONES PARA BRANCH Y COMPANY
+                entity.HasOne(s => s.Branch)
+                    .WithMany()
+                    .HasForeignKey(s => s.BranchId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                entity.HasOne(s => s.Company)
+                    .WithMany()
+                    .HasForeignKey(s => s.CompanyId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
                 entity.HasOne(s => s.User)
                     .WithMany()
                     .HasForeignKey(s => s.UserId)
@@ -367,6 +378,8 @@ namespace Infrastructure.Persistence
                 entity.HasIndex(s => s.SaleDate);
                 entity.HasIndex(s => s.CustomerId);
                 entity.HasIndex(s => s.WarehouseId);
+                entity.HasIndex(s => s.BranchId); // 🆕 NUEVO ÍNDICE
+                entity.HasIndex(s => s.CompanyId); // 🆕 NUEVO ÍNDICE
                 entity.HasIndex(s => s.UserId);
                 entity.HasIndex(s => s.Status);
                 entity.HasIndex(s => s.IsPostedToInventory);
