@@ -1,0 +1,186 @@
+name: Deploy API to Server
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch: # Permite ejecutar manualmente desde GitHub
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  PROJECT_PATH: 'Web.Api/Web.Api.csproj'
+  PUBLISH_PATH: './publish'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: 📦 Restore dependencies
+      run: dotnet restore
+      
+    - name: ⚙️ Create appsettings.json for Production
+      run: |
+        cat > Web.Api/appsettings.json << 'EOF'
+        {
+          "ConnectionStrings": {
+            "DefaultConnection": "${{ secrets.DB_CONNECTION_STRING }}"
+          },
+          "Jwt": {
+            "Key": "${{ secrets.JWT_SECRET_KEY }}",
+            "Issuer": "${{ secrets.JWT_ISSUER }}",
+            "Audience": "${{ secrets.JWT_AUDIENCE }}"
+          },
+          "AWS": {
+            "AccessKey": "${{ secrets.AWS_ACCESS_KEY }}",
+            "SecretKey": "${{ secrets.AWS_SECRET_KEY }}",
+            "Region": "${{ secrets.AWS_REGION }}",
+            "S3": {
+              "BucketName": "${{ secrets.AWS_S3_BUCKET }}"
+            }
+          },
+          "Logging": {
+            "LogLevel": {
+              "Default": "Information",
+              "Microsoft.AspNetCore": "Warning"
+            }
+          },
+          "AllowedHosts": "*",
+          "Tools": {
+            "DotNetEf": {
+              "GlobalInstallation": true
+            }
+          }
+        }
+        EOF
+        echo "✅ appsettings.json created for production deployment"
+        
+    - name: 🏗️ Build project
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: 🧪 Run tests (opcional - descomenta si tienes tests)
+      # run: dotnet test --no-build --verbosity normal
+      run: echo "No tests configured yet"
+      
+    - name: 📤 Publish application
+      run: |
+        dotnet publish ${{ env.PROJECT_PATH }} \
+          --configuration Release \
+          --output ${{ env.PUBLISH_PATH }} \
+          --no-build \
+          --self-contained false
+          
+    - name: 📋 List published files
+      run: ls -la ${{ env.PUBLISH_PATH }}
+      
+    # ============================================
+    # OPCIÓN 1: Deploy a EC2 con SSH
+    # ============================================
+    - name: 🚀 Deploy to EC2 via SSH
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "${{ env.PUBLISH_PATH }}/*"
+        target: "/home/ubuntu/api/publish"
+        strip_components: 1
+        rm: true
+        
+    - name: ⚙️ Configure and verify appsettings on server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          cd /home/ubuntu/api/publish
+          
+          # Verificar que appsettings.json existe (debería estar desde el SCP)
+          if [ -f "appsettings.json" ]; then
+            echo "✅ appsettings.json found"
+          else
+            echo "❌ ERROR: appsettings.json not found!"
+            exit 1
+          fi
+          
+          # Verificar permisos
+          sudo chown -R ubuntu:ubuntu /home/ubuntu/api/publish
+          sudo chmod 644 appsettings.json
+          
+          echo "📋 Configuration files:"
+          ls -la appsettings*.json
+          
+    - name: 🔄 Restart API service on EC2
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          sudo systemctl restart api-pos
+          sleep 3
+          sudo systemctl status api-pos --no-pager
+          
+          # Verificar que la API responde
+          echo "🔍 Checking API health..."
+          curl -s http://localhost:7254/swagger/index.html > /dev/null && echo "✅ API is responding" || echo "⚠️ API might not be responding yet"
+          
+    # ============================================
+    # OPCIÓN 2: Deploy a AWS Elastic Beanstalk
+    # (Descomenta si usas Elastic Beanstalk)
+    # ============================================
+    # - name: 🚀 Deploy to AWS Elastic Beanstalk
+    #   uses: einaregilsson/beanstalk-deploy@v22
+    #   with:
+    #     aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #     aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    #     application_name: api-pos
+    #     environment_name: api-pos-env
+    #     version_label: ${{ github.sha }}
+    #     region: us-east-1
+    #     deployment_package: ${{ env.PUBLISH_PATH }}
+    
+    # ============================================
+    # OPCIÓN 3: Deploy con Docker a ECR + ECS
+    # (Descomenta si usas Docker)
+    # ============================================
+    # - name: 🐳 Configure AWS credentials
+    #   uses: aws-actions/configure-aws-credentials@v4
+    #   with:
+    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    #     aws-region: us-east-1
+    #     
+    # - name: 🔐 Login to Amazon ECR
+    #   id: login-ecr
+    #   uses: aws-actions/amazon-ecr-login@v2
+    #   
+    # - name: 🏗️ Build, tag, and push Docker image to ECR
+    #   env:
+    #     ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+    #     ECR_REPOSITORY: api-pos
+    #     IMAGE_TAG: ${{ github.sha }}
+    #   run: |
+    #     docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+    #     docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+    #     
+    # - name: 🚀 Deploy to ECS
+    #   run: |
+    #     # Actualizar servicio ECS con nueva imagen
+    #     aws ecs update-service --cluster your-cluster --service api-pos --force-new-deployment
+    
+    - name: ✅ Deployment completed
+      run: |
+        echo "🎉 Deployment successful!"
+        echo "📅 Deployed at: $(date)"
+        echo "🔖 Commit: ${{ github.sha }}"
