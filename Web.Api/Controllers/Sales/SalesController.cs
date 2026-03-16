@@ -33,7 +33,7 @@ namespace Web.Api.Controllers.Sales
         /// Crear una nueva venta (estado Draft)
         /// </summary>
         [HttpPost]
-        [RequirePermission("Sales", "Create")]
+        [RequirePermission("Ventas", "Nueva Venta")]
         public async Task<IActionResult> CreateSale([FromBody] CreateSaleRequestDto request)
         {
             try
@@ -46,7 +46,7 @@ namespace Web.Api.Controllers.Sales
                     return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
                 }
 
-                Console.WriteLine($"?? Creando venta - Usuario: {userName}, Almacén: {request.WarehouseId}, " +
+                Console.WriteLine($"?? Creando venta - Usuario: {userName}, Almacï¿½n: {request.WarehouseId}, " +
                                 $"Productos: {request.Details.Count}");
 
                 var command = new CreateSaleCommand(request, userId);
@@ -84,7 +84,7 @@ namespace Web.Api.Controllers.Sales
 
         /// <summary>
         /// Procesar pagos y completar la venta
-        /// Descuenta inventario automáticamente
+        /// Descuenta inventario automï¿½ticamente
         /// </summary>
         [HttpPost("{saleId}/payments")]
         [RequirePermission("Sales", "Complete")]
@@ -224,7 +224,7 @@ namespace Web.Api.Controllers.Sales
         }
 
         /// <summary>
-        /// Obtener estadísticas de ventas
+        /// Obtener estadï¿½sticas de ventas
         /// </summary>
         [HttpGet("statistics")]
         [RequirePermission("Sales", "ViewReports")]
@@ -240,7 +240,7 @@ namespace Web.Api.Controllers.Sales
 
                 return Ok(new
                 {
-                    message = "Estadísticas obtenidas exitosamente",
+                    message = "Estadï¿½sticas obtenidas exitosamente",
                     error = 0,
                     data = result
                 });
@@ -250,7 +250,7 @@ namespace Web.Api.Controllers.Sales
                 Console.WriteLine($"? Error getting statistics: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener estadísticas",
+                    message = "Error al obtener estadï¿½sticas",
                     error = 2,
                     details = ex.Message
                 });
@@ -276,7 +276,7 @@ namespace Web.Api.Controllers.Sales
                     return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
                 }
 
-                Console.WriteLine($"? Cancelando venta {id} - Usuario: {userName}, Razón: {request.Reason}");
+                Console.WriteLine($"? Cancelando venta {id} - Usuario: {userName}, Razï¿½n: {request.Reason}");
 
                 var command = new CancelSaleCommand(id, request.Reason, userId);
                 var result = await _mediator.Send(command);
@@ -352,7 +352,7 @@ namespace Web.Api.Controllers.Sales
         }
 
         /// <summary>
-        /// Generar ticket térmico de venta (formato texto para impresoras térmicas)
+        /// Generar ticket tï¿½rmico de venta (formato texto para impresoras tï¿½rmicas)
         /// </summary>
         /// <param name="id">ID de la venta</param>
         /// <param name="width">Ancho del papel (48=80mm, 32=58mm)</param>
@@ -362,13 +362,13 @@ namespace Web.Api.Controllers.Sales
         {
             try
             {
-                Console.WriteLine($"?? Generando ticket térmico para venta {id} - Ancho: {width}");
+                Console.WriteLine($"?? Generando ticket tï¿½rmico para venta {id} - Ancho: {width}");
 
                 var ticketContent = await _thermalTicketService.GenerateSaleTicketAsync(id, width);
 
                 return Ok(new
                 {
-                    message = "Ticket térmico generado exitosamente",
+                    message = "Ticket tï¿½rmico generado exitosamente",
                     error = 0,
                     data = new
                     {
@@ -388,7 +388,7 @@ namespace Web.Api.Controllers.Sales
                 Console.WriteLine($"? Error generating thermal ticket: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al generar ticket térmico",
+                    message = "Error al generar ticket tï¿½rmico",
                     error = 2,
                     details = ex.Message
                 });
@@ -396,8 +396,8 @@ namespace Web.Api.Controllers.Sales
         }
 
         /// <summary>
-        /// Generar ticket térmico de venta (formato binario ESC/POS)
-        /// Para enviar directamente a impresora térmica
+        /// Generar ticket tï¿½rmico de venta (formato binario ESC/POS)
+        /// Para enviar directamente a impresora tï¿½rmica
         /// </summary>
         /// <param name="id">ID de la venta</param>
         /// <param name="width">Ancho del papel (48=80mm, 32=58mm)</param>
@@ -407,7 +407,7 @@ namespace Web.Api.Controllers.Sales
         {
             try
             {
-                Console.WriteLine($"??? Generando ticket térmico binario para venta {id}");
+                Console.WriteLine($"??? Generando ticket tï¿½rmico binario para venta {id}");
 
                 var ticketBytes = await _thermalTicketService.GenerateSaleTicketBinaryAsync(id, width);
 
@@ -422,7 +422,7 @@ namespace Web.Api.Controllers.Sales
                 Console.WriteLine($"? Error generating thermal ticket binary: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al generar ticket térmico",
+                    message = "Error al generar ticket tï¿½rmico",
                     error = 2,
                     details = ex.Message
                 });
@@ -431,7 +431,7 @@ namespace Web.Api.Controllers.Sales
 
         /// <summary>
         /// Generar ticket de venta en formato PDF
-        /// Para impresoras láser o compartir digitalmente
+        /// Para impresoras lï¿½ser o compartir digitalmente
         /// </summary>
         /// <param name="id">ID de la venta</param>
         /// <param name="includeLogo">Incluir logo de la empresa</param>
