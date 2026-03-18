@@ -161,6 +161,7 @@ builder.Services.AddScoped<ILoginRepository, LoginRepository>();
 builder.Services.AddScoped<IUserPermissionRepository, UserPermissionRepository>();
 builder.Services.AddScoped<ISystemModuleRepository, SystemModuleRepository>();
 builder.Services.AddScoped<IProductImageRepository, ProductImageRepository>();
+builder.Services.AddScoped<IPriceListRepository, PriceListRepository>();  // ✅ NUEVO - Listas de Precios
 builder.Services.AddScoped<IBranchRepository, BranchRepository>();  // ✅ NUEVO
 builder.Services.AddScoped<IWarehouseRepository, WarehouseRepository>();  // ✅ NUEVO
 builder.Services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();  // ✅ NUEVO - Órdenes de Compra
