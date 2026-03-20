@@ -316,4 +316,147 @@ namespace Application.Core.Billing.QueryHandlers
             };
         }
     }
+
+    /// <summary>
+    /// Handler para obtener una factura por ID con todos sus detalles
+    /// </summary>
+    public class GetInvoiceByIdQueryHandler : IRequestHandler<GetInvoiceByIdQuery, InvoiceResponseDto>
+    {
+        private readonly Application.Abstractions.Billing.IInvoiceRepository _invoiceRepository;
+
+        public GetInvoiceByIdQueryHandler(Application.Abstractions.Billing.IInvoiceRepository invoiceRepository)
+        {
+            _invoiceRepository = invoiceRepository;
+        }
+
+        public async Task<InvoiceResponseDto> Handle(
+            GetInvoiceByIdQuery request,
+            CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"📄 Obteniendo factura con ID: {request.InvoiceId}");
+
+            var invoice = await _invoiceRepository.GetByIdAsync(request.InvoiceId);
+
+            if (invoice == null)
+            {
+                throw new KeyNotFoundException($"Factura con ID {request.InvoiceId} no encontrada");
+            }
+
+            // Mapear a DTO completo
+            var invoiceDto = new InvoiceDto
+            {
+                Id = invoice.Id,
+                
+                // Referencia
+                SaleId = invoice.SaleId,
+                SaleCode = invoice.Sale?.Code,
+                
+                // Comprobante
+                Serie = invoice.Serie,
+                Folio = invoice.Folio,
+                InvoiceDate = invoice.InvoiceDate,
+                FormaPago = invoice.FormaPago,
+                MetodoPago = invoice.MetodoPago,
+                CondicionesDePago = invoice.CondicionesDePago,
+                TipoDeComprobante = invoice.TipoDeComprobante,
+                LugarExpedicion = invoice.LugarExpedicion,
+                
+                // Emisor
+                CompanyId = invoice.CompanyId,
+                EmisorRfc = invoice.EmisorRfc,
+                EmisorNombre = invoice.EmisorNombre,
+                EmisorRegimenFiscal = invoice.EmisorRegimenFiscal,
+                
+                // Receptor
+                CustomerId = invoice.CustomerId,
+                ReceptorRfc = invoice.ReceptorRfc,
+                ReceptorNombre = invoice.ReceptorNombre,
+                ReceptorDomicilioFiscal = invoice.ReceptorDomicilioFiscal,
+                ReceptorRegimenFiscal = invoice.ReceptorRegimenFiscal,
+                ReceptorUsoCfdi = invoice.ReceptorUsoCfdi,
+                
+                // Montos
+                SubTotal = invoice.SubTotal,
+                DiscountAmount = invoice.DiscountAmount,
+                TaxAmount = invoice.TaxAmount,
+                Total = invoice.Total,
+                Moneda = invoice.Moneda,
+                TipoCambio = invoice.TipoCambio,
+                
+                // Estado
+                Status = invoice.Status,
+                Uuid = invoice.Uuid,
+                TimbradoAt = invoice.TimbradoAt,
+                
+                // Timbrado (solo si Status = "Timbrada")
+                XmlCfdi = invoice.Status == "Timbrada" ? invoice.XmlCfdi : null,
+                CadenaOriginalSat = invoice.Status == "Timbrada" ? invoice.CadenaOriginalSat : null,
+                SelloCfdi = invoice.Status == "Timbrada" ? invoice.SelloCfdi : null,
+                SelloSat = invoice.Status == "Timbrada" ? invoice.SelloSat : null,
+                NoCertificadoCfdi = invoice.Status == "Timbrada" ? invoice.NoCertificadoCfdi : null,
+                NoCertificadoSat = invoice.Status == "Timbrada" ? invoice.NoCertificadoSat : null,
+                QrCode = invoice.Status == "Timbrada" ? invoice.QrCode : null,
+                
+                // Cancelación (solo si Status = "Cancelada")
+                CancelledAt = invoice.CancelledAt,
+                CancellationReason = invoice.CancellationReason,
+                CancelledByUserId = invoice.CancelledByUserId,
+                CancelledByUserName = invoice.CancelledBy?.Name,
+                
+                // Detalles
+                Details = invoice.Details.Select(d => new InvoiceDetailDto
+                {
+                    Id = d.Id,
+                    ProductId = d.ProductId,
+                    ClaveProdServ = d.ClaveProdServ,
+                    NoIdentificacion = d.NoIdentificacion,
+                    Cantidad = d.Cantidad,
+                    ClaveUnidad = d.ClaveUnidad,
+                    Unidad = d.Unidad,
+                    Descripcion = d.Descripcion,
+                    ValorUnitario = d.ValorUnitario,
+                    Importe = d.Importe,
+                    Descuento = d.Descuento,
+                    ObjetoImp = d.ObjetoImp,
+                    
+                    // Impuestos - Traslados
+                    TieneTraslados = d.TieneTraslados,
+                    TrasladoBase = d.TrasladoBase,
+                    TrasladoImpuesto = d.TrasladoImpuesto,
+                    TrasladoTipoFactor = d.TrasladoTipoFactor,
+                    TrasladoTasaOCuota = d.TrasladoTasaOCuota,
+                    TrasladoImporte = d.TrasladoImporte,
+                    
+                    // Impuestos - Retenciones
+                    TieneRetenciones = d.TieneRetenciones,
+                    RetencionBase = d.RetencionBase,
+                    RetencionImpuesto = d.RetencionImpuesto,
+                    RetencionTipoFactor = d.RetencionTipoFactor,
+                    RetencionTasaOCuota = d.RetencionTasaOCuota,
+                    RetencionImporte = d.RetencionImporte,
+                    
+                    Notes = d.Notes
+                }).ToList(),
+                
+                // Audit
+                Notes = invoice.Notes,
+                CreatedAt = invoice.CreatedAt,
+                CreatedByUserId = invoice.CreatedByUserId,
+                CreatedByUserName = invoice.CreatedBy?.Name,
+                UpdatedAt = invoice.UpdatedAt
+            };
+
+            Console.WriteLine($"✓ Factura {invoice.Serie}-{invoice.Folio} obtenida exitosamente");
+            Console.WriteLine($"   Estado: {invoice.Status}");
+            Console.WriteLine($"   Detalles: {invoice.Details.Count} conceptos");
+            Console.WriteLine($"   Total: ${invoice.Total:N2} {invoice.Moneda}");
+
+            return new InvoiceResponseDto
+            {
+                Message = "Factura obtenida exitosamente",
+                Error = 0,
+                Data = invoiceDto
+            };
+        }
+    }
 }

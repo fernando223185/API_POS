@@ -588,7 +588,7 @@ namespace Application.DTOs.Billing
         // Audit
         public string? Notes { get; set; }
         public DateTime CreatedAt { get; set; }
-        public int CreatedByUserId { get; set; }
+        public int? CreatedByUserId { get; set; }
         public string? CreatedByUserName { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

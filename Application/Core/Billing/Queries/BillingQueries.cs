@@ -39,4 +39,11 @@ namespace Application.Core.Billing.Queries
         string? Serie = null,
         string? Rfc = null
     ) : IRequest<InvoicesPagedResponseDto>;
+
+    /// <summary>
+    /// Query para obtener una factura por ID con todos sus detalles
+    /// </summary>
+    public record GetInvoiceByIdQuery(
+        int InvoiceId
+    ) : IRequest<InvoiceResponseDto>;
 }

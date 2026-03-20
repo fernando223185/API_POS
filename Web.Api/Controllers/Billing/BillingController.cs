@@ -226,6 +226,41 @@ namespace Web.Api.Controllers.Billing
         }
 
         /// <summary>
+        /// Obtener una factura específica por ID con todos sus detalles
+        /// Incluye: comprobante, emisor, receptor, montos, detalles de conceptos y timbrado
+        /// </summary>
+        /// <param name="id">ID de la factura</param>
+        [HttpGet("invoices/{id}")]
+        [RequirePermission("CFDI", "View")]
+        public async Task<IActionResult> GetInvoiceById(int id)
+        {
+            try
+            {
+                var query = new GetInvoiceByIdQuery(id);
+                var result = await _mediator.Send(query);
+
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new
+                {
+                    message = ex.Message,
+                    error = 1
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Error al obtener factura",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
         /// Crear una nueva factura (borrador o timbrada)
         /// Puede crear desde una venta existente o manualmente
         /// </summary>
