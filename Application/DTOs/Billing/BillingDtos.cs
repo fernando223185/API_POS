@@ -675,4 +675,20 @@ namespace Application.DTOs.Billing
         
         public DateTime CreatedAt { get; set; }
     }
+
+    /// <summary>
+    /// Respuesta paginada de facturas
+    /// </summary>
+    public class InvoicesPagedResponseDto
+    {
+        public string Message { get; set; } = "Facturas obtenidas exitosamente";
+        public int Error { get; set; }
+        public List<InvoiceListItemDto> Data { get; set; } = new();
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalRecords { get; set; }
+        public int TotalPages { get; set; }
+        public bool HasPreviousPage => Page > 1;
+        public bool HasNextPage => Page < TotalPages;
+    }
 }

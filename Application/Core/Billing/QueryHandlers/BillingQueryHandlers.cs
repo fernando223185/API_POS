@@ -22,7 +22,7 @@ namespace Application.Core.Billing.QueryHandlers
             GetPendingInvoiceSalesQuery request, 
             CancellationToken cancellationToken)
         {
-            Console.WriteLine($"?? Obteniendo ventas pendientes de timbrar - Página: {request.Page}, Tamaño: {request.PageSize}");
+            Console.WriteLine($"?? Obteniendo ventas pendientes de timbrar - Pï¿½gina: {request.Page}, Tamaï¿½o: {request.PageSize}");
 
             // Construir filtros
             var fromDate = request.FromDate ?? DateTime.UtcNow.Date.AddDays(-30);
@@ -42,7 +42,7 @@ namespace Application.Core.Billing.QueryHandlers
 
             var salesList = sales.ToList();
 
-            // Calcular estadísticas
+            // Calcular estadï¿½sticas
             var salesRequiresInvoice = salesList.Count(s => s.RequiresInvoice);
             var salesNotRequiresInvoice = salesList.Count(s => !s.RequiresInvoice);
             var totalAmount = salesList.Sum(s => s.Total);
@@ -61,7 +61,7 @@ namespace Application.Core.Billing.QueryHandlers
                     Code = s.Code,
                     SaleDate = s.SaleDate,
                     CustomerId = s.CustomerId,
-                    CustomerName = s.CustomerName ?? "Público General",
+                    CustomerName = s.CustomerName ?? "Pï¿½blico General",
                     CustomerRfc = s.Customer?.TaxId, // CORREGIDO: TaxId es el RFC
                     CustomerEmail = s.Customer?.Email,
                     WarehouseId = s.WarehouseId,
@@ -102,7 +102,7 @@ namespace Application.Core.Billing.QueryHandlers
     }
 
     /// <summary>
-    /// Handler para obtener una venta individual completa para facturación
+    /// Handler para obtener una venta individual completa para facturaciï¿½n
     /// Incluye todos los datos necesarios para generar CFDI
     /// </summary>
     public class GetSaleForInvoicingQueryHandler : IRequestHandler<GetSaleForInvoicingQuery, SaleForInvoicingDto>
@@ -118,7 +118,7 @@ namespace Application.Core.Billing.QueryHandlers
             GetSaleForInvoicingQuery request,
             CancellationToken cancellationToken)
         {
-            Console.WriteLine($"?? Obteniendo venta {request.SaleId} para facturación...");
+            Console.WriteLine($"?? Obteniendo venta {request.SaleId} para facturaciï¿½n...");
 
             var sale = await _saleRepository.GetSaleForInvoicingAsync(request.SaleId);
 
@@ -127,7 +127,7 @@ namespace Application.Core.Billing.QueryHandlers
                 throw new KeyNotFoundException($"Venta con ID {request.SaleId} no encontrada");
             }
 
-            // Validar que la venta esté completada y pagada
+            // Validar que la venta estï¿½ completada y pagada
             if (sale.Status != "Completed")
             {
                 throw new InvalidOperationException($"La venta debe estar completada para facturar. Estado actual: {sale.Status}");
@@ -211,8 +211,8 @@ namespace Application.Core.Billing.QueryHandlers
                     TaxAmount = d.TaxAmount,
                     SubTotal = d.SubTotal,
                     Total = d.Total,
-                    SatProductKey = "01010101", // TODO: Obtener de Product cuando esté disponible
-                    SatUnitKey = "H87", // TODO: Obtener de Product cuando esté disponible
+                    SatProductKey = "01010101", // TODO: Obtener de Product cuando estï¿½ disponible
+                    SatUnitKey = "H87", // TODO: Obtener de Product cuando estï¿½ disponible
                     Notes = d.Notes
                 }).ToList()
 
@@ -232,12 +232,88 @@ namespace Application.Core.Billing.QueryHandlers
                 CreatedAt = sale.CreatedAt
             };
 
-            Console.WriteLine($"? Venta {sale.Code} lista para facturación");
+            Console.WriteLine($"? Venta {sale.Code} lista para facturaciï¿½n");
             Console.WriteLine($"   Empresa: {result.Company.LegalName} (RFC: {result.Company.Rfc})");
             Console.WriteLine($"   Cliente: {result.Customer.Name} (RFC: {result.Customer.Rfc})");
             Console.WriteLine($"   Total: ${result.Total:N2} ({result.Details.Count} productos)");
 
             return result;
+        }
+    }
+
+    /// <summary>
+    /// Handler para obtener facturas con filtros opcionales (para dashboard/listados)
+    /// </summary>
+    public class GetInvoicesQueryHandler : IRequestHandler<GetInvoicesQuery, InvoicesPagedResponseDto>
+    {
+        private readonly Application.Abstractions.Billing.IInvoiceRepository _invoiceRepository;
+
+        public GetInvoicesQueryHandler(Application.Abstractions.Billing.IInvoiceRepository invoiceRepository)
+        {
+            _invoiceRepository = invoiceRepository;
+        }
+
+        public async Task<InvoicesPagedResponseDto> Handle(
+            GetInvoicesQuery request,
+            CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"ðŸ“‹ Obteniendo facturas - PÃ¡gina: {request.Page}, TamaÃ±o: {request.PageSize}");
+            if (request.Status != null)
+                Console.WriteLine($"   Filtro Status: {request.Status}");
+            if (request.CompanyId.HasValue)
+                Console.WriteLine($"   Filtro CompanyId: {request.CompanyId}");
+
+            // Obtener facturas desde el repositorio
+            var (invoices, totalCount) = await _invoiceRepository.GetPagedAsync(
+                request.Page,
+                request.PageSize,
+                request.CompanyId,
+                request.CustomerId,
+                request.Status,
+                request.FromDate,
+                request.ToDate,
+                request.Serie,
+                request.Rfc
+            );
+
+            var invoiceList = invoices.ToList();
+
+            // Mapear a DTOs
+            var data = invoiceList.Select(i => new InvoiceListItemDto
+            {
+                Id = i.Id,
+                Serie = i.Serie,
+                Folio = i.Folio,
+                InvoiceDate = i.InvoiceDate,
+                Status = i.Status,
+                Uuid = i.Uuid,
+                EmisorRfc = i.EmisorRfc,
+                EmisorNombre = i.EmisorNombre,
+                ReceptorRfc = i.ReceptorRfc,
+                ReceptorNombre = i.ReceptorNombre,
+                Total = i.Total,
+                Moneda = i.Moneda,
+                TimbradoAt = i.TimbradoAt,
+                CancelledAt = i.CancelledAt,
+                SaleId = i.SaleId,
+                SaleCode = i.Sale?.Code,
+                CreatedAt = i.CreatedAt
+            }).ToList();
+
+            var totalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize);
+
+            Console.WriteLine($"âœ“ {invoiceList.Count} facturas encontradas de {totalCount} totales");
+
+            return new InvoicesPagedResponseDto
+            {
+                Message = "Facturas obtenidas exitosamente",
+                Error = 0,
+                Data = data,
+                Page = request.Page,
+                PageSize = request.PageSize,
+                TotalRecords = totalCount,
+                TotalPages = totalPages
+            };
         }
     }
 }

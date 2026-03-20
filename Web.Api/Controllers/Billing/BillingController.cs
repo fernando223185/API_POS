@@ -171,44 +171,57 @@ namespace Web.Api.Controllers.Billing
             }
         }
 
+        /// <summary>
+        /// Obtener facturas con filtros opcionales (para dashboard/listados)
+        /// </summary>
+        /// <param name="page">Número de página</param>
+        /// <param name="pageSize">Tamaño de página</param>
+        /// <param name="companyId">Filtrar por empresa</param>
+        /// <param name="customerId">Filtrar por cliente</param>
+        /// <param name="status">Filtrar por estado (Borrador, Timbrada, Cancelada)</param>
+        /// <param name="fromDate">Fecha desde</param>
+        /// <param name="toDate">Fecha hasta</param>
+        /// <param name="serie">Filtrar por serie</param>
+        /// <param name="rfc">Filtrar por RFC (emisor o receptor)</param>
         [HttpGet("invoices")]
         [RequirePermission("CFDI", "View")]
-        public async Task<IActionResult> GetInvoices([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+        public async Task<IActionResult> GetInvoices(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50,
+            [FromQuery] int? companyId = null,
+            [FromQuery] int? customerId = null,
+            [FromQuery] string? status = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] string? serie = null,
+            [FromQuery] string? rfc = null)
         {
             try
             {
-                return Ok(new
-                {
-                    message = "Invoices retrieved successfully",
-                    error = 0,
-                    data = new[] {
-                        new {
-                            id = 1,
-                            folio = "A-001",
-                            serie = "A",
-                            customerName = "Cliente 1",
-                            rfc = "XAXX010101000",
-                            total = 1160.00,
-                            status = "Timbrada",
-                            createdAt = DateTime.UtcNow.AddDays(-2)
-                        },
-                        new {
-                            id = 2,
-                            folio = "A-002",
-                            serie = "A",
-                            customerName = "Cliente 2",
-                            rfc = "YAYY020202000",
-                            total = 2320.00,
-                            status = "Pendiente",
-                            createdAt = DateTime.UtcNow.AddDays(-1)
-                        }
-                    },
-                    pagination = new { page, pageSize, totalItems = 2 }
-                });
+                var query = new GetInvoicesQuery(
+                    page,
+                    pageSize,
+                    companyId,
+                    customerId,
+                    status,
+                    fromDate,
+                    toDate,
+                    serie,
+                    rfc
+                );
+
+                var result = await _mediator.Send(query);
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                return StatusCode(500, new
+                {
+                    message = "Error al obtener facturas",
+                    error = 2,
+                    details = ex.Message
+                });
             }
         }
 
