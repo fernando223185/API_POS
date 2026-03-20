@@ -31,7 +31,7 @@ namespace Web.Api.Controllers.Test
         }
 
         [HttpGet("admin-only")]
-        [RequirePermission("Configuration", "ManageUsers")]
+        [RequirePermission("Configuracion", "View")]
         public IActionResult GetAdminData()
         {
             var userId = HttpContext.Items["UserId"];
@@ -46,7 +46,7 @@ namespace Web.Api.Controllers.Test
         }
 
         [HttpGet("dashboard")]
-        [RequirePermission("Dashboard", "Access")]
+        [RequirePermission("Dashboard", "View")]
         public IActionResult GetDashboardData()
         {
             return Ok(new { 

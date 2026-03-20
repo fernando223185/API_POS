@@ -57,6 +57,10 @@ namespace Infrastructure.Persistence
         // ✅ NUEVO: Gestión de empresas
         public DbSet<Company> Companies { get; set; }
 
+        // ✅ NUEVO: Sistema de facturación CFDI
+        public DbSet<Invoice> Invoices { get; set; }
+        public DbSet<InvoiceDetail> InvoiceDetails { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Configurar nombre de tabla para User -> Users
@@ -431,6 +435,76 @@ namespace Infrastructure.Persistence
                     .OnDelete(DeleteBehavior.SetNull); // NO CASCADE
 
                 entity.HasIndex(im => im.SaleId);
+            });
+
+            // ✅ CONFIGURACIÓN DE FACTURAS (INVOICES)
+            modelBuilder.Entity<Invoice>(entity =>
+            {
+                entity.HasKey(i => i.Id);
+                entity.ToTable("Invoices");
+
+                // Relación opcional con Sale
+                entity.HasOne(i => i.Sale)
+                    .WithMany()
+                    .HasForeignKey(i => i.SaleId)
+                    .OnDelete(DeleteBehavior.SetNull); // NO CASCADE
+
+                // Relación con Company (Emisor)
+                entity.HasOne(i => i.Company)
+                    .WithMany()
+                    .HasForeignKey(i => i.CompanyId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                // Relación opcional con Customer (Receptor)
+                entity.HasOne(i => i.Customer)
+                    .WithMany()
+                    .HasForeignKey(i => i.CustomerId)
+                    .OnDelete(DeleteBehavior.SetNull); // NO CASCADE
+
+                // Relación con Usuario que creó
+                entity.HasOne(i => i.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(i => i.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                // Relación con Usuario que canceló
+                entity.HasOne(i => i.CancelledBy)
+                    .WithMany()
+                    .HasForeignKey(i => i.CancelledByUserId)
+                    .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+                // Índices
+                entity.HasIndex(i => new { i.Serie, i.Folio }).IsUnique();
+                entity.HasIndex(i => i.Uuid).IsUnique();
+                entity.HasIndex(i => i.Status);
+                entity.HasIndex(i => i.InvoiceDate);
+                entity.HasIndex(i => i.CompanyId);
+                entity.HasIndex(i => i.CustomerId);
+                entity.HasIndex(i => i.SaleId);
+                entity.HasIndex(i => i.CreatedAt);
+            });
+
+            // ✅ CONFIGURACIÓN DE DETALLES DE FACTURA (INVOICE DETAILS)
+            modelBuilder.Entity<InvoiceDetail>(entity =>
+            {
+                entity.HasKey(id => id.Id);
+                entity.ToTable("InvoiceDetails");
+
+                // Relación con Invoice
+                entity.HasOne(id => id.Invoice)
+                    .WithMany(i => i.Details)
+                    .HasForeignKey(id => id.InvoiceId)
+                    .OnDelete(DeleteBehavior.Cascade); // CASCADE con Invoice
+
+                // Relación opcional con Product
+                entity.HasOne(id => id.Product)
+                    .WithMany()
+                    .HasForeignKey(id => id.ProductId)
+                    .OnDelete(DeleteBehavior.SetNull); // NO CASCADE
+
+                // Índices
+                entity.HasIndex(id => id.InvoiceId);
+                entity.HasIndex(id => id.ProductId);
             });
         }
     }

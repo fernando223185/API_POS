@@ -8,7 +8,7 @@ using Web.Api.Authorization;
 namespace Web.Api.Controllers.Config
 {
     /// <summary>
-    /// CRUD completo para módulos y submódulos del sistema
+    /// CRUD completo para mï¿½dulos y submï¿½dulos del sistema
     /// </summary>
     [Route("api/modules")]
     [ApiController]
@@ -21,10 +21,10 @@ namespace Web.Api.Controllers.Config
             _mediator = mediator;
         }
 
-        #region ?? MÓDULOS - QUERIES
+        #region ?? Mï¿½DULOS - QUERIES
 
         /// <summary>
-        /// ?? Obtener todos los módulos con sus submódulos
+        /// ?? Obtener todos los mï¿½dulos con sus submï¿½dulos
         /// </summary>
         [HttpGet]
         [RequireAuthentication]
@@ -39,10 +39,10 @@ namespace Web.Api.Controllers.Config
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error al obtener módulos: {ex.Message}");
+                Console.WriteLine($"? Error al obtener mï¿½dulos: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener módulos",
+                    message = "Error al obtener mï¿½dulos",
                     error = 2,
                     details = ex.Message
                 });
@@ -50,7 +50,7 @@ namespace Web.Api.Controllers.Config
         }
 
         /// <summary>
-        /// ?? Obtener un módulo por ID con sus submódulos
+        /// ?? Obtener un mï¿½dulo por ID con sus submï¿½dulos
         /// </summary>
         [HttpGet("{id}")]
         [RequireAuthentication]
@@ -65,24 +65,24 @@ namespace Web.Api.Controllers.Config
                 {
                     return NotFound(new
                     {
-                        message = "Módulo no encontrado",
+                        message = "Mï¿½dulo no encontrado",
                         error = 1
                     });
                 }
 
                 return Ok(new
                 {
-                    message = "Módulo obtenido exitosamente",
+                    message = "Mï¿½dulo obtenido exitosamente",
                     error = 0,
                     data = module
                 });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error al obtener módulo: {ex.Message}");
+                Console.WriteLine($"? Error al obtener mï¿½dulo: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener módulo",
+                    message = "Error al obtener mï¿½dulo",
                     error = 2,
                     details = ex.Message
                 });
@@ -91,13 +91,13 @@ namespace Web.Api.Controllers.Config
 
         #endregion
 
-        #region ? MÓDULOS - COMMANDS
+        #region ? Mï¿½DULOS - COMMANDS
 
         /// <summary>
-        /// ? Crear un nuevo módulo
+        /// ? Crear un nuevo mï¿½dulo
         /// </summary>
         [HttpPost]
-        [RequirePermission("Configuration", "Modulos del Sistema")]
+        [RequirePermission("Configuracion", "Create")]
         public async Task<IActionResult> CreateModule([FromBody] CreateModuleDto dto)
         {
             try
@@ -107,7 +107,7 @@ namespace Web.Api.Controllers.Config
                 {
                     return BadRequest(new
                     {
-                        message = "Datos de entrada inválidos",
+                        message = "Datos de entrada invï¿½lidos",
                         error = 1,
                         errors = ModelState.SelectMany(x => x.Value.Errors.Select(e => e.ErrorMessage))
                     });
@@ -121,10 +121,10 @@ namespace Web.Api.Controllers.Config
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error al crear módulo: {ex.Message}");
+                Console.WriteLine($"? Error al crear mï¿½dulo: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al crear módulo",
+                    message = "Error al crear mï¿½dulo",
                     error = 2,
                     details = ex.Message
                 });
@@ -132,10 +132,10 @@ namespace Web.Api.Controllers.Config
         }
 
         /// <summary>
-        /// ?? Actualizar un módulo existente
+        /// ?? Actualizar un mï¿½dulo existente
         /// </summary>
         [HttpPut("{id}")]
-        [RequirePermission("Configuracion", "ManageModules")]
+        [RequirePermission("Configuracion", "Edit")]
         public async Task<IActionResult> UpdateModule(int id, [FromBody] UpdateModuleDto dto)
         {
             try
@@ -145,7 +145,7 @@ namespace Web.Api.Controllers.Config
                 {
                     return BadRequest(new
                     {
-                        message = "Datos de entrada inválidos",
+                        message = "Datos de entrada invï¿½lidos",
                         error = 1,
                         errors = ModelState.SelectMany(x => x.Value.Errors.Select(e => e.ErrorMessage))
                     });
@@ -164,10 +164,10 @@ namespace Web.Api.Controllers.Config
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error al actualizar módulo: {ex.Message}");
+                Console.WriteLine($"? Error al actualizar mï¿½dulo: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al actualizar módulo",
+                    message = "Error al actualizar mï¿½dulo",
                     error = 2,
                     details = ex.Message
                 });
@@ -175,10 +175,10 @@ namespace Web.Api.Controllers.Config
         }
 
         /// <summary>
-        /// ??? Eliminar un módulo (soft delete)
+        /// ??? Eliminar un mï¿½dulo (soft delete)
         /// </summary>
         [HttpDelete("{id}")]
-        [RequirePermission("Configuracion", "ManageModules")]
+        [RequirePermission("Configuracion", "Delete")]
         public async Task<IActionResult> DeleteModule(int id)
         {
             try
@@ -196,10 +196,10 @@ namespace Web.Api.Controllers.Config
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error al eliminar módulo: {ex.Message}");
+                Console.WriteLine($"? Error al eliminar mï¿½dulo: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al eliminar módulo",
+                    message = "Error al eliminar mï¿½dulo",
                     error = 2,
                     details = ex.Message
                 });
@@ -208,10 +208,10 @@ namespace Web.Api.Controllers.Config
 
         #endregion
 
-        #region ?? SUBMÓDULOS - QUERIES
+        #region ?? SUBMï¿½DULOS - QUERIES
 
         /// <summary>
-        /// ?? Obtener todos los submódulos de un módulo
+        /// ?? Obtener todos los submï¿½dulos de un mï¿½dulo
         /// </summary>
         [HttpGet("{moduleId}/submodules")]
         [RequireAuthentication]
@@ -231,10 +231,10 @@ namespace Web.Api.Controllers.Config
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error al obtener submódulos: {ex.Message}");
+                Console.WriteLine($"? Error al obtener submï¿½dulos: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener submódulos",
+                    message = "Error al obtener submï¿½dulos",
                     error = 2,
                     details = ex.Message
                 });
@@ -242,7 +242,7 @@ namespace Web.Api.Controllers.Config
         }
 
         /// <summary>
-        /// ?? Obtener un submódulo por ID
+        /// ?? Obtener un submï¿½dulo por ID
         /// </summary>
         [HttpGet("submodules/{id}")]
         [RequireAuthentication]
@@ -257,24 +257,24 @@ namespace Web.Api.Controllers.Config
                 {
                     return NotFound(new
                     {
-                        message = "Submódulo no encontrado",
+                        message = "Submï¿½dulo no encontrado",
                         error = 1
                     });
                 }
 
                 return Ok(new
                 {
-                    message = "Submódulo obtenido exitosamente",
+                    message = "Submï¿½dulo obtenido exitosamente",
                     error = 0,
                     data = submodule
                 });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error al obtener submódulo: {ex.Message}");
+                Console.WriteLine($"? Error al obtener submï¿½dulo: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener submódulo",
+                    message = "Error al obtener submï¿½dulo",
                     error = 2,
                     details = ex.Message
                 });
@@ -283,13 +283,13 @@ namespace Web.Api.Controllers.Config
 
         #endregion
 
-        #region ? SUBMÓDULOS - COMMANDS
+        #region ? SUBMï¿½DULOS - COMMANDS
 
         /// <summary>
-        /// ? Crear un nuevo submódulo
+        /// ? Crear un nuevo submï¿½dulo
         /// </summary>
         [HttpPost("submodules")]
-        [RequirePermission("Configuracion", "Modulos del Sistema")]
+        [RequirePermission("Configuracion", "Create")]
         public async Task<IActionResult> CreateSubmodule([FromBody] CreateSubmoduleDto dto)
         {
             try
@@ -299,7 +299,7 @@ namespace Web.Api.Controllers.Config
                 {
                     return BadRequest(new
                     {
-                        message = "Datos de entrada inválidos",
+                        message = "Datos de entrada invï¿½lidos",
                         error = 1,
                         errors = ModelState.SelectMany(x => x.Value.Errors.Select(e => e.ErrorMessage))
                     });
@@ -318,10 +318,10 @@ namespace Web.Api.Controllers.Config
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error al crear submódulo: {ex.Message}");
+                Console.WriteLine($"? Error al crear submï¿½dulo: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al crear submódulo",
+                    message = "Error al crear submï¿½dulo",
                     error = 2,
                     details = ex.Message
                 });
@@ -329,10 +329,10 @@ namespace Web.Api.Controllers.Config
         }
 
         /// <summary>
-        /// ?? Actualizar un submódulo existente
+        /// ?? Actualizar un submï¿½dulo existente
         /// </summary>
         [HttpPut("submodules/{id}")]
-        [RequirePermission("Configuracion", "ManageModules")]
+        [RequirePermission("Configuracion", "Edit")]
         public async Task<IActionResult> UpdateSubmodule(int id, [FromBody] UpdateSubmoduleDto dto)
         {
             try
@@ -342,7 +342,7 @@ namespace Web.Api.Controllers.Config
                 {
                     return BadRequest(new
                     {
-                        message = "Datos de entrada inválidos",
+                        message = "Datos de entrada invï¿½lidos",
                         error = 1,
                         errors = ModelState.SelectMany(x => x.Value.Errors.Select(e => e.ErrorMessage))
                     });
@@ -361,10 +361,10 @@ namespace Web.Api.Controllers.Config
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error al actualizar submódulo: {ex.Message}");
+                Console.WriteLine($"? Error al actualizar submï¿½dulo: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al actualizar submódulo",
+                    message = "Error al actualizar submï¿½dulo",
                     error = 2,
                     details = ex.Message
                 });
@@ -372,10 +372,10 @@ namespace Web.Api.Controllers.Config
         }
 
         /// <summary>
-        /// ??? Eliminar un submódulo (soft delete)
+        /// ??? Eliminar un submï¿½dulo (soft delete)
         /// </summary>
         [HttpDelete("submodules/{id}")]
-        [RequirePermission("Configuracion", "ManageModules")]
+        [RequirePermission("Configuracion", "Delete")]
         public async Task<IActionResult> DeleteSubmodule(int id)
         {
             try
@@ -393,10 +393,10 @@ namespace Web.Api.Controllers.Config
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error al eliminar submódulo: {ex.Message}");
+                Console.WriteLine($"? Error al eliminar submï¿½dulo: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al eliminar submódulo",
+                    message = "Error al eliminar submï¿½dulo",
                     error = 2,
                     details = ex.Message
                 });

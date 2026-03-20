@@ -27,7 +27,7 @@ namespace Web.Api.Controllers.Products
         /// </summary>
         /// <param name="isActive">Filtrar por estado activo/inactivo (opcional)</param>
         [HttpGet]
-        [RequirePermission("Product", "ViewCatalog")]
+        [RequirePermission("Productos", "View")]
         public async Task<IActionResult> GetAll([FromQuery] bool? isActive = null)
         {
             try
@@ -73,7 +73,7 @@ namespace Web.Api.Controllers.Products
         /// Obtener lista de precios por ID
         /// </summary>
         [HttpGet("{id}")]
-        [RequirePermission("Product", "ViewCatalog")]
+        [RequirePermission("Productos", "View")]
         public async Task<IActionResult> GetById(int id)
         {
             try
@@ -127,7 +127,7 @@ namespace Web.Api.Controllers.Products
         /// Crear una nueva lista de precios
         /// </summary>
         [HttpPost]
-        [RequirePermission("Product", "ManageCatalog")]
+        [RequirePermission("Productos", "Create")]
         public async Task<IActionResult> Create([FromBody] CreatePriceListDTO dto)
         {
             try
@@ -192,7 +192,7 @@ namespace Web.Api.Controllers.Products
         /// Actualizar una lista de precios existente
         /// </summary>
         [HttpPut("{id}")]
-        [RequirePermission("Product", "ManageCatalog")]
+        [RequirePermission("Productos", "Edit")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdatePriceListDTO dto)
         {
             try
@@ -275,7 +275,7 @@ namespace Web.Api.Controllers.Products
         /// Eliminar (desactivar) una lista de precios
         /// </summary>
         [HttpDelete("{id}")]
-        [RequirePermission("Product", "ManageCatalog")]
+        [RequirePermission("Productos", "Delete")]
         public async Task<IActionResult> Delete(int id)
         {
             try

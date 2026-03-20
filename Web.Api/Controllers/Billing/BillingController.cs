@@ -1,4 +1,6 @@
+using Application.Core.Billing.Commands;
 using Application.Core.Billing.Queries;
+using Application.DTOs.Billing;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Web.Api.Authorization;
@@ -19,16 +21,16 @@ namespace Web.Api.Controllers.Billing
         /// <summary>
         /// Obtener ventas pendientes de timbrar (facturar)
         /// </summary>
-        /// <param name="page">Número de página</param>
-        /// <param name="pageSize">Tamaño de página</param>
+        /// <param name="page">Nï¿½mero de pï¿½gina</param>
+        /// <param name="pageSize">Tamaï¿½o de pï¿½gina</param>
         /// <param name="onlyRequiresInvoice">Filtrar solo ventas que requieren factura (true), solo las que no requieren (false), o todas (null)</param>
-        /// <param name="warehouseId">Filtrar por almacén</param>
+        /// <param name="warehouseId">Filtrar por almacï¿½n</param>
         /// <param name="branchId">Filtrar por sucursal</param>
         /// <param name="companyId">Filtrar por empresa</param>
         /// <param name="fromDate">Fecha desde</param>
         /// <param name="toDate">Fecha hasta</param>
         [HttpGet("pending-sales")]
-        [RequirePermission("CFDI", "Ventas")]
+        [RequirePermission("CFDI", "View")]
         public async Task<IActionResult> GetPendingInvoiceSales(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
@@ -68,12 +70,12 @@ namespace Web.Api.Controllers.Billing
         }
 
         /// <summary>
-        /// Obtener una venta específica para facturación
-        /// Incluye toda la información necesaria para generar CFDI: empresa, cliente, productos, pagos
+        /// Obtener una venta especï¿½fica para facturaciï¿½n
+        /// Incluye toda la informaciï¿½n necesaria para generar CFDI: empresa, cliente, productos, pagos
         /// </summary>
         /// <param name="saleId">ID de la venta</param>
         [HttpGet("sale/{saleId}")]
-        [RequirePermission("CFDI", "Ventas")]
+        [RequirePermission("CFDI", "View")]
         public async Task<IActionResult> GetSaleForInvoicing(int saleId)
         {
             try
@@ -108,7 +110,61 @@ namespace Web.Api.Controllers.Billing
             {
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener venta para facturación",
+                    message = "Error al obtener venta para facturaciï¿½n",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Timbrar un CFDI con el PAC Sapiens
+        /// Genera el CFDI 4.0 a partir de una venta y lo envï¿½a a timbrar
+        /// </summary>
+        /// <param name="requestData">Datos del timbrado (SaleId, Serie, Folio, FormaPago, etc.)</param>
+        [HttpPost("timbrar")]
+        [RequirePermission("CFDI", "Create")]
+        public async Task<IActionResult> TimbrarCfdi([FromBody] TimbrarCfdiRequestDto requestData)
+        {
+            try
+            {
+                var userId = HttpContext.Items["UserId"] as int? ?? 0;
+
+                var command = new TimbrarCfdiCommand(requestData, userId);
+                var result = await _mediator.Send(command);
+
+                if (result.Error > 0)
+                {
+                    if (result.Error == 1)
+                    {
+                        return BadRequest(result);
+                    }
+                    return StatusCode(500, result);
+                }
+
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new
+                {
+                    message = ex.Message,
+                    error = 1
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message,
+                    error = 1
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Error al timbrar CFDI",
                     error = 2,
                     details = ex.Message
                 });
@@ -116,7 +172,7 @@ namespace Web.Api.Controllers.Billing
         }
 
         [HttpGet("invoices")]
-        [RequirePermission("Billing", "ViewInvoices")]
+        [RequirePermission("CFDI", "View")]
         public async Task<IActionResult> GetInvoices([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
         {
             try
@@ -156,34 +212,47 @@ namespace Web.Api.Controllers.Billing
             }
         }
 
+        /// <summary>
+        /// Crear una nueva factura (borrador o timbrada)
+        /// Puede crear desde una venta existente o manualmente
+        /// </summary>
+        /// <param name="request">Datos de la factura (SaleId opcional, TimbrarInmediatamente, etc.)</param>
         [HttpPost("invoices")]
-        [RequirePermission("Billing", "CreateInvoice")]
-        public async Task<IActionResult> CreateInvoice([FromBody] dynamic invoiceData)
+        [RequirePermission("CFDI", "Create")]
+        public async Task<IActionResult> CreateInvoice([FromBody] CreateInvoiceRequestDto request)
         {
             try
             {
                 var userId = HttpContext.Items["UserId"] as int? ?? 0;
-                var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
 
-                return Ok(new
+                var command = new CreateInvoiceCommand
                 {
-                    message = "Invoice created successfully",
-                    error = 0,
-                    invoiceId = 101,
-                    folio = "A-003",
-                    serie = "A",
-                    createdBy = userName,
-                    status = "Borrador"
-                });
+                    Request = request,
+                    UserId = userId
+                };
+
+                var result = await _mediator.Send(command);
+
+                if (result.Error > 0)
+                {
+                    return BadRequest(result);
+                }
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                return StatusCode(500, new
+                {
+                    message = "Error al crear factura",
+                    error = 2,
+                    details = ex.Message
+                });
             }
         }
 
         [HttpGet("pending")]
-        [RequirePermission("CFDI", "Ventas")]
+        [RequirePermission("CFDI", "View")]
         public async Task<IActionResult> GetPendingInvoices()
         {
             try
@@ -210,32 +279,56 @@ namespace Web.Api.Controllers.Billing
             }
         }
 
+        /// <summary>
+        /// Timbrar una factura borrador existente con el PAC Sapiens
+        /// </summary>
+        /// <param name="id">ID de la factura a timbrar</param>
+        /// <param name="request">ParÃ¡metros adicionales (versiÃ³n de respuesta)</param>
         [HttpPost("invoices/{id}/stamp")]
-        [RequirePermission("Billing", "ProcessStamping")]
-        public async Task<IActionResult> StampInvoice(int id)
+        [RequirePermission("CFDI", "Create")]
+        public async Task<IActionResult> StampInvoice(int id, [FromBody] TimbrarInvoiceRequestDto? request = null)
         {
             try
             {
-                var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
+                var userId = HttpContext.Items["UserId"] as int? ?? 0;
 
-                return Ok(new
+                var timbrarRequest = request ?? new TimbrarInvoiceRequestDto
                 {
-                    message = "Invoice stamped successfully",
-                    error = 0,
-                    invoiceId = id,
-                    uuid = "12345678-1234-1234-1234-123456789012",
-                    stampedBy = userName,
-                    stampedAt = DateTime.UtcNow
-                });
+                    InvoiceId = id,
+                    Version = "v4"
+                };
+
+                // Asegurar que el ID del request coincida con el de la ruta
+                timbrarRequest.InvoiceId = id;
+
+                var command = new TimbrarInvoiceCommand
+                {
+                    Request = timbrarRequest,
+                    UserId = userId
+                };
+
+                var result = await _mediator.Send(command);
+
+                if (result.Error > 0)
+                {
+                    return BadRequest(result);
+                }
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+                return StatusCode(500, new
+                {
+                    message = "Error al timbrar factura",
+                    error = 2,
+                    details = ex.Message
+                });
             }
         }
 
         [HttpGet("stamped")]
-        [RequirePermission("Billing", "ViewStamped")]
+        [RequirePermission("CFDI", "View")]
         public async Task<IActionResult> GetStampedInvoices([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
         {
             try
@@ -265,7 +358,7 @@ namespace Web.Api.Controllers.Billing
         }
 
         [HttpPost("invoices/{id}/cancel")]
-        [RequirePermission("Billing", "ManageCancellations")]
+        [RequirePermission("CFDI", "Delete")]
         public async Task<IActionResult> CancelInvoice(int id, [FromBody] dynamic cancelData)
         {
             try
@@ -279,7 +372,7 @@ namespace Web.Api.Controllers.Billing
                     invoiceId = id,
                     cancelledBy = userName,
                     cancelledAt = DateTime.UtcNow,
-                    reason = "Cliente solicitó cancelación"
+                    reason = "Cliente solicitï¿½ cancelaciï¿½n"
                 });
             }
             catch (Exception ex)
@@ -289,7 +382,7 @@ namespace Web.Api.Controllers.Billing
         }
 
         [HttpGet("reports/summary")]
-        [RequirePermission("Billing", "ViewReports")]
+        [RequirePermission("CFDI", "View")]
         public async Task<IActionResult> GetBillingSummary([FromQuery] int year = 2025, [FromQuery] int month = 1)
         {
             try
@@ -316,7 +409,7 @@ namespace Web.Api.Controllers.Billing
         }
 
         [HttpGet("companies")]
-        [RequirePermission("Billing", "ManageCompanies")]
+        [RequirePermission("CFDI", "View")]
         public async Task<IActionResult> GetCompanies()
         {
             try

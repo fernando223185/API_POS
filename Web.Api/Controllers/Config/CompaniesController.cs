@@ -25,7 +25,7 @@ namespace Web.Api.Controllers.Config
         /// Crear nueva empresa
         /// </summary>
         [HttpPost]
-        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
+        [RequirePermission("Configuracion", "Create")]
         public async Task<IActionResult> CreateCompany([FromBody] CreateCompanyDto request)
         {
             try
@@ -71,7 +71,7 @@ namespace Web.Api.Controllers.Config
         /// Actualizar empresa existente
         /// </summary>
         [HttpPut("{id}")]
-        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
+        [RequirePermission("Configuracion", "Edit")]
         public async Task<IActionResult> UpdateCompany(int id, [FromBody] UpdateCompanyDto request)
         {
             try
@@ -117,7 +117,7 @@ namespace Web.Api.Controllers.Config
         /// Obtener empresa por ID
         /// </summary>
         [HttpGet("{id}")]
-        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
+        [RequirePermission("Configuracion", "View")]
         public async Task<IActionResult> GetCompany(int id)
         {
             try
@@ -152,7 +152,7 @@ namespace Web.Api.Controllers.Config
         /// Obtener todas las empresas activas
         /// </summary>
         [HttpGet("active")]
-        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
+        [RequirePermission("Configuracion", "View")]
         public async Task<IActionResult> GetActiveCompanies()
         {
             try
@@ -183,7 +183,7 @@ namespace Web.Api.Controllers.Config
         /// Obtener empresas paginadas con filtros
         /// </summary>
         [HttpGet]
-        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
+        [RequirePermission("Configuracion", "View")]
         public async Task<IActionResult> GetCompanies(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
@@ -219,7 +219,7 @@ namespace Web.Api.Controllers.Config
         /// Obtener empresa principal/matriz
         /// </summary>
         [HttpGet("main")]
-        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
+        [RequirePermission("Configuracion", "View")]
         public async Task<IActionResult> GetMainCompany()
         {
             try
@@ -259,7 +259,7 @@ namespace Web.Api.Controllers.Config
         /// Desactivar empresa (baja lógica)
         /// </summary>
         [HttpPut("{id}/deactivate")]
-        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
+        [RequirePermission("Configuracion", "Edit")]
         public async Task<IActionResult> DeactivateCompany(int id)
         {
             try
@@ -307,7 +307,7 @@ namespace Web.Api.Controllers.Config
         /// Reactivar empresa
         /// </summary>
         [HttpPut("{id}/reactivate")]
-        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
+        [RequirePermission("Configuracion", "Edit")]
         public async Task<IActionResult> ReactivateCompany(int id)
         {
             try
@@ -355,7 +355,7 @@ namespace Web.Api.Controllers.Config
         /// Actualizar configuración fiscal (certificados SAT, folios)
         /// </summary>
         [HttpPut("{id}/fiscal-config")]
-        [RequirePermission("Configuracion", "Empresas")]  // ✅ Coincide con la BD
+        [RequirePermission("Configuracion", "Edit")]
         public async Task<IActionResult> UpdateFiscalConfig(int id, [FromBody] UpdateCompanyFiscalConfigDto request)
         {
             try

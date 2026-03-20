@@ -18,10 +18,15 @@ namespace Infrastructure.Services
         }
 
         /// <summary>
-        /// Verifica si un usuario tiene permiso para un módulo/submódulo
-        /// Busca directamente en la BD usando los nombres exactos
+        /// Verifica si un usuario tiene permiso para un mï¿½dulo/submï¿½dulo con una acciï¿½n especï¿½fica
+        /// Busca directamente en la BD usando los nombres exactos y verifica la acciï¿½n granular
         /// </summary>
-        public async Task<bool> HasPermissionAsync(int userId, string moduleName, string submoduleName)
+        /// <param name="userId">ID del usuario</param>
+        /// <param name="moduleName">Nombre del mï¿½dulo (ej: "Clientes", "Productos", "Ventas")</param>
+        /// <param name="action">Acciï¿½n o submÃ³dulo. Puede ser:
+        ///   - Nombre del submï¿½dulo directo (ej: "Directorio", "Nuevo Cliente")
+        ///   - Acciï¿½n granular (ej: "View", "Create", "Edit", "Delete")</param>
+        public async Task<bool> HasPermissionAsync(int userId, string moduleName, string action)
         {
             // 1. Obtener usuario con su rol
             var user = await _context.User
@@ -31,61 +36,142 @@ namespace Infrastructure.Services
             if (user == null || !user.Role.IsActive)
                 return false;
 
-            // 2. Buscar el módulo por nombre
+            // 2. Buscar el mï¿½dulo por nombre
             var module = await _context.Modules
                 .FirstOrDefaultAsync(m => m.Name == moduleName && m.IsActive);
 
             if (module == null)
             {
-                Console.WriteLine($"??  Módulo '{moduleName}' no encontrado");
+                Console.WriteLine($"âŒ  Mï¿½dulo '{moduleName}' no encontrado");
                 return false;
             }
 
-            // 3. Buscar el submódulo por nombre dentro del módulo
+            // 3. Determinar si es un submï¿½dulo especï¿½fico o una acciï¿½n genï¿½rica
+            // Primero intentar encontrar un submï¿½dulo con ese nombre exacto
             var submodule = await _context.Submodules
                 .FirstOrDefaultAsync(s => s.ModuleId == module.Id && 
-                                         s.Name == submoduleName && 
+                                         s.Name == action && 
                                          s.IsActive);
 
-            if (submodule == null)
+            // Si encontramos un submï¿½dulo exacto, verificar solo HasAccess
+            if (submodule != null)
             {
-                Console.WriteLine($"??  Submódulo '{submoduleName}' no encontrado en módulo '{moduleName}'");
-                return false;
+                return await CheckModuleSubmoduleAccess(userId, user.RoleId, module.Id, submodule.Id, moduleName, action);
             }
 
-            // 4. Verificar permisos PERSONALIZADOS del usuario (PRIORIDAD ALTA)
+            // Si no es un submï¿½dulo especï¿½fico, es una acciï¿½n granular (View/Create/Edit/Delete)
+            // Verificar la acciï¿½n en todos los submï¿½dulos del mï¿½dulo
+            Console.WriteLine($"ğŸ” '{action}' no es un submï¿½dulo directo, verificando como acciï¿½n granular en '{moduleName}'");
+            
+            return await CheckActionPermission(userId, user.RoleId, module.Id, action, moduleName);
+        }
+
+        /// <summary>
+        /// Verifica acceso a un mï¿½dulo/submï¿½dulo especï¿½fico
+        /// </summary>
+        private async Task<bool> CheckModuleSubmoduleAccess(int userId, int roleId, int moduleId, int submoduleId, string moduleName, string submoduleName)
+        {
+            // Verificar permisos PERSONALIZADOS del usuario (PRIORIDAD ALTA)
             var userPermission = await _context.UserModulePermissions
                 .FirstOrDefaultAsync(up => up.UserId == userId &&
-                                          up.ModuleId == module.Id &&
-                                          up.SubmoduleId == submodule.Id &&
+                                          up.ModuleId == moduleId &&
+                                          up.SubmoduleId == submoduleId &&
                                           up.HasAccess);
 
             if (userPermission != null)
             {
-                Console.WriteLine($"? Permiso personalizado encontrado para usuario {userId} en {moduleName}/{submoduleName}");
-                return true; // Usuario tiene permisos personalizados
+                Console.WriteLine($"âœ… Permiso personalizado encontrado para usuario {userId} en {moduleName}/{submoduleName}");
+                return true;
             }
 
-            // 5. Verificar permisos del ROL (PRIORIDAD NORMAL)
+            // Verificar permisos del ROL (PRIORIDAD NORMAL)
             var rolePermission = await _context.RoleModulePermissions
-                .FirstOrDefaultAsync(rp => rp.RoleId == user.RoleId &&
-                                          rp.ModuleId == module.Id &&
-                                          rp.SubmoduleId == submodule.Id &&
+                .FirstOrDefaultAsync(rp => rp.RoleId == roleId &&
+                                          rp.ModuleId == moduleId &&
+                                          rp.SubmoduleId == submoduleId &&
                                           rp.HasAccess);
 
             if (rolePermission != null)
             {
-                Console.WriteLine($"? Permiso de rol encontrado para rol {user.RoleId} en {moduleName}/{submoduleName}");
-                return true; // Rol tiene permisos
+                Console.WriteLine($"âœ… Permiso de rol encontrado para rol {roleId} en {moduleName}/{submoduleName}");
+                return true;
             }
 
-            Console.WriteLine($"? Sin permisos para usuario {userId} (rol {user.RoleId}) en {moduleName}/{submoduleName}");
+            Console.WriteLine($"âŒ Sin permisos para usuario {userId} (rol {roleId}) en {moduleName}/{submoduleName}");
             return false;
         }
 
         /// <summary>
+        /// Verifica si el usuario tiene una acciï¿½n especï¿½fica (View/Create/Edit/Delete) en cualquier submï¿½dulo del mï¿½dulo
+        /// </summary>
+        private async Task<bool> CheckActionPermission(int userId, int roleId, int moduleId, string action, string moduleName)
+        {
+            // Mapear acciï¿½n a campo de BD
+            var actionField = action.ToLower() switch
+            {
+                "view" or "viewlist" or "viewcatalog" or "viewreports" => "CanView",
+                "create" => "CanCreate",
+                "edit" or "update" => "CanEdit",
+                "delete" => "CanDelete",
+                _ => null
+            };
+
+            if (actionField == null)
+            {
+                Console.WriteLine($"âŒ Acciï¿½n '{action}' no reconocida");
+                return false;
+            }
+
+            // Verificar permisos PERSONALIZADOS del usuario (PRIORIDAD ALTA)
+            var userPermissions = await _context.UserModulePermissions
+                .Where(up => up.UserId == userId && up.ModuleId == moduleId && up.HasAccess)
+                .ToListAsync();
+
+            foreach (var perm in userPermissions)
+            {
+                if (HasActionPermission(perm, actionField))
+                {
+                    Console.WriteLine($"âœ… Permiso de acciï¿½n '{action}' encontrado para usuario {userId} en '{moduleName}'");
+                    return true;
+                }
+            }
+
+            // Verificar permisos del ROL (PRIORIDAD NORMAL)
+            var rolePermissions = await _context.RoleModulePermissions
+                .Where(rp => rp.RoleId == roleId && rp.ModuleId == moduleId && rp.HasAccess)
+                .ToListAsync();
+
+            foreach (var perm in rolePermissions)
+            {
+                if (HasActionPermission(perm, actionField))
+                {
+                    Console.WriteLine($"âœ… Permiso de acciï¿½n '{action}' encontrado para rol {roleId} en '{moduleName}'");
+                    return true;
+                }
+            }
+
+            Console.WriteLine($"âŒ Sin permisos de acciï¿½n '{action}' para usuario {userId} (rol {roleId}) en '{moduleName}'");
+            return false;
+        }
+
+        /// <summary>
+        /// Verifica si un permiso tiene una acciï¿½n especï¿½fica habilitada
+        /// </summary>
+        private bool HasActionPermission(dynamic permission, string actionField)
+        {
+            return actionField switch
+            {
+                "CanView" => permission.CanView,
+                "CanCreate" => permission.CanCreate,
+                "CanEdit" => permission.CanEdit,
+                "CanDelete" => permission.CanDelete,
+                _ => false
+            };
+        }
+
+        /// <summary>
         /// Obtiene todos los permisos de un usuario (combinando rol + personalizados)
-        /// Retorna lista de módulos y submódulos a los que tiene acceso
+        /// Retorna lista de mï¿½dulos y submï¿½dulos a los que tiene acceso
         /// </summary>
         public async Task<List<string>> GetUserPermissionClaimsAsync(int userId)
         {
@@ -106,13 +192,13 @@ namespace Infrastructure.Services
 
             foreach (var rp in rolePermissions)
             {
-                // Buscar nombre del módulo
+                // Buscar nombre del mï¿½dulo
                 var module = await _context.Modules.FindAsync(rp.ModuleId);
                 if (module != null)
                 {
                     if (rp.SubmoduleId.HasValue)
                     {
-                        // Submódulo específico
+                        // Submï¿½dulo especï¿½fico
                         var submodule = await _context.Submodules.FindAsync(rp.SubmoduleId.Value);
                         if (submodule != null)
                         {
@@ -121,7 +207,7 @@ namespace Infrastructure.Services
                     }
                     else
                     {
-                        // Módulo completo
+                        // Mï¿½dulo completo
                         claims.Add($"{module.Name}/*");
                     }
                 }

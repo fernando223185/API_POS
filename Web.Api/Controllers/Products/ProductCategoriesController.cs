@@ -17,10 +17,10 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// Obtener todas las categorías de productos activas
+        /// Obtener todas las categorï¿½as de productos activas
         /// </summary>
         [HttpGet]
-        [RequirePermission("Product", "ViewCatalog")]
+        [RequirePermission("Productos", "View")]
         public async Task<IActionResult> GetCategories()
         {
             try
@@ -36,13 +36,13 @@ namespace Web.Api.Controllers.Products
                         code = c.Code,
                         isActive = c.IsActive,
                         createdAt = c.CreatedAt,
-                        productsCount = c.Products.Count() // Cantidad de productos en esta categoría
+                        productsCount = c.Products.Count() // Cantidad de productos en esta categorï¿½a
                     })
                     .ToListAsync();
 
                 return Ok(new
                 {
-                    message = "Categorías obtenidas exitosamente",
+                    message = "Categorï¿½as obtenidas exitosamente",
                     error = 0,
                     data = categories,
                     totalCategories = categories.Count
@@ -52,7 +52,7 @@ namespace Web.Api.Controllers.Products
             {
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener categorías",
+                    message = "Error al obtener categorï¿½as",
                     error = 2,
                     details = ex.Message
                 });
@@ -60,10 +60,10 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// Obtener categoría por ID
+        /// Obtener categorï¿½a por ID
         /// </summary>
         [HttpGet("{id}")]
-        [RequirePermission("Product", "ViewCatalog")]
+        [RequirePermission("Productos", "View")]
         public async Task<IActionResult> GetCategory(int id)
         {
             try
@@ -93,14 +93,14 @@ namespace Web.Api.Controllers.Products
                 {
                     return NotFound(new
                     {
-                        message = "Categoría no encontrada",
+                        message = "Categorï¿½a no encontrada",
                         error = 1
                     });
                 }
 
                 return Ok(new
                 {
-                    message = "Categoría obtenida exitosamente",
+                    message = "Categorï¿½a obtenida exitosamente",
                     error = 0,
                     data = category
                 });
@@ -109,7 +109,7 @@ namespace Web.Api.Controllers.Products
             {
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener categoría",
+                    message = "Error al obtener categorï¿½a",
                     error = 2,
                     details = ex.Message
                 });
@@ -117,10 +117,10 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// Obtener categorías para select/dropdown (formato optimizado para frontend)
+        /// Obtener categorï¿½as para select/dropdown (formato optimizado para frontend)
         /// </summary>
         [HttpGet("dropdown")]
-        [RequirePermission("Product", "ViewCatalog")]
+        [RequirePermission("Productos", "View")]
         public async Task<IActionResult> GetCategoriesForDropdown()
         {
             try
@@ -138,7 +138,7 @@ namespace Web.Api.Controllers.Products
 
                 return Ok(new
                 {
-                    message = "Categorías para dropdown obtenidas exitosamente",
+                    message = "Categorï¿½as para dropdown obtenidas exitosamente",
                     error = 0,
                     data = categories
                 });
@@ -147,7 +147,7 @@ namespace Web.Api.Controllers.Products
             {
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener categorías para dropdown",
+                    message = "Error al obtener categorï¿½as para dropdown",
                     error = 2,
                     details = ex.Message
                 });
@@ -155,10 +155,10 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// Obtener estadísticas de categorías
+        /// Obtener estadï¿½sticas de categorï¿½as
         /// </summary>
         [HttpGet("stats")]
-        [RequirePermission("Product", "ViewReports")]
+        [RequirePermission("Productos", "View")]
         public async Task<IActionResult> GetCategoryStats()
         {
             try
@@ -173,7 +173,7 @@ namespace Web.Api.Controllers.Products
                         productsCount = c.Products.Count(p => p.IsActive),
                         totalProducts = c.Products.Count(),
                         subcategoriesCount = c.Subcategories.Count(s => s.IsActive),
-                        // Agregar más estadísticas cuando tengamos productos reales
+                        // Agregar mï¿½s estadï¿½sticas cuando tengamos productos reales
                         avgPrice = c.Products.Any() ? c.Products.Average(p => p.price) : 0,
                         totalValue = c.Products.Sum(p => p.price * (p.MinimumStock + p.MaximumStock) / 2)
                     })
@@ -190,7 +190,7 @@ namespace Web.Api.Controllers.Products
 
                 return Ok(new
                 {
-                    message = "Estadísticas de categorías obtenidas exitosamente",
+                    message = "Estadï¿½sticas de categorï¿½as obtenidas exitosamente",
                     error = 0,
                     data = new
                     {
@@ -203,7 +203,7 @@ namespace Web.Api.Controllers.Products
             {
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener estadísticas",
+                    message = "Error al obtener estadï¿½sticas",
                     error = 2,
                     details = ex.Message
                 });

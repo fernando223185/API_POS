@@ -25,10 +25,10 @@ namespace Web.Api.Controllers.Inventory
         }
 
         /// <summary>
-        /// Obtener movimientos del kardex con filtros y paginación
+        /// Obtener movimientos del kardex con filtros y paginaciï¿½n
         /// </summary>
         [HttpGet]
-        [RequirePermission("Inventory", "ViewKardex")]
+        [RequirePermission("Inventario", "View")]
         public async Task<IActionResult> GetKardex(
             [FromQuery] int? productId = null,
             [FromQuery] string? productSearch = null,
@@ -45,7 +45,7 @@ namespace Web.Api.Controllers.Inventory
                 if (pageSize < 1) pageSize = 20;
                 if (pageSize > 100) pageSize = 100;
 
-                Console.WriteLine($"?? Consultando kardex - Producto: {productId}, Almacén: {warehouseId}, Tipo: {movementType}");
+                Console.WriteLine($"?? Consultando kardex - Producto: {productId}, Almacï¿½n: {warehouseId}, Tipo: {movementType}");
 
                 var request = new GetKardexRequestDto
                 {
@@ -77,10 +77,10 @@ namespace Web.Api.Controllers.Inventory
         }
 
         /// <summary>
-        /// Obtener estadísticas del kardex
+        /// Obtener estadï¿½sticas del kardex
         /// </summary>
         [HttpGet("statistics")]
-        [RequirePermission("Inventory", "ViewKardex")]
+        [RequirePermission("Inventario", "View")]
         public async Task<IActionResult> GetStatistics(
             [FromQuery] int? productId = null,
             [FromQuery] int? warehouseId = null,
@@ -94,17 +94,17 @@ namespace Web.Api.Controllers.Inventory
 
                 return Ok(new
                 {
-                    message = "Estadísticas del kardex obtenidas exitosamente",
+                    message = "Estadï¿½sticas del kardex obtenidas exitosamente",
                     error = 0,
                     data = result
                 });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error obteniendo estadísticas: {ex.Message}");
+                Console.WriteLine($"? Error obteniendo estadï¿½sticas: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener estadísticas",
+                    message = "Error al obtener estadï¿½sticas",
                     error = 2,
                     details = ex.Message
                 });
@@ -115,7 +115,7 @@ namespace Web.Api.Controllers.Inventory
         /// Exportar kardex a Excel
         /// </summary>
         [HttpGet("export/excel")]
-        [RequirePermission("Inventory", "ViewKardex")]
+        [RequirePermission("Inventario", "View")]
         public async Task<IActionResult> ExportExcel(
             [FromQuery] int? productId = null,
             [FromQuery] int? warehouseId = null,
@@ -125,7 +125,7 @@ namespace Web.Api.Controllers.Inventory
         {
             try
             {
-                Console.WriteLine($"?? Exportando kardex a Excel - Producto: {productId}, Almacén: {warehouseId}");
+                Console.WriteLine($"?? Exportando kardex a Excel - Producto: {productId}, Almacï¿½n: {warehouseId}");
 
                 var excelBytes = await _kardexDocumentService.GenerateKardexExcelAsync(
                     productId,
@@ -154,7 +154,7 @@ namespace Web.Api.Controllers.Inventory
         /// Exportar kardex a PDF
         /// </summary>
         [HttpGet("export/pdf")]
-        [RequirePermission("Inventory", "ViewKardex")]
+        [RequirePermission("Inventario", "View")]
         public async Task<IActionResult> ExportPdf(
             [FromQuery] int? productId = null,
             [FromQuery] int? warehouseId = null,
@@ -164,7 +164,7 @@ namespace Web.Api.Controllers.Inventory
         {
             try
             {
-                Console.WriteLine($"?? Exportando kardex a PDF - Producto: {productId}, Almacén: {warehouseId}");
+                Console.WriteLine($"?? Exportando kardex a PDF - Producto: {productId}, Almacï¿½n: {warehouseId}");
 
                 var pdfBytes = await _kardexDocumentService.GenerateKardexPdfAsync(
                     productId,
@@ -190,10 +190,10 @@ namespace Web.Api.Controllers.Inventory
         }
 
         /// <summary>
-        /// Obtener movimientos de un producto específico
+        /// Obtener movimientos de un producto especï¿½fico
         /// </summary>
         [HttpGet("product/{productId}")]
-        [RequirePermission("Inventory", "ViewKardex")]
+        [RequirePermission("Inventario", "View")]
         public async Task<IActionResult> GetProductKardex(
             int productId,
             [FromQuery] int? warehouseId = null,

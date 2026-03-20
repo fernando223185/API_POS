@@ -1,0 +1,260 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Domain.Entities
+{
+    /// <summary>
+    /// Factura CFDI generada desde ventas con control de timbrado
+    /// </summary>
+    [Table("Invoices")]
+    public class Invoice
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; }
+
+        // ========================================
+        // REFERENCIA A VENTA ORIGEN
+        // ========================================
+
+        /// <summary>
+        /// ID de la venta de origen (si aplica)
+        /// </summary>
+        public int? SaleId { get; set; }
+
+        [ForeignKey("SaleId")]
+        public Sale? Sale { get; set; }
+
+        // ========================================
+        // INFORMACIÓN DEL COMPROBANTE
+        // ========================================
+
+        /// <summary>
+        /// Serie del comprobante (A, B, F, etc.)
+        /// </summary>
+        [Required]
+        [MaxLength(10)]
+        public string Serie { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Folio del comprobante
+        /// </summary>
+        [Required]
+        [MaxLength(20)]
+        public string Folio { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Fecha del comprobante
+        /// </summary>
+        [Required]
+        public DateTime InvoiceDate { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Forma de pago SAT (01, 02, 03, 04, etc.)
+        /// </summary>
+        [Required]
+        [MaxLength(2)]
+        public string FormaPago { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Método de pago SAT (PUE o PPD)
+        /// </summary>
+        [Required]
+        [MaxLength(3)]
+        public string MetodoPago { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Condiciones de pago
+        /// </summary>
+        [MaxLength(500)]
+        public string? CondicionesDePago { get; set; }
+
+        /// <summary>
+        /// Tipo de comprobante (I=Ingreso, E=Egreso, T=Traslado)
+        /// </summary>
+        [Required]
+        [MaxLength(1)]
+        public string TipoDeComprobante { get; set; } = "I";
+
+        /// <summary>
+        /// Lugar de expedición (código postal)
+        /// </summary>
+        [Required]
+        [MaxLength(5)]
+        public string LugarExpedicion { get; set; } = string.Empty;
+
+        // ========================================
+        // EMISOR
+        // ========================================
+
+        [Required]
+        public int CompanyId { get; set; }
+
+        [ForeignKey("CompanyId")]
+        public Company Company { get; set; } = null!;
+
+        [MaxLength(13)]
+        public string EmisorRfc { get; set; } = string.Empty;
+
+        [MaxLength(300)]
+        public string EmisorNombre { get; set; } = string.Empty;
+
+        [MaxLength(3)]
+        public string EmisorRegimenFiscal { get; set; } = string.Empty;
+
+        // ========================================
+        // RECEPTOR
+        // ========================================
+
+        public int? CustomerId { get; set; }
+
+        [ForeignKey("CustomerId")]
+        public Customer? Customer { get; set; }
+
+        [Required]
+        [MaxLength(13)]
+        public string ReceptorRfc { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(300)]
+        public string ReceptorNombre { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(5)]
+        public string ReceptorDomicilioFiscal { get; set; } = string.Empty;
+
+        [MaxLength(3)]
+        public string? ReceptorRegimenFiscal { get; set; }
+
+        [Required]
+        [MaxLength(4)]
+        public string ReceptorUsoCfdi { get; set; } = string.Empty;
+
+        // ========================================
+        // MONTOS
+        // ========================================
+
+        [Required]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal SubTotal { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal DiscountAmount { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal TaxAmount { get; set; }
+
+        [Required]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Total { get; set; }
+
+        [Required]
+        [MaxLength(3)]
+        public string Moneda { get; set; } = "MXN";
+
+        [Column(TypeName = "decimal(18,6)")]
+        public decimal TipoCambio { get; set; } = 1;
+
+        // ========================================
+        // TIMBRADO
+        // ========================================
+
+        /// <summary>
+        /// Estado: Borrador, Timbrada, Cancelada
+        /// </summary>
+        [Required]
+        [MaxLength(20)]
+        public string Status { get; set; } = "Borrador";
+
+        /// <summary>
+        /// UUID del CFDI timbrado
+        /// </summary>
+        [MaxLength(50)]
+        public string? Uuid { get; set; }
+
+        /// <summary>
+        /// Fecha y hora de timbrado
+        /// </summary>
+        public DateTime? TimbradoAt { get; set; }
+
+        /// <summary>
+        /// XML completo del CFDI timbrado
+        /// </summary>
+        public string? XmlCfdi { get; set; }
+
+        /// <summary>
+        /// Cadena original del SAT
+        /// </summary>
+        public string? CadenaOriginalSat { get; set; }
+
+        /// <summary>
+        /// Sello digital del CFDI
+        /// </summary>
+        public string? SelloCfdi { get; set; }
+
+        /// <summary>
+        /// Sello digital del SAT
+        /// </summary>
+        public string? SelloSat { get; set; }
+
+        /// <summary>
+        /// Número de certificado del CFDI
+        /// </summary>
+        [MaxLength(20)]
+        public string? NoCertificadoCfdi { get; set; }
+
+        /// <summary>
+        /// Número de certificado del SAT
+        /// </summary>
+        [MaxLength(20)]
+        public string? NoCertificadoSat { get; set; }
+
+        /// <summary>
+        /// Código QR en base64
+        /// </summary>
+        public string? QrCode { get; set; }
+
+        // ========================================
+        // CANCELACIÓN
+        // ========================================
+
+        /// <summary>
+        /// Fecha y hora de cancelación
+        /// </summary>
+        public DateTime? CancelledAt { get; set; }
+
+        /// <summary>
+        /// Motivo de cancelación
+        /// </summary>
+        [MaxLength(500)]
+        public string? CancellationReason { get; set; }
+
+        public int? CancelledByUserId { get; set; }
+
+        [ForeignKey("CancelledByUserId")]
+        public User? CancelledBy { get; set; }
+
+        // ========================================
+        // DETALLES DE CONCEPTOS
+        // ========================================
+
+        public List<InvoiceDetail> Details { get; set; } = new();
+
+        // ========================================
+        // METADATOS
+        // ========================================
+
+        [MaxLength(1000)]
+        public string? Notes { get; set; }
+
+        [Required]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public int? CreatedByUserId { get; set; }
+
+        [ForeignKey("CreatedByUserId")]
+        public User? CreatedBy { get; set; }
+
+        public DateTime? UpdatedAt { get; set; }
+    }
+}

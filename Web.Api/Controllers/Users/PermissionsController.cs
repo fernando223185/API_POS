@@ -11,7 +11,7 @@ using Web.Api.Authorization;
 namespace Web.Api.Controllers.Users
 {
     /// <summary>
-    /// Controlador unificado para gestión de permisos
+    /// Controlador unificado para gestiï¿½n de permisos
     /// - Permisos por ROL (sistema antiguo: Permission/RolePermission)
     /// - Permisos personalizados por USUARIO (sistema nuevo: UserModulePermission)
     /// </summary>
@@ -33,11 +33,11 @@ namespace Web.Api.Controllers.Users
         #region ?? PERMISOS PERSONALIZADOS POR USUARIO (Sistema Nuevo - UserModulePermission)
 
         /// <summary>
-        /// ?? Guardar permisos personalizados de usuario por módulos/submódulos
+        /// ?? Guardar permisos personalizados de usuario por mï¿½dulos/submï¿½dulos
         /// Sistema NUEVO con control granular (View, Create, Edit, Delete)
         /// </summary>
         [HttpPost("user/save-custom")]
-        [RequirePermission("Configuration", "ManagePermissions")]
+        [RequirePermission("Configuracion", "Edit")]
         public async Task<IActionResult> SaveUserCustomPermissions([FromBody] SaveUserPermissionsRequestDto request)
         {
             try
@@ -69,7 +69,7 @@ namespace Web.Api.Controllers.Users
         }
 
         /// <summary>
-        /// ?? Obtener permisos personalizados de usuario (módulos/submódulos con acciones)
+        /// ?? Obtener permisos personalizados de usuario (mï¿½dulos/submï¿½dulos con acciones)
         /// Sistema NUEVO
         /// </summary>
         [HttpGet("user/{userId}/custom")]
@@ -107,7 +107,7 @@ namespace Web.Api.Controllers.Users
         }
 
         /// <summary>
-        /// ? Verificar si un usuario tiene un permiso específico en módulo/submódulo
+        /// ? Verificar si un usuario tiene un permiso especï¿½fico en mï¿½dulo/submï¿½dulo
         /// Sistema NUEVO
         /// </summary>
         [HttpPost("user/check-custom")]
@@ -124,7 +124,7 @@ namespace Web.Api.Controllers.Users
                     request.UserId = currentUserId;
                 }
 
-                Console.WriteLine($"?? Verificando permiso personalizado: Usuario={request.UserId}, Módulo={request.ModuleId}, Submódulo={request.SubmoduleId}, Acción={request.Action}");
+                Console.WriteLine($"?? Verificando permiso personalizado: Usuario={request.UserId}, Mï¿½dulo={request.ModuleId}, Submï¿½dulo={request.SubmoduleId}, Acciï¿½n={request.Action}");
 
                 var query = new CheckUserPermissionQuery(
                     request.UserId,
@@ -154,7 +154,7 @@ namespace Web.Api.Controllers.Users
         /// Sistema NUEVO
         /// </summary>
         [HttpDelete("user/{userId}/custom")]
-        [RequirePermission("Configuration", "ManagePermissions")]
+        [RequirePermission("Configuracion", "Delete")]
         public async Task<IActionResult> DeleteUserCustomPermissions(int userId)
         {
             try
@@ -168,7 +168,7 @@ namespace Web.Api.Controllers.Users
 
                 Console.WriteLine($"??? Eliminando permisos personalizados del usuario {userId}");
 
-                // Guardar array vacío equivale a eliminar permisos
+                // Guardar array vacï¿½o equivale a eliminar permisos
                 var command = new SaveUserPermissionsCommand(
                     new SaveUserPermissionsRequestDto { UserId = userId, Modules = new List<UserModulePermissionItemDto>() },
                     requestingUserId
@@ -200,7 +200,7 @@ namespace Web.Api.Controllers.Users
         #region ?? PERMISOS POR ROL (Consultas directas)
 
         /// <summary>
-        /// ?? Obtener todos los permisos de un rol específico (NUEVO SISTEMA)
+        /// ?? Obtener todos los permisos de un rol especï¿½fico (NUEVO SISTEMA)
         /// </summary>
         [HttpGet("role/{roleId}")]
         [RequireAuthentication]

@@ -28,7 +28,7 @@ namespace Web.Api.Controllers.CRM
         /// <param name="createCustomerRequest">Datos del cliente a crear</param>
         /// <returns>Cliente creado con toda la información</returns>
         [HttpPost]
-        [RequirePermission("Customer", "Create")]
+        [RequirePermission("Clientes", "Create")]
         public async Task<IActionResult> Create([FromBody] CreateCustomerRequestDto createCustomerRequest)
         {
             try
@@ -89,7 +89,7 @@ namespace Web.Api.Controllers.CRM
         /// Útil para mostrar al usuario qué código se asignará
         /// </summary>
         [HttpGet("next-code")]
-        [RequirePermission("Customer", "Create")]
+        [RequirePermission("Clientes", "Create")]
         public async Task<IActionResult> GetNextCode()
         {
             try
@@ -129,7 +129,7 @@ namespace Web.Api.Controllers.CRM
         /// <param name="priceListId">Filtro por lista de precios</param>
         /// <returns>Datos paginados optimizados para tabla de clientes</returns>
         [HttpGet]
-        [RequirePermission("Customer", "ViewList")]
+        [RequirePermission("Clientes", "View")]
         public async Task<IActionResult> GetAll(
             [FromQuery] int page = 1, 
             [FromQuery] int pageSize = 10,
@@ -189,7 +189,7 @@ namespace Web.Api.Controllers.CRM
         }
 
         [HttpGet("{id}")]
-        [RequirePermission("Customer", "ViewList")]
+        [RequirePermission("Clientes", "View")]
         public async Task<IActionResult> GetById(int id)
         {
             try
@@ -217,7 +217,7 @@ namespace Web.Api.Controllers.CRM
         }
 
         [HttpPut("{id}")]
-        [RequirePermission("Customer", "Update")]
+        [RequirePermission("Clientes", "Edit")]
         public async Task<IActionResult> Update(int id, [FromBody] dynamic customerData)
         {
             try
@@ -239,7 +239,7 @@ namespace Web.Api.Controllers.CRM
         }
 
         [HttpDelete("{id}")]
-        [RequirePermission("Customer", "Delete")]
+        [RequirePermission("Clientes", "Delete")]
         public async Task<IActionResult> Delete(int id)
         {
             try
@@ -265,7 +265,7 @@ namespace Web.Api.Controllers.CRM
         /// Redirige a GetAll con parámetros de búsqueda
         /// </summary>
         [HttpGet("search")]
-        [RequirePermission("Customer", "ViewList")]
+        [RequirePermission("Clientes", "View")]
         public async Task<IActionResult> Search(
             [FromQuery] string term, 
             [FromQuery] int page = 1, 

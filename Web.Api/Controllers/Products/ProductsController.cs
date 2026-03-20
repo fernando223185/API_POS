@@ -30,10 +30,10 @@ namespace Web.Api.Controllers.Products
 
         /// <summary>
         /// ? OBTENER PRODUCTOS CON CONSULTA REAL A BASE DE DATOS
-        /// Endpoint mejorado con paginación, filtros, estadísticas y datos reales
+        /// Endpoint mejorado con paginaciï¿½n, filtros, estadï¿½sticas y datos reales
         /// </summary>
         [HttpGet]
-        [RequirePermission("Product", "ViewCatalog")]
+        [RequirePermission("Productos", "View")]
         public async Task<IActionResult> GetProducts(
             [FromQuery] int page = 1, 
             [FromQuery] int pageSize = 50,
@@ -42,7 +42,7 @@ namespace Web.Api.Controllers.Products
             [FromQuery] bool? isActive = true,
             [FromQuery] string? sortBy = "name",
             [FromQuery] string? sortOrder = "asc",
-            // ? NUEVO: Parámetros de inventario
+            // ? NUEVO: Parï¿½metros de inventario
             [FromQuery] bool includeWarehouseStock = false,
             [FromQuery] int? warehouseId = null,
             [FromQuery] bool? onlyWithStock = null,
@@ -57,7 +57,7 @@ namespace Web.Api.Controllers.Products
                 Console.WriteLine($"?? Getting products - Page: {page}, PageSize: {pageSize}, Search: '{search}', " +
                                 $"Category: {categoryId}, IncludeStock: {includeWarehouseStock}, Warehouse: {warehouseId}");
 
-                // Validar parámetros
+                // Validar parï¿½metros
                 if (page < 1) page = 1;
                 if (pageSize < 1 || pageSize > 100) pageSize = 50;
 
@@ -71,7 +71,7 @@ namespace Web.Api.Controllers.Products
                     IsActive = isActive,
                     SortBy = sortBy,
                     SortDirection = sortOrder,
-                    // ? NUEVO: Parámetros de inventario
+                    // ? NUEVO: Parï¿½metros de inventario
                     IncludeWarehouseStock = includeWarehouseStock,
                     WarehouseId = warehouseId,
                     OnlyWithStock = onlyWithStock,
@@ -108,7 +108,7 @@ namespace Web.Api.Controllers.Products
         /// Obtener producto por ID desde base de datos
         /// </summary>
         [HttpGet("{id}")]
-        [RequirePermission("Product", "ViewCatalog")]
+        [RequirePermission("Productos", "View")]
         public async Task<IActionResult> GetProduct(int id)
         {
             try
@@ -176,12 +176,12 @@ namespace Web.Api.Controllers.Products
 
         /// <summary>
         /// ? CREAR PRODUCTO COMPLETO CON TODOS LOS CAMPOS AVANZADOS
-        /// Endpoint principal para crear productos con información fiscal, inventario, marketing, etc.
+        /// Endpoint principal para crear productos con informaciï¿½n fiscal, inventario, marketing, etc.
         /// </summary>
         /// <param name="createProductRequest">Datos completos del producto</param>
-        /// <returns>Producto creado con toda la información</returns>
+        /// <returns>Producto creado con toda la informaciï¿½n</returns>
         [HttpPost]
-        [RequirePermission("Product", "Create")]
+        [RequirePermission("Productos", "Create")]
         public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequestDto createProductRequest)
         {
             try
@@ -193,13 +193,13 @@ namespace Web.Api.Controllers.Products
                 {
                     return BadRequest(new
                     {
-                        message = "Datos de entrada inválidos",
+                        message = "Datos de entrada invï¿½lidos",
                         error = 1,
                         errors = ModelState.SelectMany(x => x.Value.Errors.Select(e => e.ErrorMessage))
                     });
                 }
 
-                // Obtener información del usuario del token
+                // Obtener informaciï¿½n del usuario del token
                 var userId = HttpContext.Items["UserId"] as int? ?? 0;
                 var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
 
@@ -211,7 +211,7 @@ namespace Web.Api.Controllers.Products
                     });
                 }
 
-                // Crear command y enviar a través de MediatR
+                // Crear command y enviar a travï¿½s de MediatR
                 var command = new CreateProductCommand(createProductRequest, userId);
                 var result = await _mediator.Send(command);
 
@@ -233,7 +233,7 @@ namespace Web.Api.Controllers.Products
                         profitMargin = result.Price > 0 && result.BaseCost > 0 
                             ? Math.Round(((result.Price - result.BaseCost) / result.Price) * 100, 2) 
                             : 0,
-                        category = result.CategoryName ?? "Sin categoría",
+                        category = result.CategoryName ?? "Sin categorï¿½a",
                         isActive = result.IsActive,
                         isService = result.IsService,
                         trackSerial = result.TrackSerial,
@@ -264,17 +264,17 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// Crear producto básico (endpoint simplificado para testing)
+        /// Crear producto bï¿½sico (endpoint simplificado para testing)
         /// </summary>
         [HttpPost("basic")]
-        [RequirePermission("Product", "Create")]
+        [RequirePermission("Productos", "Create")]
         public async Task<IActionResult> CreateBasicProduct([FromBody] BasicProductDto basicProduct)
         {
             try
             {
                 Console.WriteLine($"??? Creating basic product: {basicProduct.Name}");
 
-                // Mapear datos básicos a CreateProductRequestDto completo
+                // Mapear datos bï¿½sicos a CreateProductRequestDto completo
                 var createRequest = new CreateProductRequestDto
                 {
                     Name = basicProduct.Name,
@@ -290,7 +290,7 @@ namespace Web.Api.Controllers.Products
                     SatCode = "01010101",
                     SatUnit = "PZA",
                     SatTaxType = "Tasa",
-                    CountryOfOrigin = "México",
+                    CountryOfOrigin = "Mï¿½xico",
                     TaxRate = 0.16m,
                     Unit = "PZA",
                     IsActive = true,
@@ -307,7 +307,7 @@ namespace Web.Api.Controllers.Products
                 Console.WriteLine($"? Error creating basic product: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al crear producto básico",
+                    message = "Error al crear producto bï¿½sico",
                     error = 2,
                     details = ex.Message
                 });
@@ -315,10 +315,10 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// Búsqueda optimizada de productos
+        /// Bï¿½squeda optimizada de productos
         /// </summary>
         [HttpGet("search")]
-        [RequirePermission("Product", "ViewCatalog")]
+        [RequirePermission("Productos", "View")]
         public async Task<IActionResult> SearchProducts(
             [FromQuery] string term, 
             [FromQuery] int page = 1, 
@@ -330,21 +330,21 @@ namespace Web.Api.Controllers.Products
                 if (string.IsNullOrWhiteSpace(term))
                 {
                     return BadRequest(new { 
-                        message = "Término de búsqueda requerido", 
+                        message = "Tï¿½rmino de bï¿½squeda requerido", 
                         error = 1 
                     });
                 }
 
                 Console.WriteLine($"?? Searching products: '{term}' in category {categoryId}");
 
-                // Usar el mismo endpoint de GetProducts con parámetros de búsqueda
+                // Usar el mismo endpoint de GetProducts con parï¿½metros de bï¿½squeda
                 return await GetProducts(page, pageSize, term, categoryId, true, "name", "asc");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"? Error searching products: {ex.Message}");
                 return StatusCode(500, new { 
-                    message = "Error en búsqueda de productos", 
+                    message = "Error en bï¿½squeda de productos", 
                     error = 2, 
                     details = ex.Message 
                 });
@@ -352,28 +352,28 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// Estadísticas rápidas de productos
+        /// Estadï¿½sticas rï¿½pidas de productos
         /// </summary>
         [HttpGet("stats")]
-        [RequirePermission("Product", "ViewReports")]
+        [RequirePermission("Productos", "View")]
         public async Task<IActionResult> GetProductStats()
         {
             try
             {
                 Console.WriteLine($"?? Getting product statistics");
 
-                // Obtener solo las estadísticas sin productos
+                // Obtener solo las estadï¿½sticas sin productos
                 var query = new GetProductByPageQuery
                 {
                     Page = 1,
-                    PageSize = 1 // Solo necesitamos las estadísticas
+                    PageSize = 1 // Solo necesitamos las estadï¿½sticas
                 };
 
                 var result = await _mediator.Send(query);
 
                 return Ok(new
                 {
-                    message = "Estadísticas obtenidas exitosamente",
+                    message = "Estadï¿½sticas obtenidas exitosamente",
                     error = 0,
                     data = result.Statistics
                 });
@@ -383,7 +383,7 @@ namespace Web.Api.Controllers.Products
                 Console.WriteLine($"? Error getting product stats: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener estadísticas",
+                    message = "Error al obtener estadï¿½sticas",
                     error = 2,
                     details = ex.Message
                 });
@@ -394,7 +394,7 @@ namespace Web.Api.Controllers.Products
         /// Actualizar producto
         /// </summary>
         [HttpPut("{id}")]
-        [RequirePermission("Product", "Update")]
+        [RequirePermission("Productos", "Edit")]
         public async Task<IActionResult> UpdateProduct(int id, [FromBody] dynamic productData)
         {
             try
@@ -402,7 +402,7 @@ namespace Web.Api.Controllers.Products
                 var userId = HttpContext.Items["UserId"] as int? ?? 0;
                 var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
 
-                // TODO: Implementar UpdateProductCommand después
+                // TODO: Implementar UpdateProductCommand despuï¿½s
                 Console.WriteLine($"?? Update product {id} - Not implemented yet");
 
                 return Ok(new
@@ -412,7 +412,7 @@ namespace Web.Api.Controllers.Products
                     productId = id,
                     updatedBy = userName,
                     updatedAt = DateTime.UtcNow,
-                    note = "Implementación pendiente - usar CreateProduct para nuevos productos"
+                    note = "Implementaciï¿½n pendiente - usar CreateProduct para nuevos productos"
                 });
             }
             catch (Exception ex)
@@ -429,7 +429,7 @@ namespace Web.Api.Controllers.Products
         /// Eliminar producto (soft delete)
         /// </summary>
         [HttpDelete("{id}")]
-        [RequirePermission("Product", "Delete")]
+        [RequirePermission("Productos", "Delete")]
         public async Task<IActionResult> DeleteProduct(int id)
         {
             try
@@ -437,7 +437,7 @@ namespace Web.Api.Controllers.Products
                 var userId = HttpContext.Items["UserId"] as int? ?? 0;
                 var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
 
-                // TODO: Implementar DeleteProductCommand después
+                // TODO: Implementar DeleteProductCommand despuï¿½s
                 Console.WriteLine($"?? Delete product {id} - Not implemented yet");
 
                 return Ok(new
@@ -447,7 +447,7 @@ namespace Web.Api.Controllers.Products
                     productId = id,
                     deletedBy = userName,
                     deletedAt = DateTime.UtcNow,
-                    note = "Implementación pendiente - soft delete recomendado"
+                    note = "Implementaciï¿½n pendiente - soft delete recomendado"
                 });
             }
             catch (Exception ex)
@@ -468,9 +468,9 @@ namespace Web.Api.Controllers.Products
         /// <param name="file">Archivo de imagen (JPEG, PNG, GIF, WebP)</param>
         /// <param name="isPrimary">Marcar como imagen principal</param>
         /// <param name="altText">Texto alternativo para SEO</param>
-        /// <returns>Información de la imagen subida incluyendo el S3 Key</returns>
+        /// <returns>Informaciï¿½n de la imagen subida incluyendo el S3 Key</returns>
         [HttpPost("{productId}/upload-image")]
-        [RequirePermission("Product", "Update")]
+        [RequirePermission("Productos", "Edit")]
         public async Task<IActionResult> UploadProductImage(
             int productId,
             [FromForm] IFormFile file,
@@ -513,18 +513,18 @@ namespace Web.Api.Controllers.Products
                 {
                     return BadRequest(new
                     {
-                        message = "Formato de archivo no válido. Solo se permiten: JPG, JPEG, PNG, GIF, WebP",
+                        message = "Formato de archivo no vï¿½lido. Solo se permiten: JPG, JPEG, PNG, GIF, WebP",
                         error = 1,
                         allowedFormats = allowedExtensions
                     });
                 }
 
-                // Validar tamaño (máximo 5MB)
+                // Validar tamaï¿½o (mï¿½ximo 5MB)
                 if (file.Length > 5 * 1024 * 1024)
                 {
                     return BadRequest(new
                     {
-                        message = "El archivo es demasiado grande. Tamaño máximo: 5MB",
+                        message = "El archivo es demasiado grande. Tamaï¿½o mï¿½ximo: 5MB",
                         error = 1,
                         fileSize = file.Length,
                         maxSize = 5 * 1024 * 1024
@@ -555,13 +555,13 @@ namespace Web.Api.Controllers.Products
 
                 Console.WriteLine($"? S3 Upload successful: {s3Key}");
 
-                // Obtener URL pública
+                // Obtener URL pï¿½blica
                 var publicUrl = _s3Service.GetPublicUrl(s3Key);
 
-                // Obtener siguiente orden de visualización
+                // Obtener siguiente orden de visualizaciï¿½n
                 var displayOrder = await _imageRepository.GetNextDisplayOrderAsync(productId);
 
-                // Si es primary, quitar primary de las demás
+                // Si es primary, quitar primary de las demï¿½s
                 if (isPrimary)
                 {
                     await _imageRepository.SetAsPrimaryAsync(productId, -1); // -1 para quitar de todas
@@ -621,10 +621,10 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// ??? OBTENER IMÁGENES DE UN PRODUCTO
+        /// ??? OBTENER IMï¿½GENES DE UN PRODUCTO
         /// </summary>
         [HttpGet("{productId}/images")]
-        [RequirePermission("Product", "ViewCatalog")]
+        [RequirePermission("Productos", "View")]
         public async Task<IActionResult> GetProductImages(int productId)
         {
             try
@@ -643,7 +643,7 @@ namespace Web.Api.Controllers.Products
                     });
                 }
 
-                // Obtener imágenes
+                // Obtener imï¿½genes
                 var images = await _imageRepository.GetByProductIdAsync(productId);
 
                 var imageDtos = images.Select(img => new ProductImageDto
@@ -662,7 +662,7 @@ namespace Web.Api.Controllers.Products
 
                 return Ok(new ProductImagesResponseDto
                 {
-                    Message = "Imágenes obtenidas exitosamente",
+                    Message = "Imï¿½genes obtenidas exitosamente",
                     Error = 0,
                     Data = imageDtos,
                     TotalImages = imageDtos.Count
@@ -673,7 +673,7 @@ namespace Web.Api.Controllers.Products
                 Console.WriteLine($"? Error getting product images: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener imágenes",
+                    message = "Error al obtener imï¿½genes",
                     error = 2,
                     details = ex.Message
                 });
@@ -685,7 +685,7 @@ namespace Web.Api.Controllers.Products
         /// Elimina la imagen de S3 y marca como inactiva en la BD
         /// </summary>
         [HttpDelete("images/{imageId}")]
-        [RequirePermission("Product", "Update")]
+        [RequirePermission("Productos", "Delete")]
         public async Task<IActionResult> DeleteProductImage(int imageId)
         {
             try
@@ -746,7 +746,7 @@ namespace Web.Api.Controllers.Products
         /// ? ESTABLECER IMAGEN COMO PRINCIPAL
         /// </summary>
         [HttpPut("images/{imageId}/set-primary")]
-        [RequirePermission("Product", "Update")]
+        [RequirePermission("Productos", "Edit")]
         public async Task<IActionResult> SetPrimaryImage(int imageId)
         {
             try
@@ -795,7 +795,7 @@ namespace Web.Api.Controllers.Products
         }
     }
 
-    // DTO para producto básico (testing)
+    // DTO para producto bï¿½sico (testing)
     public class BasicProductDto
     {
         public string Name { get; set; } = string.Empty;

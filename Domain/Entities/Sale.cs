@@ -14,7 +14,7 @@ namespace Domain.Entities
         public int Id { get; set; }
 
         /// <summary>
-        /// Código único de la venta (generado automáticamente)
+        /// Cï¿½digo ï¿½nico de la venta (generado automï¿½ticamente)
         /// Formato: VTA-000001, VTA-000002, etc.
         /// </summary>
         [Required]
@@ -28,11 +28,11 @@ namespace Domain.Entities
         public DateTime SaleDate { get; set; } = DateTime.UtcNow;
 
         // ========================================
-        // INFORMACIÓN DEL CLIENTE
+        // INFORMACIï¿½N DEL CLIENTE
         // ========================================
 
         /// <summary>
-        /// ID del cliente (nullable para ventas a público general)
+        /// ID del cliente (nullable para ventas a pï¿½blico general)
         /// </summary>
         public int? CustomerId { get; set; }
 
@@ -40,17 +40,17 @@ namespace Domain.Entities
         public Customer? Customer { get; set; }
 
         /// <summary>
-        /// Nombre del cliente (denormalizado para auditoría)
+        /// Nombre del cliente (denormalizado para auditorï¿½a)
         /// </summary>
         [MaxLength(200)]
         public string? CustomerName { get; set; }
 
         // ========================================
-        // UBICACIÓN Y USUARIO
+        // UBICACIï¿½N Y USUARIO
         // ========================================
 
         /// <summary>
-        /// Almacén donde se realiza la venta
+        /// Almacï¿½n donde se realiza la venta
         /// </summary>
         [Required]
         public int WarehouseId { get; set; }
@@ -142,7 +142,7 @@ namespace Domain.Entities
         public decimal ChangeAmount { get; set; }
 
         /// <summary>
-        /// Indica si la venta está pagada
+        /// Indica si la venta estï¿½ pagada
         /// </summary>
         public bool IsPaid { get; set; }
 
@@ -163,12 +163,12 @@ namespace Domain.Entities
         public bool IsPostedToInventory { get; set; }
 
         /// <summary>
-        /// Fecha en que se aplicó al inventario
+        /// Fecha en que se aplicï¿½ al inventario
         /// </summary>
         public DateTime? PostedToInventoryDate { get; set; }
 
         // ========================================
-        // FACTURACIÓN
+        // FACTURACIï¿½N
         // ========================================
 
         /// <summary>
@@ -177,15 +177,38 @@ namespace Domain.Entities
         public bool RequiresInvoice { get; set; }
 
         /// <summary>
-        /// ID de la factura electrónica (si existe)
+        /// ID de la factura electrï¿½nica (si existe)
         /// </summary>
         public int? InvoiceId { get; set; }
-
+        [ForeignKey("InvoiceId")]
+        public Invoice? Invoice { get; set; }
         /// <summary>
         /// UUID del CFDI (si existe)
         /// </summary>
         [MaxLength(50)]
         public string? InvoiceUuid { get; set; }
+
+        /// <summary>
+        /// Serie del CFDI timbrado
+        /// </summary>
+        [MaxLength(10)]
+        public string? InvoiceSeries { get; set; }
+
+        /// <summary>
+        /// Folio del CFDI timbrado
+        /// </summary>
+        [MaxLength(20)]
+        public string? InvoiceFolio { get; set; }
+
+        /// <summary>
+        /// Fecha y hora de timbrado del CFDI
+        /// </summary>
+        public DateTime? InvoiceDate { get; set; }
+
+        /// <summary>
+        /// XML completo del CFDI timbrado
+        /// </summary>
+        public string? InvoiceXml { get; set; }
 
         // ========================================
         // METADATOS
@@ -221,7 +244,7 @@ namespace Domain.Entities
         public ICollection<SaleDetail> Details { get; set; } = new List<SaleDetail>();
 
         /// <summary>
-        /// Pagos de la venta (múltiples formas de pago)
+        /// Pagos de la venta (mï¿½ltiples formas de pago)
         /// </summary>
         public ICollection<SalePayment> Payments { get; set; } = new List<SalePayment>();
     }

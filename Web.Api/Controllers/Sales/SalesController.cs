@@ -33,7 +33,7 @@ namespace Web.Api.Controllers.Sales
         /// Crear una nueva venta (estado Draft)
         /// </summary>
         [HttpPost]
-        [RequirePermission("Ventas", "Nueva Venta")]
+        [RequirePermission("Ventas", "Create")]
         public async Task<IActionResult> CreateSale([FromBody] CreateSaleRequestDto request)
         {
             try
@@ -87,7 +87,7 @@ namespace Web.Api.Controllers.Sales
         /// Descuenta inventario autom�ticamente
         /// </summary>
         [HttpPost("{saleId}/payments")]
-        [RequirePermission("Sales", "Complete")]
+        [RequirePermission("Ventas", "Create")]
         public async Task<IActionResult> ProcessPayments(
             int saleId,
             [FromBody] ProcessSalePaymentsRequestDto request)
@@ -137,7 +137,7 @@ namespace Web.Api.Controllers.Sales
         /// Obtener venta por ID
         /// </summary>
         [HttpGet("{id}")]
-        [RequirePermission("Sales", "View")]
+        [RequirePermission("Ventas", "View")]
         public async Task<IActionResult> GetSale(int id)
         {
             try
@@ -172,7 +172,7 @@ namespace Web.Api.Controllers.Sales
         /// Obtener ventas paginadas con filtros
         /// </summary>
         [HttpGet]
-        [RequirePermission("Sales", "View")]
+        [RequirePermission("Ventas", "View")]
         public async Task<IActionResult> GetSales(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
@@ -227,7 +227,7 @@ namespace Web.Api.Controllers.Sales
         /// Obtener estad�sticas de ventas
         /// </summary>
         [HttpGet("statistics")]
-        [RequirePermission("Sales", "ViewReports")]
+        [RequirePermission("Ventas", "View")]
         public async Task<IActionResult> GetStatistics(
             [FromQuery] DateTime? fromDate = null,
             [FromQuery] DateTime? toDate = null,
@@ -261,7 +261,7 @@ namespace Web.Api.Controllers.Sales
         /// Cancelar una venta
         /// </summary>
         [HttpPut("{id}/cancel")]
-        [RequirePermission("Sales", "Cancel")]
+        [RequirePermission("Ventas", "Edit")]
         public async Task<IActionResult> CancelSale(
             int id,
             [FromBody] CancelSaleRequestDto request)
@@ -312,7 +312,7 @@ namespace Web.Api.Controllers.Sales
         /// Obtener pagos de una venta
         /// </summary>
         [HttpGet("{saleId}/payments")]
-        [RequirePermission("Sales", "View")]
+        [RequirePermission("Ventas", "View")]
         public async Task<IActionResult> GetSalePayments(int saleId)
         {
             try
@@ -357,7 +357,7 @@ namespace Web.Api.Controllers.Sales
         /// <param name="id">ID de la venta</param>
         /// <param name="width">Ancho del papel (48=80mm, 32=58mm)</param>
         [HttpGet("{id}/ticket/thermal")]
-        [RequirePermission("Sales", "View")]
+        [RequirePermission("Ventas", "View")]
         public async Task<IActionResult> GetThermalTicket(int id, [FromQuery] int width = 48)
         {
             try
@@ -402,7 +402,7 @@ namespace Web.Api.Controllers.Sales
         /// <param name="id">ID de la venta</param>
         /// <param name="width">Ancho del papel (48=80mm, 32=58mm)</param>
         [HttpGet("{id}/ticket/thermal/binary")]
-        [RequirePermission("Sales", "View")]
+        [RequirePermission("Ventas", "View")]
         public async Task<IActionResult> GetThermalTicketBinary(int id, [FromQuery] int width = 48)
         {
             try
@@ -436,7 +436,7 @@ namespace Web.Api.Controllers.Sales
         /// <param name="id">ID de la venta</param>
         /// <param name="includeLogo">Incluir logo de la empresa</param>
         [HttpGet("{id}/ticket/pdf")]
-        [RequirePermission("Sales", "View")]
+        [RequirePermission("Ventas", "View")]
         public async Task<IActionResult> GetTicketPdf(int id, [FromQuery] bool includeLogo = true)
         {
             try
@@ -469,7 +469,7 @@ namespace Web.Api.Controllers.Sales
         /// </summary>
         /// <param name="id">ID de la venta</param>
         [HttpGet("{id}/invoice/pdf")]
-        [RequirePermission("Sales", "View")]
+        [RequirePermission("Ventas", "View")]
         public async Task<IActionResult> GetInvoicePdf(int id)
         {
             try

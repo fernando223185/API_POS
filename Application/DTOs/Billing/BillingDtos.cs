@@ -32,7 +32,7 @@ namespace Application.DTOs.Billing
         public string? CustomerRfc { get; set; }
         public string? CustomerEmail { get; set; }
         
-        // Ubicación
+        // Ubicaciï¿½n
         public int WarehouseId { get; set; }
         public string? WarehouseName { get; set; }
         public int? BranchId { get; set; }
@@ -45,7 +45,7 @@ namespace Application.DTOs.Billing
         public decimal TaxAmount { get; set; }
         public decimal Total { get; set; }
         
-        // Facturación
+        // Facturaciï¿½n
         public bool RequiresInvoice { get; set; }
         public bool IsPaid { get; set; }
         public string Status { get; set; } = string.Empty;
@@ -70,12 +70,12 @@ namespace Application.DTOs.Billing
     }
 
     /// <summary>
-    /// DTO completo de venta para facturación
-    /// Incluye toda la información necesaria para generar CFDI
+    /// DTO completo de venta para facturaciï¿½n
+    /// Incluye toda la informaciï¿½n necesaria para generar CFDI
     /// </summary>
     public class SaleForInvoicingDto
     {
-        // Información de la venta
+        // Informaciï¿½n de la venta
         public int Id { get; set; }
         public string Code { get; set; } = string.Empty;
         public DateTime SaleDate { get; set; }
@@ -114,7 +114,7 @@ namespace Application.DTOs.Billing
     }
 
     /// <summary>
-    /// Información de la empresa emisora
+    /// Informaciï¿½n de la empresa emisora
     /// </summary>
     public class CompanyForInvoicingDto
     {
@@ -131,7 +131,7 @@ namespace Application.DTOs.Billing
     }
 
     /// <summary>
-    /// Información de la sucursal
+    /// Informaciï¿½n de la sucursal
     /// </summary>
     public class BranchForInvoicingDto
     {
@@ -142,7 +142,7 @@ namespace Application.DTOs.Billing
     }
 
     /// <summary>
-    /// Información del cliente receptor
+    /// Informaciï¿½n del cliente receptor
     /// </summary>
     public class CustomerForInvoicingDto
     {
@@ -157,7 +157,7 @@ namespace Application.DTOs.Billing
     }
 
     /// <summary>
-    /// Detalle de producto para facturación
+    /// Detalle de producto para facturaciï¿½n
     /// </summary>
     public class SaleDetailForInvoicingDto
     {
@@ -182,7 +182,7 @@ namespace Application.DTOs.Billing
     }
 
     /// <summary>
-    /// Forma de pago para facturación
+    /// Forma de pago para facturaciï¿½n
     /// </summary>
     public class PaymentMethodForInvoicingDto
     {
@@ -191,9 +191,488 @@ namespace Application.DTOs.Billing
         public decimal Amount { get; set; }
         public DateTime PaymentDate { get; set; }
         
-        // Información adicional según método de pago
+        // Informaciï¿½n adicional segï¿½n mï¿½todo de pago
         public string? CardNumber { get; set; }
         public string? TransactionReference { get; set; }
         public string? BankName { get; set; }
+    }
+
+    // ========================================
+    // DTOs para Timbrado CFDI
+    // ========================================
+
+    /// <summary>
+    /// Request para timbrar un CFDI a partir de una venta
+    /// </summary>
+    public class TimbrarCfdiRequestDto
+    {
+        /// <summary>
+        /// ID de la venta a timbrar
+        /// </summary>
+        public int SaleId { get; set; }
+
+        /// <summary>
+        /// Serie del comprobante (ej: "A", "F", "FCO")
+        /// Si no se especifica, se usa la serie por defecto de la empresa
+        /// </summary>
+        public string? Serie { get; set; }
+
+        /// <summary>
+        /// Folio del comprobante
+        /// Si no se especifica, se genera automï¿½ticamente
+        /// </summary>
+        public string? Folio { get; set; }
+
+        /// <summary>
+        /// Forma de pago SAT (01, 02, 03, etc.)
+        /// 01 = Efectivo, 02 = Cheque, 03 = Transferencia, 04 = Tarjeta de crï¿½dito
+        /// </summary>
+        public string FormaPago { get; set; } = "01";
+
+        /// <summary>
+        /// Mï¿½todo de pago SAT (PUE o PPD)
+        /// PUE = Pago en una sola exhibiciï¿½n
+        /// PPD = Pago en parcialidades o diferido
+        /// </summary>
+        public string MetodoPago { get; set; } = "PUE";
+
+        /// <summary>
+        /// Uso del CFDI (P01, G03, etc.)
+        /// </summary>
+        public string? UsoCfdi { get; set; }
+
+        /// <summary>
+        /// Condiciones de pago (texto libre)
+        /// </summary>
+        public string? CondicionesDePago { get; set; }
+
+        /// <summary>
+        /// Versiï¿½n de respuesta de Sapiens (v1, v2, v3, v4)
+        /// </summary>
+        public string Version { get; set; } = "v4";
+
+        /// <summary>
+        /// Notas adicionales
+        /// </summary>
+        public string? Notas { get; set; }
+    }
+
+    /// <summary>
+    /// Response del timbrado de CFDI
+    /// </summary>
+    public class TimbrarCfdiResponseDto
+    {
+        public string Message { get; set; } = string.Empty;
+        public int Error { get; set; }
+        public TimbradoDataDto? Data { get; set; }
+    }
+
+    /// <summary>
+    /// Datos del CFDI timbrado
+    /// </summary>
+    public class TimbradoDataDto
+    {
+        /// <summary>
+        /// ID de la venta
+        /// </summary>
+        public int SaleId { get; set; }
+
+        /// <summary>
+        /// Cï¿½digo de la venta
+        /// </summary>
+        public string SaleCode { get; set; } = string.Empty;
+
+        /// <summary>
+        /// UUID (Folio Fiscal) del CFDI timbrado
+        /// </summary>
+        public string Uuid { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Serie del comprobante
+        /// </summary>
+        public string Serie { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Folio del comprobante
+        /// </summary>
+        public string Folio { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Fecha y hora de timbrado
+        /// </summary>
+        public string FechaTimbrado { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Nï¿½mero de certificado del SAT
+        /// </summary>
+        public string NoCertificadoSat { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Nï¿½mero de certificado del CFDI
+        /// </summary>
+        public string NoCertificadoCfdi { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Sello digital del SAT
+        /// </summary>
+        public string SelloSat { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Sello digital del CFDI
+        /// </summary>
+        public string SelloCfdi { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Cadena original del SAT
+        /// </summary>
+        public string CadenaOriginalSat { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Cï¿½digo QR en formato base64
+        /// </summary>
+        public string QrCode { get; set; } = string.Empty;
+
+        /// <summary>
+        /// XML completo del CFDI timbrado
+        /// </summary>
+        public string XmlCfdi { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Total del comprobante
+        /// </summary>
+        public decimal Total { get; set; }
+
+        /// <summary>
+        /// RFC del emisor
+        /// </summary>
+        public string RfcEmisor { get; set; } = string.Empty;
+
+        /// <summary>
+        /// RFC del receptor
+        /// </summary>
+        public string RfcReceptor { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Fecha de timbrado (DateTime)
+        /// </summary>
+        public DateTime TimbradoAt { get; set; }
+    }
+
+    // ========================================
+    // DTOs para Facturas (Invoice Entity)
+    // ========================================
+
+    /// <summary>
+    /// Request para crear una factura (borrador o timbrada)
+    /// </summary>
+    public class CreateInvoiceRequestDto
+    {
+        /// <summary>
+        /// ID de la venta origen (opcional, puede ser factura manual)
+        /// </summary>
+        public int? SaleId { get; set; }
+
+        /// <summary>
+        /// Serie del comprobante (ej: "A", "F", "FCO")
+        /// </summary>
+        public string? Serie { get; set; }
+
+        /// <summary>
+        /// Forma de pago SAT (01, 02, 03, etc.)
+        /// </summary>
+        public string FormaPago { get; set; } = "01";
+
+        /// <summary>
+        /// MÃ©todo de pago SAT (PUE o PPD)
+        /// </summary>
+        public string MetodoPago { get; set; } = "PUE";
+
+        /// <summary>
+        /// Uso del CFDI (P01, G03, etc.)
+        /// </summary>
+        public string? UsoCfdi { get; set; }
+
+        /// <summary>
+        /// Condiciones de pago
+        /// </summary>
+        public string? CondicionesDePago { get; set; }
+
+        /// <summary>
+        /// Tipo de comprobante (I=Ingreso, E=Egreso, T=Traslado, N=NÃ³mina, P=Pago)
+        /// </summary>
+        public string TipoDeComprobante { get; set; } = "I";
+
+        /// <summary>
+        /// Notas adicionales
+        /// </summary>
+        public string? Notes { get; set; }
+
+        /// <summary>
+        /// Si es true, se timbra inmediatamente despuÃ©s de guardar el borrador
+        /// Si es false, solo se guarda como borrador
+        /// </summary>
+        public bool TimbrarInmediatamente { get; set; } = false;
+
+        /// <summary>
+        /// VersiÃ³n de respuesta de Sapiens (v1, v2, v3, v4)
+        /// </summary>
+        public string Version { get; set; } = "v4";
+
+        /// <summary>
+        /// Conceptos/productos (solo si es factura manual, no desde venta)
+        /// </summary>
+        public List<InvoiceDetailInputDto>? Details { get; set; }
+
+        /// <summary>
+        /// Datos del cliente receptor (solo si es factura manual)
+        /// </summary>
+        public ReceptorInputDto? Receptor { get; set; }
+    }
+
+    /// <summary>
+    /// Input de concepto para factura manual
+    /// </summary>
+    public class InvoiceDetailInputDto
+    {
+        public int? ProductId { get; set; }
+        public string ClaveProdServ { get; set; } = "01010101";
+        public string? NoIdentificacion { get; set; }
+        public decimal Cantidad { get; set; }
+        public string ClaveUnidad { get; set; } = "H87";
+        public string? Unidad { get; set; }
+        public string Descripcion { get; set; } = string.Empty;
+        public decimal ValorUnitario { get; set; }
+        public decimal Descuento { get; set; }
+        public string ObjetoImp { get; set; } = "02";
+
+        // Impuestos del concepto
+        public ImpuestosConceptoDto? Impuestos { get; set; }
+    }
+
+    /// <summary>
+    /// Impuestos de un concepto
+    /// </summary>
+    public class ImpuestosConceptoDto
+    {
+        public List<TrasladoDto>? Traslados { get; set; }
+        public List<RetencionDto>? Retenciones { get; set; }
+    }
+
+    /// <summary>
+    /// Traslado de impuesto (IVA, IEPS)
+    /// </summary>
+    public class TrasladoDto
+    {
+        public decimal Base { get; set; }
+        public string Impuesto { get; set; } = "002"; // 002=IVA
+        public string TipoFactor { get; set; } = "Tasa";
+        public decimal TasaOCuota { get; set; } = 0.160000m;
+    }
+
+    /// <summary>
+    /// RetenciÃ³n de impuesto (ISR, IVA)
+    /// </summary>
+    public class RetencionDto
+    {
+        public decimal Base { get; set; }
+        public string Impuesto { get; set; } = "001"; // 001=ISR, 002=IVA
+        public string TipoFactor { get; set; } = "Tasa";
+        public decimal TasaOCuota { get; set; }
+    }
+
+    /// <summary>
+    /// Datos del receptor para factura manual
+    /// </summary>
+    public class ReceptorInputDto
+    {
+        public int? CustomerId { get; set; }
+        public string Rfc { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string? DomicilioFiscal { get; set; }
+        public string? RegimenFiscal { get; set; }
+        public string UsoCfdi { get; set; } = "G03";
+    }
+
+    /// <summary>
+    /// Request para timbrar una factura existente (borrador)
+    /// </summary>
+    public class TimbrarInvoiceRequestDto
+    {
+        /// <summary>
+        /// ID de la factura a timbrar
+        /// </summary>
+        public int InvoiceId { get; set; }
+
+        /// <summary>
+        /// VersiÃ³n de respuesta de Sapiens (v1, v2, v3, v4)
+        /// </summary>
+        public string Version { get; set; } = "v4";
+    }
+
+    /// <summary>
+    /// Response completo de una factura
+    /// </summary>
+    public class InvoiceResponseDto
+    {
+        public string Message { get; set; } = string.Empty;
+        public int Error { get; set; }
+        public InvoiceDto? Data { get; set; }
+    }
+
+    /// <summary>
+    /// DTO completo de factura
+    /// </summary>
+    public class InvoiceDto
+    {
+        public int Id { get; set; }
+        
+        // Referencia
+        public int? SaleId { get; set; }
+        public string? SaleCode { get; set; }
+        
+        // Comprobante
+        public string Serie { get; set; } = string.Empty;
+        public string Folio { get; set; } = string.Empty;
+        public DateTime InvoiceDate { get; set; }
+        public string FormaPago { get; set; } = string.Empty;
+        public string MetodoPago { get; set; } = string.Empty;
+        public string? CondicionesDePago { get; set; }
+        public string TipoDeComprobante { get; set; } = string.Empty;
+        public string? LugarExpedicion { get; set; }
+        
+        // Emisor
+        public int CompanyId { get; set; }
+        public string EmisorRfc { get; set; } = string.Empty;
+        public string EmisorNombre { get; set; } = string.Empty;
+        public string? EmisorRegimenFiscal { get; set; }
+        
+        // Receptor
+        public int? CustomerId { get; set; }
+        public string ReceptorRfc { get; set; } = string.Empty;
+        public string ReceptorNombre { get; set; } = string.Empty;
+        public string? ReceptorDomicilioFiscal { get; set; }
+        public string? ReceptorRegimenFiscal { get; set; }
+        public string? ReceptorUsoCfdi { get; set; }
+        
+        // Montos
+        public decimal SubTotal { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal TaxAmount { get; set; }
+        public decimal Total { get; set; }
+        public string Moneda { get; set; } = "MXN";
+        public decimal? TipoCambio { get; set; }
+        
+        // Estado
+        public string Status { get; set; } = string.Empty;
+        public string? Uuid { get; set; }
+        public DateTime? TimbradoAt { get; set; }
+        
+        // Timbrado (solo si Status = "Timbrada")
+        public string? XmlCfdi { get; set; }
+        public string? CadenaOriginalSat { get; set; }
+        public string? SelloCfdi { get; set; }
+        public string? SelloSat { get; set; }
+        public string? NoCertificadoCfdi { get; set; }
+        public string? NoCertificadoSat { get; set; }
+        public string? QrCode { get; set; }
+        
+        // CancelaciÃ³n (solo si Status = "Cancelada")
+        public DateTime? CancelledAt { get; set; }
+        public string? CancellationReason { get; set; }
+        public int? CancelledByUserId { get; set; }
+        public string? CancelledByUserName { get; set; }
+        
+        // Detalles
+        public List<InvoiceDetailDto> Details { get; set; } = new();
+        
+        // Audit
+        public string? Notes { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int CreatedByUserId { get; set; }
+        public string? CreatedByUserName { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// DTO de detalle de factura (concepto CFDI)
+    /// </summary>
+    public class InvoiceDetailDto
+    {
+        public int Id { get; set; }
+        public int? ProductId { get; set; }
+        public string ClaveProdServ { get; set; } = string.Empty;
+        public string? NoIdentificacion { get; set; }
+        public decimal Cantidad { get; set; }
+        public string ClaveUnidad { get; set; } = string.Empty;
+        public string? Unidad { get; set; }
+        public string Descripcion { get; set; } = string.Empty;
+        public decimal ValorUnitario { get; set; }
+        public decimal Importe { get; set; }
+        public decimal Descuento { get; set; }
+        public string ObjetoImp { get; set; } = string.Empty;
+
+        // Impuestos
+        public bool TieneTraslados { get; set; }
+        public decimal? TrasladoBase { get; set; }
+        public string? TrasladoImpuesto { get; set; }
+        public string? TrasladoTipoFactor { get; set; }
+        public decimal? TrasladoTasaOCuota { get; set; }
+        public decimal? TrasladoImporte { get; set; }
+
+        public bool TieneRetenciones { get; set; }
+        public decimal? RetencionBase { get; set; }
+        public string? RetencionImpuesto { get; set; }
+        public string? RetencionTipoFactor { get; set; }
+        public decimal? RetencionTasaOCuota { get; set; }
+        public decimal? RetencionImporte { get; set; }
+
+        public string? Notes { get; set; }
+    }
+
+    /// <summary>
+    /// Response paginado de facturas
+    /// </summary>
+    public class InvoiceListResponseDto
+    {
+        public string Message { get; set; } = string.Empty;
+        public int Error { get; set; }
+        public List<InvoiceListItemDto> Data { get; set; } = new();
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalRecords { get; set; }
+        public int TotalPages { get; set; }
+        public bool HasPreviousPage => Page > 1;
+        public bool HasNextPage => Page < TotalPages;
+    }
+
+    /// <summary>
+    /// Item de listado de facturas
+    /// </summary>
+    public class InvoiceListItemDto
+    {
+        public int Id { get; set; }
+        public string Serie { get; set; } = string.Empty;
+        public string Folio { get; set; } = string.Empty;
+        public DateTime InvoiceDate { get; set; }
+        
+        public string Status { get; set; } = string.Empty;
+        public string? Uuid { get; set; }
+        
+        public string EmisorRfc { get; set; } = string.Empty;
+        public string EmisorNombre { get; set; } = string.Empty;
+        
+        public string ReceptorRfc { get; set; } = string.Empty;
+        public string ReceptorNombre { get; set; } = string.Empty;
+        
+        public decimal Total { get; set; }
+        public string Moneda { get; set; } = "MXN";
+        
+        public DateTime? TimbradoAt { get; set; }
+        public DateTime? CancelledAt { get; set; }
+        
+        public int? SaleId { get; set; }
+        public string? SaleCode { get; set; }
+        
+        public DateTime CreatedAt { get; set; }
     }
 }

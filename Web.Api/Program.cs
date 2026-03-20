@@ -24,6 +24,7 @@ using Application.Abstractions.Purchasing;
 using Application.Abstractions.Inventory;
 using Application.Abstractions.Documents;  // ✅ NUEVO
 using Application.Abstractions.Sales;      // ✅ NUEVO - Sistema de ventas
+using Application.Abstractions.Billing;    // ✅ NUEVO - Timbrado CFDI
 using Application.Common.Services; 
 using Infrastructure;
 using Infrastructure.Services;
@@ -153,6 +154,9 @@ builder.Services
     .AddApplication()
     .AddInfrastructure();
 
+// ✅ REGISTRAR HTTPCLIENTFACTORY
+builder.Services.AddHttpClient();
+
 // ✅ REGISTRAR REPOSITORIOS
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
@@ -172,6 +176,9 @@ builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();  // ✅ NUE
 // ✅ NUEVO: Sistema de ventas con cobranza
 builder.Services.AddScoped<Application.Abstractions.Sales.ISaleRepository, SaleRepository>();
 
+// ✅ NUEVO: Sistema de facturación CFDI
+builder.Services.AddScoped<Application.Abstractions.Billing.IInvoiceRepository, InvoiceRepository>();
+
 // ✅ REGISTRAR SERVICIOS ADICIONALES
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
@@ -183,6 +190,9 @@ builder.Services.AddScoped<IPurchaseDocumentService, PurchaseDocumentService>();
 builder.Services.AddScoped<IThermalTicketService, ThermalTicketService>();  // ✅ NUEVO - Tickets térmicos
 builder.Services.AddScoped<ISaleDocumentService, SaleDocumentService>();  // ✅ NUEVO - Documentos de venta
 builder.Services.AddScoped<IKardexDocumentService, KardexDocumentService>();  // ✅ NUEVO - Documentos de kardex
+
+// ✅ SERVICIO COMPLETO DE SAPIENS (AUTENTICACIÓN Y TIMBRADO CFDI)
+builder.Services.AddScoped<Application.Abstractions.Billing.ISapiensService, SapiensService>();
 
 // ✅ REGISTRAR MEDIATR (Handlers automáticos)
 builder.Services.AddMediatR(cfg =>
