@@ -17,7 +17,7 @@ namespace Infrastructure.Services
 
         public S3StorageService(IConfiguration configuration)
         {
-            // Leer configuraciÛn de AWS desde appsettings.json
+            // Leer configuraciÔøΩn de AWS desde appsettings.json
             var awsAccessKey = configuration["AWS:AccessKey"];
             var awsSecretKey = configuration["AWS:SecretKey"];
             _region = configuration["AWS:Region"] ?? "us-east-1";
@@ -31,7 +31,7 @@ namespace Infrastructure.Services
 
             if (!string.IsNullOrEmpty(awsAccessKey) && !string.IsNullOrEmpty(awsSecretKey))
             {
-                // Usar credenciales explÌcitas
+                // Usar credenciales explÔøΩcitas
                 _s3Client = new AmazonS3Client(awsAccessKey, awsSecretKey, config);
             }
             else
@@ -50,7 +50,7 @@ namespace Infrastructure.Services
         {
             try
             {
-                // Generar key ˙nico con timestamp
+                // Generar key ÔøΩnico con timestamp
                 var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
                 var extension = Path.GetExtension(fileName);
                 var fileNameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
@@ -129,11 +129,11 @@ namespace Infrastructure.Services
         }
 
         /// <summary>
-        /// Obtener URL p˙blica de una imagen
+        /// Obtener URL pÔøΩblica de una imagen
         /// </summary>
         public string GetPublicUrl(string key)
         {
-            // URL p˙blica est·ndar de S3
+            // URL pÔøΩblica estÔøΩndar de S3
             return $"https://{_bucketName}.s3.{_region}.amazonaws.com/{key}";
         }
 
@@ -185,6 +185,65 @@ namespace Infrastructure.Services
             {
                 Console.WriteLine($"? Error checking file existence: {ex.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Subir un archivo privado con cifrado AES256 en servidor (sin URL p√∫blica).
+        /// Indicado para certificados SAT y llaves privadas.
+        /// </summary>
+        public async Task<string> UploadPrivateFileAsync(Stream fileStream, string key, string? bucketName = null)
+        {
+            var targetBucket = bucketName ?? _bucketName;
+            try
+            {
+                var uploadRequest = new TransferUtilityUploadRequest
+                {
+                    InputStream = fileStream,
+                    Key = key,
+                    BucketName = targetBucket,
+                    ContentType = "application/octet-stream",
+                    ServerSideEncryptionMethod = ServerSideEncryptionMethod.AES256
+                };
+
+                var transferUtility = new TransferUtility(_s3Client);
+                await transferUtility.UploadAsync(uploadRequest);
+
+                Console.WriteLine($"üîí Private file uploaded to [{targetBucket}]: {key}");
+                return key;
+            }
+            catch (AmazonS3Exception ex)
+            {
+                Console.WriteLine($"‚ùå S3 Error uploading private file: {ex.Message}");
+                throw new Exception($"Error al subir archivo a S3: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Descargar un archivo de S3 como arreglo de bytes.
+        /// </summary>
+        public async Task<byte[]> DownloadFileAsync(string key, string? bucketName = null)
+        {
+            var sourceBucket = bucketName ?? _bucketName;
+            try
+            {
+                var request = new GetObjectRequest
+                {
+                    BucketName = sourceBucket,
+                    Key = key
+                };
+
+                using var response = await _s3Client.GetObjectAsync(request);
+                using var memStream = new MemoryStream();
+                await response.ResponseStream.CopyToAsync(memStream);
+
+                Console.WriteLine($"üì• File downloaded from [{sourceBucket}]: {key}");
+                return memStream.ToArray();
+            }
+            catch (AmazonS3Exception ex)
+            {
+                Console.WriteLine($"‚ùå S3 Error downloading file: {ex.Message}");
+                throw new Exception($"Error al descargar archivo de S3: {ex.Message}", ex);
             }
         }
     }

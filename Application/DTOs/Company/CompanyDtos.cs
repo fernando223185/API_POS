@@ -7,8 +7,8 @@ namespace Application.DTOs.Company
     /// </summary>
     public class CreateCompanyDto
     {
-        [Required(ErrorMessage = "La razón social es requerida")]
-        [StringLength(300, ErrorMessage = "La razón social no puede exceder 300 caracteres")]
+        [Required(ErrorMessage = "La razï¿½n social es requerida")]
+        [StringLength(300, ErrorMessage = "La razï¿½n social no puede exceder 300 caracteres")]
         public string LegalName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El nombre comercial es requerido")]
@@ -17,29 +17,29 @@ namespace Application.DTOs.Company
 
         [Required(ErrorMessage = "El RFC es requerido")]
         [StringLength(13, MinimumLength = 12, ErrorMessage = "El RFC debe tener entre 12 y 13 caracteres")]
-        [RegularExpression(@"^[A-ZÑ&]{3,4}\d{6}[A-V1-9][A-Z0-9][0-9A]$", ErrorMessage = "RFC inválido")]
+        [RegularExpression(@"^[A-Zï¿½&]{3,4}\d{6}[A-V1-9][A-Z0-9][0-9A]$", ErrorMessage = "RFC invï¿½lido")]
         public string TaxId { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El régimen fiscal es requerido")]
+        [Required(ErrorMessage = "El rï¿½gimen fiscal es requerido")]
         [StringLength(10)]
         public string SatTaxRegime { get; set; } = "601";
 
-        [Required(ErrorMessage = "El código postal fiscal es requerido")]
+        [Required(ErrorMessage = "El cï¿½digo postal fiscal es requerido")]
         [StringLength(10)]
-        [RegularExpression(@"^\d{5}$", ErrorMessage = "Código postal inválido")]
+        [RegularExpression(@"^\d{5}$", ErrorMessage = "Cï¿½digo postal invï¿½lido")]
         public string FiscalZipCode { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "La dirección fiscal es requerida")]
+        [Required(ErrorMessage = "La direcciï¿½n fiscal es requerida")]
         [StringLength(500)]
         public string FiscalAddress { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El teléfono es requerido")]
-        [Phone(ErrorMessage = "Teléfono inválido")]
+        [Required(ErrorMessage = "El telï¿½fono es requerido")]
+        [Phone(ErrorMessage = "Telï¿½fono invï¿½lido")]
         [StringLength(20)]
         public string Phone { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El email es requerido")]
-        [EmailAddress(ErrorMessage = "Email inválido")]
+        [EmailAddress(ErrorMessage = "Email invï¿½lido")]
         [StringLength(100)]
         public string Email { get; set; } = string.Empty;
 
@@ -54,7 +54,7 @@ namespace Application.DTOs.Company
 
         [Required]
         [StringLength(3)]
-        [RegularExpression(@"^(MXN|USD|EUR)$", ErrorMessage = "Moneda inválida (MXN, USD, EUR)")]
+        [RegularExpression(@"^(MXN|USD|EUR)$", ErrorMessage = "Moneda invï¿½lida (MXN, USD, EUR)")]
         public string DefaultCurrency { get; set; } = "MXN";
 
         [StringLength(500)]
@@ -74,7 +74,7 @@ namespace Application.DTOs.Company
     /// </summary>
     public class UpdateCompanyDto
     {
-        [Required(ErrorMessage = "La razón social es requerida")]
+        [Required(ErrorMessage = "La razï¿½n social es requerida")]
         [StringLength(300)]
         public string LegalName { get; set; } = string.Empty;
 
@@ -82,19 +82,19 @@ namespace Application.DTOs.Company
         [StringLength(200)]
         public string TradeName { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El régimen fiscal es requerido")]
+        [Required(ErrorMessage = "El rï¿½gimen fiscal es requerido")]
         [StringLength(10)]
         public string SatTaxRegime { get; set; } = "601";
 
-        [Required(ErrorMessage = "El código postal fiscal es requerido")]
+        [Required(ErrorMessage = "El cï¿½digo postal fiscal es requerido")]
         [StringLength(10)]
         public string FiscalZipCode { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "La dirección fiscal es requerida")]
+        [Required(ErrorMessage = "La direcciï¿½n fiscal es requerida")]
         [StringLength(500)]
         public string FiscalAddress { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El teléfono es requerido")]
+        [Required(ErrorMessage = "El telï¿½fono es requerido")]
         [Phone]
         [StringLength(20)]
         public string Phone { get; set; } = string.Empty;
@@ -153,6 +153,10 @@ namespace Application.DTOs.Company
         public DateTime? UpdatedAt { get; set; }
         public string? CreatedByUserName { get; set; }
         public string? UpdatedByUserName { get; set; }
+        /// <summary>true si se ha subido el archivo .cer al bucket de certificados</summary>
+        public bool HasCertificate { get; set; }
+        /// <summary>true si se ha subido el archivo .key al bucket de certificados</summary>
+        public bool HasKey { get; set; }
     }
 
     /// <summary>
@@ -170,7 +174,7 @@ namespace Application.DTOs.Company
     }
 
     /// <summary>
-    /// DTO para configuración fiscal avanzada
+    /// DTO para configuraciï¿½n fiscal avanzada
     /// </summary>
     public class UpdateCompanyFiscalConfigDto
     {

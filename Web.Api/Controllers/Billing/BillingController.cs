@@ -4,6 +4,8 @@ using Application.DTOs.Billing;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Web.Api.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace Web.Api.Controllers.Billing
 {
@@ -480,6 +482,161 @@ namespace Web.Api.Controllers.Billing
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
+            }
+        }
+
+        // ── Certificados SAT ─────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Sube los certificados SAT (.cer y .key) de una empresa.
+        /// Los archivos se almacenan en S3 en carpeta privada cifrada con AES-256.
+        /// La contraseña de la llave privada se guarda cifrada en BD.
+        /// </summary>
+        /// <param name="companyId">ID de la empresa</param>
+        /// <param name="cerFile">Archivo .cer del SAT</param>
+        /// <param name="keyFile">Archivo .key del SAT</param>
+        /// <param name="keyPassword">Contraseña de la llave privada</param>
+        // Los archivos .cer/.key del SAT son pequeños (~2 KB), 1 MB es más que suficiente
+        [HttpPost("companies/{companyId}/certificates")]
+        [RequirePermission("CFDI", "Create")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(1_048_576)]
+        public async Task<IActionResult> UploadCertificates(
+            int companyId,
+            IFormFile cerFile,
+            IFormFile keyFile,
+            [FromForm] string keyPassword)
+        {
+            try
+            {
+                if (cerFile == null || cerFile.Length == 0)
+                    return BadRequest(new { message = "El archivo .cer es requerido.", error = 1 });
+
+                if (keyFile == null || keyFile.Length == 0)
+                    return BadRequest(new { message = "El archivo .key es requerido.", error = 1 });
+
+                if (string.IsNullOrWhiteSpace(keyPassword))
+                    return BadRequest(new { message = "La contraseña de la llave privada es requerida.", error = 1 });
+
+                // Leer bytes aquí para que Application layer no dependa de IFormFile
+                byte[] cerBytes;
+                byte[] keyBytes;
+
+                using (var ms = new MemoryStream())
+                {
+                    await cerFile.CopyToAsync(ms);
+                    cerBytes = ms.ToArray();
+                }
+
+                using (var ms = new MemoryStream())
+                {
+                    await keyFile.CopyToAsync(ms);
+                    keyBytes = ms.ToArray();
+                }
+
+                var command = new UploadCompanyCertificatesCommand
+                {
+                    CompanyId = companyId,
+                    CerFileBytes = cerBytes,
+                    CerFileName = cerFile.FileName,
+                    KeyFileBytes = keyBytes,
+                    KeyFileName = keyFile.FileName,
+                    KeyPassword = keyPassword
+                };
+
+                var result = await _mediator.Send(command);
+
+                if (result.Error > 0)
+                    return result.Error == 1 ? BadRequest(result) : StatusCode(500, result);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Error al subir certificados",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Consulta el estado de los certificados SAT de una empresa:
+        /// número de serie, vigencia e indicador de si están cargados.
+        /// </summary>
+        /// <param name="companyId">ID de la empresa</param>
+        [HttpGet("companies/{companyId}/certificates/status")]
+        [RequirePermission("CFDI", "View")]
+        public async Task<IActionResult> GetCertificateStatus(int companyId)
+        {
+            try
+            {
+                var query = new GetCompanyCertificateStatusQuery(companyId);
+                var result = await _mediator.Send(query);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Error al consultar estado de certificados",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Descarga el XML timbrado de una factura
+        /// </summary>
+        [HttpGet("invoices/{id}/xml")]
+        [RequirePermission("CFDI", "View")]
+        public async Task<IActionResult> DownloadInvoiceXml(int id)
+        {
+            try
+            {
+                var (bytes, fileName) = await _mediator.Send(new GetInvoiceXmlQuery(id));
+                return File(bytes, "application/xml", fileName);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al generar XML", error = 2, details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Descarga el PDF de una factura timbrada
+        /// </summary>
+        [HttpGet("invoices/{id}/pdf")]
+        [RequirePermission("CFDI", "View")]
+        public async Task<IActionResult> DownloadInvoicePdf(int id)
+        {
+            try
+            {
+                var (bytes, fileName) = await _mediator.Send(new GetInvoicePdfQuery(id));
+                return File(bytes, "application/pdf", fileName);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al generar PDF", error = 2, details = ex.Message });
             }
         }
     }

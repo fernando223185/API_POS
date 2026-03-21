@@ -51,7 +51,9 @@ namespace Application.Core.Company.QueryHandlers
                 CreatedAt = company.CreatedAt,
                 UpdatedAt = company.UpdatedAt,
                 CreatedByUserName = company.CreatedBy?.Name,
-                UpdatedByUserName = company.UpdatedBy?.Name
+                UpdatedByUserName = company.UpdatedBy?.Name,
+                HasCertificate = !string.IsNullOrEmpty(company.SatCertificatePath),
+                HasKey = !string.IsNullOrEmpty(company.SatKeyPath)
             };
         }
     }
@@ -89,7 +91,9 @@ namespace Application.Core.Company.QueryHandlers
                 LogoUrl = c.LogoUrl,
                 IsActive = c.IsActive,
                 IsMainCompany = c.IsMainCompany,
-                CreatedAt = c.CreatedAt
+                CreatedAt = c.CreatedAt,
+                HasCertificate = !string.IsNullOrEmpty(c.SatCertificatePath),
+                HasKey = !string.IsNullOrEmpty(c.SatKeyPath)
             }).ToList();
         }
     }
@@ -140,7 +144,9 @@ namespace Application.Core.Company.QueryHandlers
                 CreatedAt = c.CreatedAt,
                 UpdatedAt = c.UpdatedAt,
                 CreatedByUserName = c.CreatedBy?.Name,
-                UpdatedByUserName = c.UpdatedBy?.Name
+                UpdatedByUserName = c.UpdatedBy?.Name,
+                HasCertificate = !string.IsNullOrEmpty(c.SatCertificatePath),
+                HasKey = !string.IsNullOrEmpty(c.SatKeyPath)
             }).ToList();
 
             return new CompanyListResponseDto
@@ -200,7 +206,9 @@ namespace Application.Core.Company.QueryHandlers
                 IsMainCompany = company.IsMainCompany,
                 Notes = company.Notes,
                 CreatedAt = company.CreatedAt,
-                UpdatedAt = company.UpdatedAt
+                UpdatedAt = company.UpdatedAt,
+                HasCertificate = !string.IsNullOrEmpty(company.SatCertificatePath),
+                HasKey = !string.IsNullOrEmpty(company.SatKeyPath)
             };
         }
     }

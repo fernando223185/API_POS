@@ -46,4 +46,18 @@ namespace Application.Core.Billing.Queries
     public record GetInvoiceByIdQuery(
         int InvoiceId
     ) : IRequest<InvoiceResponseDto>;
+
+    /// <summary>
+    /// Query para descargar el XML timbrado de una factura
+    /// </summary>
+    public record GetInvoiceXmlQuery(
+        int InvoiceId
+    ) : IRequest<(byte[] Bytes, string FileName)>;
+
+    /// <summary>
+    /// Query para generar el PDF de una factura timbrada
+    /// </summary>
+    public record GetInvoicePdfQuery(
+        int InvoiceId
+    ) : IRequest<(byte[] Bytes, string FileName)>;
 }

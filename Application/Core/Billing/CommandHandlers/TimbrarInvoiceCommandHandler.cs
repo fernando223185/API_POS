@@ -157,18 +157,20 @@ namespace Application.Core.Billing.CommandHandlers
         /// </summary>
         private object BuildCfdiObject(Invoice invoice)
         {
+            var ic = System.Globalization.CultureInfo.InvariantCulture;
+
             // Construir array de conceptos
             var conceptos = invoice.Details.Select(d => new
             {
                 ClaveProdServ = d.ClaveProdServ,
                 NoIdentificacion = d.NoIdentificacion,
-                Cantidad = d.Cantidad,
+                Cantidad = d.Cantidad.ToString("0.######", ic),
                 ClaveUnidad = d.ClaveUnidad,
                 Unidad = d.Unidad,
                 Descripcion = d.Descripcion,
-                ValorUnitario = d.ValorUnitario,
-                Importe = d.Importe,
-                Descuento = d.Descuento > 0 ? d.Descuento : (decimal?)null,
+                ValorUnitario = d.ValorUnitario.ToString("0.00####", ic),
+                Importe = d.Importe.ToString("0.00####", ic),
+                Descuento = d.Descuento.ToString("0.00", ic),
                 ObjetoImp = d.ObjetoImp,
                 Impuestos = BuildImpuestosConcepto(d)
             }).ToList();
@@ -177,18 +179,22 @@ namespace Application.Core.Billing.CommandHandlers
             var cfdi = new
             {
                 Version = "4.0",
+                FormaPago = invoice.FormaPago,
                 Serie = invoice.Serie,
                 Folio = invoice.Folio,
                 Fecha = invoice.InvoiceDate.ToString("yyyy-MM-ddTHH:mm:ss"),
-                FormaPago = invoice.FormaPago,
                 MetodoPago = invoice.MetodoPago,
+                Sello = "",
+                NoCertificado = "",
+                Certificado = "",
                 CondicionesDePago = invoice.CondicionesDePago,
-                SubTotal = invoice.SubTotal,
-                Descuento = invoice.DiscountAmount > 0 ? invoice.DiscountAmount : (decimal?)null,
+                SubTotal = invoice.SubTotal.ToString("0.00", ic),
+                Descuento = invoice.DiscountAmount.ToString("0.00", ic),
                 Moneda = invoice.Moneda,
-                TipoCambio = invoice.TipoCambio,
-                Total = invoice.Total,
+                TipoCambio = invoice.TipoCambio.ToString("0.######", ic),
+                Total = invoice.Total.ToString("0.00", ic),
                 TipoDeComprobante = invoice.TipoDeComprobante,
+                Exportacion = "01",
                 LugarExpedicion = invoice.LugarExpedicion,
 
                 Emisor = new
@@ -220,17 +226,18 @@ namespace Application.Core.Billing.CommandHandlers
         /// </summary>
         private object? BuildImpuestosConcepto(InvoiceDetail detail)
         {
+            var ic = System.Globalization.CultureInfo.InvariantCulture;
             var impuestos = new
             {
                 Traslados = detail.TieneTraslados ? new[]
                 {
                     new
                     {
-                        Base = detail.TrasladoBase,
+                        Base = detail.TrasladoBase?.ToString("0.00####", ic),
                         Impuesto = detail.TrasladoImpuesto,
                         TipoFactor = detail.TrasladoTipoFactor,
-                        TasaOCuota = detail.TrasladoTasaOCuota,
-                        Importe = detail.TrasladoImporte
+                        TasaOCuota = detail.TrasladoTasaOCuota?.ToString("0.000000", ic),
+                        Importe = detail.TrasladoImporte?.ToString("0.00", ic)
                     }
                 } : null,
 
@@ -238,11 +245,11 @@ namespace Application.Core.Billing.CommandHandlers
                 {
                     new
                     {
-                        Base = detail.RetencionBase,
+                        Base = detail.RetencionBase?.ToString("0.00####", ic),
                         Impuesto = detail.RetencionImpuesto,
                         TipoFactor = detail.RetencionTipoFactor,
-                        TasaOCuota = detail.RetencionTasaOCuota,
-                        Importe = detail.RetencionImporte
+                        TasaOCuota = detail.RetencionTasaOCuota?.ToString("0.000000", ic),
+                        Importe = detail.RetencionImporte?.ToString("0.00", ic)
                     }
                 } : null
             };
@@ -275,41 +282,42 @@ namespace Application.Core.Billing.CommandHandlers
                 return null;
             }
 
+            var ic = System.Globalization.CultureInfo.InvariantCulture;
+
+            var retencionesGlobales = invoice.Details
+                .Where(d => d.TieneRetenciones)
+                .GroupBy(d => new { d.RetencionImpuesto })
+                .Select(g => new
+                {
+                    Importe = g.Sum(d => d.RetencionImporte)?.ToString("0.00", ic),
+                    Impuesto = g.Key.RetencionImpuesto
+                })
+                .ToList();
+
+            var trasladosGlobales = invoice.Details
+                .Where(d => d.TieneTraslados)
+                .GroupBy(d => new { d.TrasladoImpuesto, d.TrasladoTipoFactor, d.TrasladoTasaOCuota })
+                .Select(g => new
+                {
+                    Base = g.Sum(d => d.TrasladoBase)?.ToString("0.00", ic),
+                    Importe = g.Sum(d => d.TrasladoImporte)?.ToString("0.00", ic),
+                    Impuesto = g.Key.TrasladoImpuesto,
+                    TasaOCuota = g.Key.TrasladoTasaOCuota?.ToString("0.000000", ic),
+                    TipoFactor = g.Key.TrasladoTipoFactor
+                })
+                .ToList();
+
             var impuestos = new
             {
-                TotalImpuestosTrasladados = totalTraslados > 0 ? totalTraslados : (decimal?)null,
-                TotalImpuestosRetenidos = totalRetenciones > 0 ? totalRetenciones : (decimal?)null,
-
-                Traslados = invoice.Details
-                    .Where(d => d.TieneTraslados)
-                    .GroupBy(d => new { d.TrasladoImpuesto, d.TrasladoTipoFactor, d.TrasladoTasaOCuota })
-                    .Select(g => new
-                    {
-                        Base = g.Sum(d => d.TrasladoBase),
-                        Impuesto = g.Key.TrasladoImpuesto,
-                        TipoFactor = g.Key.TrasladoTipoFactor,
-                        TasaOCuota = g.Key.TrasladoTasaOCuota,
-                        Importe = g.Sum(d => d.TrasladoImporte)
-                    })
-                    .ToList(),
-
-                Retenciones = invoice.Details
-                    .Where(d => d.TieneRetenciones)
-                    .GroupBy(d => new { d.RetencionImpuesto })
-                    .Select(g => new
-                    {
-                        Impuesto = g.Key.RetencionImpuesto,
-                        Importe = g.Sum(d => d.RetencionImporte)
-                    })
-                    .ToList()
+                TotalImpuestosTrasladados = totalTraslados > 0 ? totalTraslados.ToString("0.00", ic) : null,
+                TotalImpuestosRetenidos = totalRetenciones > 0 ? totalRetenciones.ToString("0.00", ic) : null,
+                Retenciones = retencionesGlobales.Count > 0 ? retencionesGlobales : null,
+                Traslados = trasladosGlobales.Count > 0 ? trasladosGlobales : null
             };
 
             return impuestos;
         }
 
-        /// <summary>
-        /// Mapea Invoice entity a InvoiceDto
-        /// </summary>
         private InvoiceDto MapToDto(Invoice invoice)
         {
             return new InvoiceDto

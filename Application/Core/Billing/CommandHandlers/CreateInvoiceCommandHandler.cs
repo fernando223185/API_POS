@@ -171,13 +171,13 @@ namespace Application.Core.Billing.CommandHandlers
                 EmisorNombre = sale.Company.LegalName ?? string.Empty,
                 EmisorRegimenFiscal = sale.Company.SatTaxRegime,
 
-                // Receptor
-                CustomerId = sale.Customer.ID,
-                ReceptorRfc = sale.Customer.TaxId ?? "XAXX010101000",
-                ReceptorNombre = sale.Customer.Name ?? string.Empty,
-                ReceptorDomicilioFiscal = sale.Customer.ZipCode,
-                ReceptorRegimenFiscal = sale.Customer.SatTaxRegime,
-                ReceptorUsoCfdi = request.UsoCfdi ?? sale.Customer.SatCfdiUse ?? "G03",
+                // Receptor (priorizar datos de request.Receptor si están presentes)
+                CustomerId = request.Receptor?.CustomerId ?? sale.Customer.ID,
+                ReceptorRfc = request.Receptor?.Rfc ?? sale.Customer.TaxId ?? "XAXX010101000",
+                ReceptorNombre = request.Receptor?.Nombre ?? sale.Customer.Name ?? string.Empty,
+                ReceptorDomicilioFiscal = request.Receptor?.DomicilioFiscal ?? sale.Customer.ZipCode,
+                ReceptorRegimenFiscal = request.Receptor?.RegimenFiscal ?? sale.Customer.SatTaxRegime,
+                ReceptorUsoCfdi = request.Receptor?.UsoCfdi ?? request.UsoCfdi ?? sale.Customer.SatCfdiUse ?? "G03",
 
                 // Montos
                 SubTotal = sale.SubTotal,

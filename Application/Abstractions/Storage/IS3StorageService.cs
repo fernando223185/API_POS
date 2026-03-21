@@ -22,17 +22,17 @@ namespace Application.Abstractions.Storage
         Task<bool> DeleteImageAsync(string key);
 
         /// <summary>
-        /// Obtener URL pública de una imagen
+        /// Obtener URL pï¿½blica de una imagen
         /// </summary>
         /// <param name="key">Key del archivo en S3</param>
-        /// <returns>URL pública del archivo</returns>
+        /// <returns>URL pï¿½blica del archivo</returns>
         string GetPublicUrl(string key);
 
         /// <summary>
         /// Obtener URL firmada temporal de una imagen
         /// </summary>
         /// <param name="key">Key del archivo en S3</param>
-        /// <param name="expirationMinutes">Minutos de expiración (por defecto 60)</param>
+        /// <param name="expirationMinutes">Minutos de expiraciï¿½n (por defecto 60)</param>
         /// <returns>URL firmada temporal</returns>
         Task<string> GetPresignedUrlAsync(string key, int expirationMinutes = 60);
 
@@ -41,5 +41,23 @@ namespace Application.Abstractions.Storage
         /// </summary>
         /// <param name="key">Key del archivo en S3</param>
         Task<bool> FileExistsAsync(string key);
+
+        /// <summary>
+        /// Subir un archivo privado a S3 con cifrado en servidor (sin acceso pÃºblico).
+        /// Usar para archivos sensibles como certificados SAT (.cer, .key).
+        /// </summary>
+        /// <param name="fileStream">Stream del archivo</param>
+        /// <param name="key">Key completa del archivo en S3 (ruta + nombre)</param>
+        /// <param name="bucketName">Bucket destino. Si es null usa el bucket por defecto.</param>
+        /// <returns>Key almacenada en S3</returns>
+        Task<string> UploadPrivateFileAsync(Stream fileStream, string key, string? bucketName = null);
+
+        /// <summary>
+        /// Descargar un archivo de S3 como bytes.
+        /// </summary>
+        /// <param name="key">Key del archivo en S3</param>
+        /// <param name="bucketName">Bucket origen. Si es null usa el bucket por defecto.</param>
+        /// <returns>Contenido del archivo en bytes</returns>
+        Task<byte[]> DownloadFileAsync(string key, string? bucketName = null);
     }
 }

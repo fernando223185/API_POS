@@ -4,6 +4,7 @@ using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(POSDbContext))]
-    partial class POSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260320200133_AddInvoiceTables")]
+    partial class AddInvoiceTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -785,8 +788,8 @@ namespace Infrastructure.Migrations
                         .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("Unidad")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<decimal>("ValorUnitario")
                         .HasColumnType("decimal(18,6)");
@@ -1123,8 +1126,8 @@ namespace Infrastructure.Migrations
 
                     b.Property<string>("Unit")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -2130,257 +2133,6 @@ namespace Infrastructure.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("SalePayments");
-                });
-
-            modelBuilder.Entity("Domain.Entities.SatFormaPago", b =>
-                {
-                    b.Property<string>("Codigo")
-                        .HasMaxLength(2)
-                        .HasColumnType("nvarchar(2)");
-
-                    b.Property<string>("Bancarizado")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<string>("CtaBeneficiario")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("CtaOrdenante")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Descripcion")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("FechaFinVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("FechaInicioVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("NumeroOperacion")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("RfcEmisorCtaBeneficiario")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("RfcEmisorCtaOrdenante")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("TipoCadenaPago")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Codigo");
-
-                    b.ToTable("SatFormaPago");
-                });
-
-            modelBuilder.Entity("Domain.Entities.SatMetodoPago", b =>
-                {
-                    b.Property<string>("Codigo")
-                        .HasMaxLength(3)
-                        .HasColumnType("nvarchar(3)");
-
-                    b.Property<string>("Descripcion")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("FechaFinVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("FechaInicioVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.HasKey("Codigo");
-
-                    b.ToTable("SatMetodoPago");
-                });
-
-            modelBuilder.Entity("Domain.Entities.SatProductoServicio", b =>
-                {
-                    b.Property<string>("ClaveProdServ")
-                        .HasMaxLength(8)
-                        .HasColumnType("nvarchar(8)");
-
-                    b.Property<string>("Complemento")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Descripcion")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("FechaFinVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("FechaInicioVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("IncluyeIeps")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<string>("IncluyeIva")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("PalabrasSimilares")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.HasKey("ClaveProdServ");
-
-                    b.ToTable("SatProductoServicio");
-                });
-
-            modelBuilder.Entity("Domain.Entities.SatRegimenFiscal", b =>
-                {
-                    b.Property<string>("Codigo")
-                        .HasMaxLength(3)
-                        .HasColumnType("nvarchar(3)");
-
-                    b.Property<bool>("AplicaPersonaFisica")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("AplicaPersonaMoral")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Descripcion")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<DateTime?>("FechaFinVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("FechaInicioVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.HasKey("Codigo");
-
-                    b.ToTable("SatRegimenFiscal");
-                });
-
-            modelBuilder.Entity("Domain.Entities.SatTipoComprobante", b =>
-                {
-                    b.Property<string>("Codigo")
-                        .HasMaxLength(1)
-                        .HasColumnType("nvarchar(1)");
-
-                    b.Property<string>("Descripcion")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime?>("FechaFinVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("FechaInicioVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("ValorMaximo")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("Codigo");
-
-                    b.ToTable("SatTipoComprobante");
-                });
-
-            modelBuilder.Entity("Domain.Entities.SatUnidadMedida", b =>
-                {
-                    b.Property<string>("ClaveUnidad")
-                        .HasMaxLength(3)
-                        .HasColumnType("nvarchar(3)");
-
-                    b.Property<string>("Descripcion")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("FechaFinVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("FechaInicioVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Nombre")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Nota")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("Simbolo")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("ClaveUnidad");
-
-                    b.ToTable("SatUnidadMedida");
-                });
-
-            modelBuilder.Entity("Domain.Entities.SatUsoCfdi", b =>
-                {
-                    b.Property<string>("Codigo")
-                        .HasMaxLength(4)
-                        .HasColumnType("nvarchar(4)");
-
-                    b.Property<bool>("AplicaPersonaFisica")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("AplicaPersonaMoral")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Descripcion")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<DateTime?>("FechaFinVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("FechaInicioVigencia")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("RegimenFiscalReceptor")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Codigo");
-
-                    b.ToTable("SatUsoCfdi");
                 });
 
             modelBuilder.Entity("Domain.Entities.Supplier", b =>

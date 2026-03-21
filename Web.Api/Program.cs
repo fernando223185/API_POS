@@ -25,6 +25,7 @@ using Application.Abstractions.Inventory;
 using Application.Abstractions.Documents;  // ✅ NUEVO
 using Application.Abstractions.Sales;      // ✅ NUEVO - Sistema de ventas
 using Application.Abstractions.Billing;    // ✅ NUEVO - Timbrado CFDI
+using Application.Abstractions.Sat;        // ✅ NUEVO - Catálogos SAT
 using Application.Common.Services; 
 using Infrastructure;
 using Infrastructure.Services;
@@ -179,6 +180,9 @@ builder.Services.AddScoped<Application.Abstractions.Sales.ISaleRepository, SaleR
 // ✅ NUEVO: Sistema de facturación CFDI
 builder.Services.AddScoped<Application.Abstractions.Billing.IInvoiceRepository, InvoiceRepository>();
 
+// ✅ NUEVO: Catálogos oficiales del SAT
+builder.Services.AddScoped<Application.Abstractions.Sat.ISatCatalogRepository, SatCatalogRepository>();
+
 // ✅ REGISTRAR SERVICIOS ADICIONALES
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
@@ -194,12 +198,18 @@ builder.Services.AddScoped<IKardexDocumentService, KardexDocumentService>();  //
 // ✅ SERVICIO COMPLETO DE SAPIENS (AUTENTICACIÓN Y TIMBRADO CFDI)
 builder.Services.AddScoped<Application.Abstractions.Billing.ISapiensService, SapiensService>();
 
+// ✅ CERTIFICADOS SAT (.cer / .key) – extrae NoCertificado, Certificado y genera Sello
+builder.Services.AddScoped<Application.Abstractions.Billing.ICertificateService, CertificateService>();
+
 // ✅ REGISTRAR MEDIATR (Handlers automáticos)
 builder.Services.AddMediatR(cfg =>
 {
     cfg.RegisterServicesFromAssembly(typeof(Application.AssemblyReference).Assembly);
     cfg.RegisterServicesFromAssembly(typeof(Infrastructure.AssemblyReference).Assembly); // ✅ NUEVO - Escanear Infrastructure
 });
+
+// Licencia comunitaria de QuestPDF
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var app = builder.Build();
 

@@ -82,7 +82,7 @@ namespace Domain.Entities
         [Precision(18, 4)]
         public decimal ReorderPoint { get; set; } = 0;
 
-        [StringLength(20)]
+        [StringLength(50)]
         public string Unit { get; set; } = "PZA"; // Unidad de medida
 
         // ✅ CARACTERÍSTICAS DEL PRODUCTO

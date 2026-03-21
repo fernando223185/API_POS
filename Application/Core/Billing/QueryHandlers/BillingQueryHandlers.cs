@@ -1,4 +1,5 @@
 using Application.Abstractions.Sales;
+using Application.Core.Billing.Documents;
 using Application.Core.Billing.Queries;
 using Application.DTOs.Billing;
 using MediatR;
@@ -457,6 +458,66 @@ namespace Application.Core.Billing.QueryHandlers
                 Error = 0,
                 Data = invoiceDto
             };
+        }
+    }
+
+    // ============================================================
+    // XML
+    // ============================================================
+    public class GetInvoiceXmlQueryHandler : IRequestHandler<GetInvoiceXmlQuery, (byte[] Bytes, string FileName)>
+    {
+        private readonly Application.Abstractions.Billing.IInvoiceRepository _invoiceRepository;
+
+        public GetInvoiceXmlQueryHandler(Application.Abstractions.Billing.IInvoiceRepository invoiceRepository)
+        {
+            _invoiceRepository = invoiceRepository;
+        }
+
+        public async Task<(byte[] Bytes, string FileName)> Handle(
+            GetInvoiceXmlQuery request,
+            CancellationToken cancellationToken)
+        {
+            var invoice = await _invoiceRepository.GetByIdAsync(request.InvoiceId);
+
+            if (invoice == null)
+                throw new KeyNotFoundException($"Factura con ID {request.InvoiceId} no encontrada");
+
+            if (invoice.Status != "Timbrada" || string.IsNullOrEmpty(invoice.XmlCfdi))
+                throw new InvalidOperationException("La factura no tiene XML timbrado disponible");
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(invoice.XmlCfdi);
+            var fileName = $"{invoice.Serie}-{invoice.Folio}_{invoice.Uuid}.xml";
+            return (bytes, fileName);
+        }
+    }
+
+    // ============================================================
+    // PDF
+    // ============================================================
+    public class GetInvoicePdfQueryHandler : IRequestHandler<GetInvoicePdfQuery, (byte[] Bytes, string FileName)>
+    {
+        private readonly Application.Abstractions.Billing.IInvoiceRepository _invoiceRepository;
+
+        public GetInvoicePdfQueryHandler(Application.Abstractions.Billing.IInvoiceRepository invoiceRepository)
+        {
+            _invoiceRepository = invoiceRepository;
+        }
+
+        public async Task<(byte[] Bytes, string FileName)> Handle(
+            GetInvoicePdfQuery request,
+            CancellationToken cancellationToken)
+        {
+            var invoice = await _invoiceRepository.GetByIdAsync(request.InvoiceId);
+
+            if (invoice == null)
+                throw new KeyNotFoundException($"Factura con ID {request.InvoiceId} no encontrada");
+
+            if (invoice.Status != "Timbrada")
+                throw new InvalidOperationException("Solo se puede generar PDF de facturas timbradas");
+
+            var bytes = InvoicePdfDocument.Generate(invoice);
+            var fileName = $"{invoice.Serie}-{invoice.Folio}_{invoice.Uuid}.pdf";
+            return await Task.FromResult((bytes, fileName));
         }
     }
 }

@@ -180,7 +180,7 @@ namespace Application.Core.Billing.CommandHandlers
         }
 
         /// <summary>
-        /// Construye el objeto CFDI 4.0 en el formato requerido por Sapiens
+        /// Construye el objeto CFDI 4.0 en el formato requerido por Sapiens.
         /// </summary>
         private object BuildCfdiObject(
             Domain.Entities.Sale sale,
@@ -188,6 +188,8 @@ namespace Application.Core.Billing.CommandHandlers
             string serie,
             string folio)
         {
+            var ic = System.Globalization.CultureInfo.InvariantCulture;
+
             // Calcular totales de impuestos
             var totalImpuestosTrasladados = sale.Details
                 .Where(d => d.TaxAmount > 0)
@@ -198,24 +200,24 @@ namespace Application.Core.Billing.CommandHandlers
             {
                 ClaveProdServ = "01010101", // TODO: Obtener del producto
                 NoIdentificacion = detail.ProductCode,
-                Cantidad = detail.Quantity.ToString("0.0"),
+                Cantidad = detail.Quantity.ToString("0.0", ic),
                 ClaveUnidad = "H87", // TODO: Obtener del producto (Pieza)
                 Unidad = "Pieza",
                 Descripcion = detail.ProductName,
-                ValorUnitario = detail.UnitPrice.ToString("0.0000"),
-                Importe = (detail.Quantity * detail.UnitPrice).ToString("0.0000"),
-                Descuento = detail.DiscountAmount.ToString("0.00"),
-                ObjetoImp = detail.TaxAmount > 0 ? "02" : "01", // 01 = No objeto de impuesto, 02 = Sí objeto de impuesto
+                ValorUnitario = detail.UnitPrice.ToString("0.0000", ic),
+                Importe = (detail.Quantity * detail.UnitPrice).ToString("0.0000", ic),
+                Descuento = detail.DiscountAmount.ToString("0.00", ic),
+                ObjetoImp = detail.TaxAmount > 0 ? "02" : "01",
                 Impuestos = detail.TaxAmount > 0 ? new
                 {
                     Traslados = new[]
                     {
                         new
                         {
-                            Base = (detail.Quantity * detail.UnitPrice - detail.DiscountAmount).ToString("0.0000"),
-                            Importe = detail.TaxAmount.ToString("0.0000"),
-                            Impuesto = "002", // IVA
-                            TasaOCuota = "0.160000", // 16%
+                            Base = (detail.Quantity * detail.UnitPrice - detail.DiscountAmount).ToString("0.0000", ic),
+                            Importe = detail.TaxAmount.ToString("0.0000", ic),
+                            Impuesto = "002",
+                            TasaOCuota = "0.160000",
                             TipoFactor = "Tasa"
                         }
                     }
@@ -226,31 +228,31 @@ namespace Application.Core.Billing.CommandHandlers
             var cfdi = new
             {
                 Version = "4.0",
-                FormaPago = request.FormaPago, // 01=Efectivo, 02=Cheque, 03=Transferencia, 04=Tarjeta
+                FormaPago = request.FormaPago,
                 Serie = serie,
                 Folio = folio,
                 Fecha = sale.SaleDate.ToString("yyyy-MM-ddTHH:mm:ss"),
-                Sello = "", // Se genera automáticamente por Sapiens
-                NoCertificado = "", // Se genera automáticamente por Sapiens
-                Certificado = "", // Se genera automáticamente por Sapiens
+                Sello = "",
+                NoCertificado = "",
+                Certificado = "",
                 CondicionesDePago = request.CondicionesDePago ?? "",
-                SubTotal = sale.SubTotal.ToString("0.00"),
-                Descuento = sale.DiscountAmount.ToString("0.00"),
+                SubTotal = sale.SubTotal.ToString("0.00", ic),
+                Descuento = sale.DiscountAmount.ToString("0.00", ic),
                 Moneda = "MXN",
                 TipoCambio = "1",
-                Total = sale.Total.ToString("0.00"),
-                TipoDeComprobante = "I", // I=Ingreso, E=Egreso, T=Traslado
-                Exportacion = "01", // 01=No aplica
-                MetodoPago = request.MetodoPago, // PUE=Pago en una exhibición, PPD=Pago en parcialidades
+                Total = sale.Total.ToString("0.00", ic),
+                TipoDeComprobante = "I",
+                Exportacion = "01",
+                MetodoPago = request.MetodoPago,
                 LugarExpedicion = sale.Company.FiscalZipCode,
-                
+
                 Emisor = new
                 {
                     Rfc = sale.Company.TaxId,
                     Nombre = sale.Company.LegalName,
                     RegimenFiscal = sale.Company.SatTaxRegime ?? "601"
                 },
-                
+
                 Receptor = new
                 {
                     Rfc = sale.Customer?.TaxId ?? "XAXX010101000",
@@ -259,20 +261,20 @@ namespace Application.Core.Billing.CommandHandlers
                     RegimenFiscalReceptor = sale.Customer?.SatTaxRegime ?? "616",
                     UsoCFDI = request.UsoCfdi ?? sale.Customer?.SatCfdiUse ?? "G03"
                 },
-                
+
                 Conceptos = conceptos,
-                
+
                 Impuestos = totalImpuestosTrasladados > 0 ? new
                 {
-                    TotalImpuestosTrasladados = totalImpuestosTrasladados.ToString("0.00"),
+                    TotalImpuestosTrasladados = totalImpuestosTrasladados.ToString("0.00", ic),
                     Traslados = new[]
                     {
                         new
                         {
-                            Base = (sale.SubTotal - sale.DiscountAmount).ToString("0.00"),
-                            Importe = totalImpuestosTrasladados.ToString("0.00"),
-                            Impuesto = "002", // IVA
-                            TasaOCuota = "0.160000", // 16%
+                            Base = (sale.SubTotal - sale.DiscountAmount).ToString("0.00", ic),
+                            Importe = totalImpuestosTrasladados.ToString("0.00", ic),
+                            Impuesto = "002",
+                            TasaOCuota = "0.160000",
                             TipoFactor = "Tasa"
                         }
                     }

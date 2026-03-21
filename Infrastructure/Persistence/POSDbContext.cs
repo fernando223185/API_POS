@@ -61,6 +61,15 @@ namespace Infrastructure.Persistence
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<InvoiceDetail> InvoiceDetails { get; set; }
 
+        // ✅ NUEVO: Catálogos SAT para facturación
+        public DbSet<SatUsoCfdi> SatUsoCfdi { get; set; }
+        public DbSet<SatRegimenFiscal> SatRegimenFiscal { get; set; }
+        public DbSet<SatFormaPago> SatFormaPago { get; set; }
+        public DbSet<SatMetodoPago> SatMetodoPago { get; set; }
+        public DbSet<SatTipoComprobante> SatTipoComprobante { get; set; }
+        public DbSet<SatProductoServicio> SatProductoServicio { get; set; }
+        public DbSet<SatUnidadMedida> SatUnidadMedida { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Configurar nombre de tabla para User -> Users

@@ -64,7 +64,7 @@ namespace Domain.Entities
         /// <summary>
         /// Unidad de medida
         /// </summary>
-        [MaxLength(50)]
+        [MaxLength(100)]
         public string? Unidad { get; set; }
 
         /// <summary>

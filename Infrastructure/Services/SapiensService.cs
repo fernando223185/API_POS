@@ -20,11 +20,6 @@ namespace Infrastructure.Services
         // URLs de Sapiens
         private const string TEST_URL = "https://services.test.sw.com.mx";
         private const string PROD_URL = "https://services.sw.com.mx";
-        private const string AUTH_ENDPOINT = "/v2/security/authenticate";
-        
-        // Caché del token
-        private static SapiensTokenDto? _cachedToken;
-        private static readonly object _lock = new object();
 
         public SapiensService(
             IConfiguration configuration, 
@@ -38,122 +33,46 @@ namespace Infrastructure.Services
         }
 
         /// <summary>
-        /// Obtiene un token válido, reutilizando el caché si es posible
+        /// Obtiene un token válido (usa el token infinito de configuración)
         /// </summary>
         public async Task<SapiensTokenDto> GetValidTokenAsync()
         {
-            // Verificar si hay un token en caché válido
-            lock (_lock)
+            // Leer token infinito de configuración
+            var token = _configuration["Sapiens:Token"];
+            
+            if (string.IsNullOrEmpty(token))
             {
-                if (_cachedToken != null && _cachedToken.IsValid)
-                {
-                    _logger.LogInformation("Usando token de Sapiens en caché. Expira: {ExpiresAt}", _cachedToken.ExpiresAt);
-                    return _cachedToken;
-                }
+                _logger.LogError("Token de Sapiens no configurado en appsettings.json");
+                throw new InvalidOperationException("Token de Sapiens no configurado. Agrega 'Sapiens:Token' en appsettings.json");
             }
 
-            // Token expirado o no existe, renovar
-            _logger.LogInformation("Token de Sapiens expirado o no existente. Solicitando nuevo token...");
-            return await RefreshTokenAsync();
+            // Token infinito, no expira
+            var tokenDto = new SapiensTokenDto
+            {
+                Token = token,
+                ExpiresAt = DateTime.MaxValue // Token infinito
+            };
+
+            _logger.LogInformation("Usando token infinito de Sapiens de configuración");
+            return await Task.FromResult(tokenDto);
         }
 
         /// <summary>
-        /// Fuerza la renovación del token
+        /// Renovación de token (no necesaria con token infinito, pero se mantiene por compatibilidad)
         /// </summary>
         public async Task<SapiensTokenDto> RefreshTokenAsync()
         {
-            try
-            {
-                // Leer configuración
-                var user = _configuration["Sapiens:User"];
-                var password = _configuration["Sapiens:Password"];
-                var useProd = bool.Parse(_configuration["Sapiens:UseProdEnvironment"] ?? "false");
-
-                if (string.IsNullOrEmpty(user) || string.IsNullOrEmpty(password))
-                {
-                    throw new InvalidOperationException("Credenciales de Sapiens no configuradas en appsettings.json");
-                }
-
-                // Determinar URL base
-                var baseUrl = useProd ? PROD_URL : TEST_URL;
-                var url = $"{baseUrl}{AUTH_ENDPOINT}";
-
-                _logger.LogInformation("Autenticando con Sapiens: {Url} (Environment: {Env})", url, useProd ? "PRODUCCIÓN" : "PRUEBAS");
-
-                // Crear request
-                var authRequest = new SapiensAuthRequestDto
-                {
-                    user = user,
-                    password = password
-                };
-
-                var jsonContent = JsonSerializer.Serialize(authRequest);
-                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-                // Hacer petición HTTP
-                var response = await _httpClient.PostAsync(url, content);
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogError("Error en autenticación de Sapiens. Status: {Status}, Response: {Response}", 
-                        response.StatusCode, responseContent);
-                    throw new HttpRequestException($"Error al autenticar con Sapiens: {response.StatusCode} - {responseContent}");
-                }
-
-                // Parsear respuesta
-                var authResponse = JsonSerializer.Deserialize<SapiensAuthResponseDto>(responseContent, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                if (authResponse == null || authResponse.data == null || string.IsNullOrEmpty(authResponse.data.token))
-                {
-                    _logger.LogError("Respuesta inválida de Sapiens: {Response}", responseContent);
-                    throw new InvalidOperationException("Respuesta de autenticación inválida de Sapiens");
-                }
-
-                if (authResponse.status != "success")
-                {
-                    _logger.LogError("Autenticación fallida. Status: {Status}", authResponse.status);
-                    throw new InvalidOperationException($"Autenticación fallida: {authResponse.status}");
-                }
-
-                // Crear token DTO con información de expiración
-                var expiresAt = DateTimeOffset.FromUnixTimeSeconds(authResponse.data.expires_in).UtcDateTime;
-                var token = new SapiensTokenDto
-                {
-                    Token = authResponse.data.token,
-                    ExpiresAt = expiresAt
-                };
-
-                // Guardar en caché
-                lock (_lock)
-                {
-                    _cachedToken = token;
-                }
-
-                _logger.LogInformation("Token de Sapiens obtenido exitosamente. Expira: {ExpiresAt} (en {Minutes} minutos)", 
-                    expiresAt, (expiresAt - DateTime.UtcNow).TotalMinutes);
-
-                return token;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al obtener token de Sapiens");
-                throw;
-            }
+            _logger.LogInformation("RefreshTokenAsync llamado - usando token infinito de configuración");
+            return await GetValidTokenAsync();
         }
 
         /// <summary>
-        /// Verifica si el token en caché es válido
+        /// Verifica si el token es válido (siempre true con token infinito)
         /// </summary>
         public bool IsTokenValid()
         {
-            lock (_lock)
-            {
-                return _cachedToken != null && _cachedToken.IsValid;
-            }
+            var token = _configuration["Sapiens:Token"];
+            return !string.IsNullOrEmpty(token);
         }
 
         // ========================================
@@ -194,7 +113,19 @@ namespace Infrastructure.Services
                     data = cfdiData
                 };
 
-                var jsonContent = JsonSerializer.Serialize(requestDto.data);
+                // Serializar con opciones específicas (ignorar nulls, formato indentado para logging)
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                    WriteIndented = true,
+                    PropertyNamingPolicy = null // Respetar nombres de propiedades tal cual
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestDto.data, jsonOptions);
+                
+                // Log del JSON enviado para debugging
+                _logger.LogInformation("📤 JSON enviado a Sapiens:\n{JsonContent}", jsonContent);
+                
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/jsontoxml");
 
                 // Configurar headers
