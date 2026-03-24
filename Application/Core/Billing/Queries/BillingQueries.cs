@@ -60,4 +60,12 @@ namespace Application.Core.Billing.Queries
     public record GetInvoicePdfQuery(
         int InvoiceId
     ) : IRequest<(byte[] Bytes, string FileName)>;
+
+    /// <summary>
+    /// Query para obtener resumen de facturación por mes/año
+    /// </summary>
+    public record GetBillingSummaryQuery(
+        int Year,
+        int Month
+    ) : IRequest<BillingSummaryResponseDto>;
 }

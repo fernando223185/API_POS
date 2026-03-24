@@ -437,20 +437,10 @@ namespace Web.Api.Controllers.Billing
         {
             try
             {
-                return Ok(new
-                {
-                    message = "Billing summary retrieved successfully",
-                    error = 0,
-                    period = $"{year}-{month:D2}",
-                    data = new {
-                        totalInvoices = 45,
-                        totalAmount = 125000.00,
-                        stampedInvoices = 42,
-                        pendingInvoices = 2,
-                        cancelledInvoices = 1,
-                        averageInvoiceAmount = 2777.78
-                    }
-                });
+                var query = new GetBillingSummaryQuery(year, month);
+                var result = await _mediator.Send(query);
+
+                return Ok(result);
             }
             catch (Exception ex)
             {

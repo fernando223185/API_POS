@@ -71,5 +71,10 @@ namespace Application.Abstractions.Billing
         /// Cancelar una factura timbrada
         /// </summary>
         Task<Invoice> CancelAsync(int invoiceId, int userId, string cancellationReason);
+
+        /// <summary>
+        /// Obtener resumen de facturación para un mes/año específico
+        /// </summary>
+        Task<(int totalInvoices, decimal totalAmount, int stampedInvoices, int pendingInvoices, int cancelledInvoices)> GetSummaryAsync(int year, int month);
     }
 }

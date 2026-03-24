@@ -215,5 +215,24 @@ namespace Infrastructure.Repositories
 
             return invoice;
         }
+
+        public async Task<(int totalInvoices, decimal totalAmount, int stampedInvoices, int pendingInvoices, int cancelledInvoices)> GetSummaryAsync(int year, int month)
+        {
+            // Calcular rango de fechas para el mes especificado
+            var startDate = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var endDate = startDate.AddMonths(1);
+
+            var invoices = await _context.Invoices
+                .Where(i => i.InvoiceDate >= startDate && i.InvoiceDate < endDate)
+                .ToListAsync();
+
+            var totalInvoices = invoices.Count;
+            var totalAmount = invoices.Sum(i => i.Total);
+            var stampedInvoices = invoices.Count(i => i.Status == "Timbrada");
+            var pendingInvoices = invoices.Count(i => i.Status == "Borrador");
+            var cancelledInvoices = invoices.Count(i => i.Status == "Cancelada");
+
+            return (totalInvoices, totalAmount, stampedInvoices, pendingInvoices, cancelledInvoices);
+        }
     }
 }

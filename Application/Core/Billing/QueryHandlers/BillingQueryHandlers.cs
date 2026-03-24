@@ -520,4 +520,49 @@ namespace Application.Core.Billing.QueryHandlers
             return await Task.FromResult((bytes, fileName));
         }
     }
+
+    // ============================================================
+    // RESUMEN DE FACTURACIÓN
+    // ============================================================
+    public class GetBillingSummaryQueryHandler : IRequestHandler<GetBillingSummaryQuery, BillingSummaryResponseDto>
+    {
+        private readonly Application.Abstractions.Billing.IInvoiceRepository _invoiceRepository;
+
+        public GetBillingSummaryQueryHandler(Application.Abstractions.Billing.IInvoiceRepository invoiceRepository)
+        {
+            _invoiceRepository = invoiceRepository;
+        }
+
+        public async Task<BillingSummaryResponseDto> Handle(
+            GetBillingSummaryQuery request,
+            CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"📊 Obteniendo resumen de facturación - Año: {request.Year}, Mes: {request.Month}");
+
+            var (totalInvoices, totalAmount, stampedInvoices, pendingInvoices, cancelledInvoices) = 
+                await _invoiceRepository.GetSummaryAsync(request.Year, request.Month);
+
+            var averageInvoiceAmount = totalInvoices > 0 ? totalAmount / totalInvoices : 0;
+
+            var result = new BillingSummaryResponseDto
+            {
+                Message = "Billing summary retrieved successfully",
+                Error = 0,
+                Period = $"{request.Year}-{request.Month:D2}",
+                Data = new BillingSummaryDataDto
+                {
+                    TotalInvoices = totalInvoices,
+                    TotalAmount = totalAmount,
+                    StampedInvoices = stampedInvoices,
+                    PendingInvoices = pendingInvoices,
+                    CancelledInvoices = cancelledInvoices,
+                    AverageInvoiceAmount = averageInvoiceAmount
+                }
+            };
+
+            Console.WriteLine($"✓ Resumen obtenido - Total: {totalInvoices} facturas, Monto: ${totalAmount:N2}");
+
+            return result;
+        }
+    }
 }

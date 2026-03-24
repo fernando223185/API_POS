@@ -691,4 +691,28 @@ namespace Application.DTOs.Billing
         public bool HasPreviousPage => Page > 1;
         public bool HasNextPage => Page < TotalPages;
     }
+
+    /// <summary>
+    /// Response para resumen de facturación
+    /// </summary>
+    public class BillingSummaryResponseDto
+    {
+        public string Message { get; set; } = "Billing summary retrieved successfully";
+        public int Error { get; set; }
+        public string Period { get; set; } = string.Empty;
+        public BillingSummaryDataDto Data { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Datos del resumen de facturación
+    /// </summary>
+    public class BillingSummaryDataDto
+    {
+        public int TotalInvoices { get; set; }
+        public decimal TotalAmount { get; set; }
+        public int StampedInvoices { get; set; }
+        public int PendingInvoices { get; set; }
+        public int CancelledInvoices { get; set; }
+        public decimal AverageInvoiceAmount { get; set; }
+    }
 }
