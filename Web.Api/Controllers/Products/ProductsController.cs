@@ -105,7 +105,8 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// Obtener producto por ID desde base de datos
+        /// ✅ Obtener producto por ID con TODA su información para edición
+        /// Retorna el ProductResponseDto completo con todos los campos necesarios para el formulario
         /// </summary>
         [HttpGet("{id}")]
         [RequirePermission("Productos", "View")]
@@ -113,10 +114,10 @@ namespace Web.Api.Controllers.Products
         {
             try
             {
-                Console.WriteLine($"?? Getting product by ID: {id}");
+                Console.WriteLine($"✅ Getting product by ID: {id}");
 
                 // Crear query para obtener por ID
-                var query = new GetProductByIdQuery { ID = id }; // ? CORREGIDO: usar ID en lugar de Id
+                var query = new GetProductByIdQuery { ID = id };
                 var product = await _mediator.Send(query);
 
                 if (product == null)
@@ -129,42 +130,19 @@ namespace Web.Api.Controllers.Products
                     });
                 }
 
-                Console.WriteLine($"? Product found: {product.name} (Code: {product.code})");
+                Console.WriteLine($"✅ Product found: {product.Name} (Code: {product.Code})");
 
+                // Retornar el DTO completo con TODA la información
                 return Ok(new
                 {
                     message = "Producto obtenido exitosamente",
                     error = 0,
-                    data = new 
-                    { 
-                        id = product.ID,
-                        name = product.name,
-                        code = product.code,
-                        price = product.price,
-                        baseCost = product.BaseCost,
-                        brand = product.Brand,
-                        model = product.Model,
-                        category = product.Category?.Name,
-                        subcategory = product.Subcategory?.Name,
-                        description = product.description,
-                        barcode = product.barcode,
-                        minimumStock = product.MinimumStock,
-                        maximumStock = product.MaximumStock,
-                        unit = product.Unit,
-                        isActive = product.IsActive,
-                        isService = product.IsService,
-                        createdAt = product.CreatedAt,
-                        createdBy = product.CreatedBy?.Name,
-                        location = product.Location,
-                        satCode = product.SatCode,
-                        satUnit = product.SatUnit,
-                        priceWithTax = product.price * (1 + product.TaxRate)
-                    }
+                    data = product // ProductResponseDto completo con todos los campos
                 });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error getting product {id}: {ex.Message}");
+                Console.WriteLine($"❌ Error getting product {id}: {ex.Message}");
                 return StatusCode(500, new { 
                     message = "Error al obtener producto de la base de datos", 
                     error = 2, 
@@ -391,36 +369,283 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// Actualizar producto
+        /// ✅ Actualizar producto existente (CQRS implementado)
         /// </summary>
+        /// <param name="id">ID del producto a actualizar</param>
+        /// <param name="updateProductRequest">Datos actualizados del producto</param>
+        /// <returns>Producto actualizado con toda la información</returns>
         [HttpPut("{id}")]
         [RequirePermission("Productos", "Edit")]
-        public async Task<IActionResult> UpdateProduct(int id, [FromBody] dynamic productData)
+        public async Task<IActionResult> UpdateProduct(int id, [FromBody] UpdateProductRequestDto updateProductRequest)
         {
             try
             {
+                Console.WriteLine($"✅ Updating product ID: {id} - {updateProductRequest.Name}");
+
+                // Validar modelo
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Datos de entrada inválidos",
+                        error = 1,
+                        errors = ModelState.SelectMany(x => x.Value.Errors.Select(e => e.ErrorMessage))
+                    });
+                }
+
+                // Obtener información del usuario del token
                 var userId = HttpContext.Items["UserId"] as int? ?? 0;
                 var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
 
-                // TODO: Implementar UpdateProductCommand despu�s
-                Console.WriteLine($"?? Update product {id} - Not implemented yet");
+                if (userId == 0)
+                {
+                    return Unauthorized(new { 
+                        message = "Usuario no autenticado", 
+                        error = 1 
+                    });
+                }
+
+                // Crear command y enviar a través de MediatR
+                var command = new UpdateProductCommand(id, updateProductRequest, userId);
+                var result = await _mediator.Send(command);
+
+                Console.WriteLine($"✅ Product updated successfully: ID {result.ID}");
 
                 return Ok(new
                 {
-                    message = "Producto actualizado exitosamente (simulado)",
+                    message = "Producto actualizado exitosamente",
                     error = 0,
-                    productId = id,
+                    data = result,
                     updatedBy = userName,
-                    updatedAt = DateTime.UtcNow,
-                    note = "Implementaci�n pendiente - usar CreateProduct para nuevos productos"
+                    summary = new
+                    {
+                        productId = result.ID,
+                        productCode = result.Code,
+                        productName = result.Name,
+                        price = result.Price,
+                        priceWithTax = result.PriceWithTax,
+                        profitMargin = result.Price > 0 && result.BaseCost > 0 
+                            ? Math.Round(((result.Price - result.BaseCost) / result.Price) * 100, 2) 
+                            : 0,
+                        category = result.CategoryName ?? "Sin categoría",
+                        isActive = result.IsActive,
+                        isService = result.IsService,
+                        trackSerial = result.TrackSerial,
+                        trackExpiry = result.TrackExpiry,
+                        updatedAt = result.UpdatedAt
+                    }
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"❌ Business logic error: {ex.Message}");
+                return BadRequest(new
+                {
+                    message = ex.Message,
+                    error = 1
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { 
-                    message = "Error al actualizar producto", 
-                    error = 2, 
-                    details = ex.Message 
+                Console.WriteLine($"❌ Error updating product: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return StatusCode(500, new
+                {
+                    message = "Error interno del servidor al actualizar producto",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// 🖼️ Actualizar producto con nueva imagen (reemplaza la imagen primaria en S3)
+        /// Este endpoint permite actualizar los datos del producto Y reemplazar su imagen principal
+        /// </summary>
+        /// <param name="id">ID del producto a actualizar</param>
+        /// <param name="file">Nueva imagen del producto (opcional)</param>
+        /// <param name="productData">Datos JSON del producto (como string, se deserializa internamente)</param>
+        /// <returns>Producto actualizado con la nueva imagen</returns>
+        [HttpPut("{id}/with-image")]
+        [RequirePermission("Productos", "Edit")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdateProductWithImage(
+            int id,
+            [FromForm] IFormFile? file,
+            [FromForm] string productData)
+        {
+            try
+            {
+                Console.WriteLine($"🖼️ Updating product {id} with image replacement...");
+
+                // Obtener usuario actual
+                var userId = HttpContext.Items["UserId"] as int? ?? 0;
+                var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
+
+                if (userId == 0)
+                {
+                    return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
+                }
+
+                // Deserializar datos del producto
+                UpdateProductRequestDto? updateRequest;
+                try
+                {
+                    updateRequest = System.Text.Json.JsonSerializer.Deserialize<UpdateProductRequestDto>(
+                        productData,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (updateRequest == null)
+                    {
+                        return BadRequest(new { message = "Datos del producto inválidos", error = 1 });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Error al deserializar datos del producto",
+                        error = 1,
+                        details = ex.Message
+                    });
+                }
+
+                // ✅ PASO 1: Actualizar los datos del producto usando CQRS
+                var command = new UpdateProductCommand(id, updateRequest, userId);
+                var updatedProduct = await _mediator.Send(command);
+
+                Console.WriteLine($"✅ Product data updated: {updatedProduct.Name}");
+
+                // ✅ PASO 2: Si se envió una nueva imagen, reemplazar la imagen primaria
+                string? newImageUrl = null;
+                string? newS3Key = null;
+
+                if (file != null && file.Length > 0)
+                {
+                    Console.WriteLine($"🖼️ Processing new image: {file.FileName} ({file.Length} bytes)");
+
+                    // Validar tamaño de archivo (máximo 5MB)
+                    if (file.Length > 5 * 1024 * 1024)
+                    {
+                        return BadRequest(new
+                        {
+                            message = "El archivo es demasiado grande. Tamaño máximo: 5MB",
+                            error = 1,
+                            fileSize = file.Length,
+                            maxSize = 5 * 1024 * 1024
+                        });
+                    }
+
+                    // Validar tipo de archivo
+                    var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp" };
+                    if (!allowedTypes.Contains(file.ContentType.ToLower()))
+                    {
+                        return BadRequest(new
+                        {
+                            message = "Tipo de archivo no permitido. Solo se permiten imágenes (JPEG, PNG, GIF, WEBP)",
+                            error = 1,
+                            contentType = file.ContentType
+                        });
+                    }
+
+                    // 🗑️ PASO 2.1: Eliminar la imagen primaria anterior de S3 (si existe)
+                    var existingImages = await _imageRepository.GetByProductIdAsync(id);
+                    var primaryImage = existingImages.FirstOrDefault(img => img.IsPrimary);
+
+                    if (primaryImage != null)
+                    {
+                        Console.WriteLine($"🗑️ Deleting old primary image from S3: {primaryImage.ImageUrl}");
+                        
+                        try
+                        {
+                            // Extraer S3 Key de la URL
+                            var oldS3Key = primaryImage.ImageUrl.Replace(_s3Service.GetPublicUrl(""), "");
+                            var deletedFromS3 = await _s3Service.DeleteImageAsync(oldS3Key);
+                            
+                            // Eliminar registro de la base de datos
+                            await _imageRepository.DeleteAsync(primaryImage.Id);
+                            
+                            Console.WriteLine($"✅ Old image deleted from S3: {deletedFromS3}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"⚠️ Warning: Could not delete old image: {ex.Message}");
+                            // Continuar aunque falle la eliminación de la imagen anterior
+                        }
+                    }
+
+                    // ⬆️ PASO 2.2: Subir nueva imagen a S3
+                    using (var stream = file.OpenReadStream())
+                    {
+                        newS3Key = await _s3Service.UploadImageAsync(
+                            stream,
+                            file.FileName,
+                            file.ContentType,
+                            $"products/{id}");
+                    }
+
+                    Console.WriteLine($"✅ New image uploaded to S3: {newS3Key}");
+
+                    // Obtener URL pública
+                    newImageUrl = _s3Service.GetPublicUrl(newS3Key);
+
+                    // 💾 PASO 2.3: Crear nuevo registro en la base de datos
+                    var productImage = new ProductImage
+                    {
+                        ProductId = id,
+                        ImageUrl = newImageUrl,
+                        ImageName = file.FileName,
+                        AltText = updatedProduct.Name,
+                        IsPrimary = true, // Siempre es la imagen primaria
+                        DisplayOrder = 1,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UploadedByUserId = userId
+                    };
+
+                    var savedImage = await _imageRepository.CreateAsync(productImage);
+                    Console.WriteLine($"✅ New image record created in database: ID {savedImage.Id}");
+                }
+
+                // ✅ Respuesta final
+                return Ok(new
+                {
+                    message = file != null 
+                        ? "Producto e imagen actualizados exitosamente" 
+                        : "Producto actualizado exitosamente (sin cambio de imagen)",
+                    error = 0,
+                    data = updatedProduct,
+                    image = file != null ? new
+                    {
+                        s3Key = newS3Key,
+                        publicUrl = newImageUrl,
+                        fileName = file.FileName,
+                        size = file.Length,
+                        uploadedAt = DateTime.UtcNow,
+                        uploadedBy = userName
+                    } : null,
+                    updatedBy = userName,
+                    updatedAt = DateTime.UtcNow
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"❌ Business logic error: {ex.Message}");
+                return BadRequest(new
+                {
+                    message = ex.Message,
+                    error = 1
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error updating product with image: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return StatusCode(500, new
+                {
+                    message = "Error interno del servidor al actualizar producto con imagen",
+                    error = 2,
+                    details = ex.Message
                 });
             }
         }
@@ -573,7 +798,7 @@ namespace Web.Api.Controllers.Products
                     ProductId = productId,
                     ImageUrl = publicUrl,
                     ImageName = file.FileName,
-                    AltText = altText ?? product.name,
+                    AltText = altText ?? product.Name,
                     IsPrimary = isPrimary,
                     DisplayOrder = displayOrder,
                     IsActive = true,

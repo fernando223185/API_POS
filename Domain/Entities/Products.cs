@@ -276,11 +276,13 @@ namespace Domain.Entities
         [ForeignKey("UpdatedByUserId")]
         public User? UpdatedBy { get; set; }
 
+        // ✅ RELACIONES
+        public ICollection<ProductImage> ProductImages { get; set; } = new List<ProductImage>();
+        
         // ✅ RELACIONES - Comentadas temporalmente para evitar errores
         // public ICollection<ProductPrice> ProductPrices { get; set; } = new List<ProductPrice>();
         // public ICollection<ProductStock> ProductStocks { get; set; } = new List<ProductStock>();
         // public ICollection<ProductSupplier> ProductSuppliers { get; set; } = new List<ProductSupplier>();
-        // public ICollection<ProductImage> ProductImages { get; set; } = new List<ProductImage>();
         // public ICollection<TransferItem> TransferItems { get; set; } = new List<TransferItem>();
         // public ICollection<InventoryMovement> InventoryMovements { get; set; } = new List<InventoryMovement>();
     }

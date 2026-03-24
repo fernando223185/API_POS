@@ -1,23 +1,24 @@
 ﻿
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Domain.Entities;
+using Application.Abstractions.Messaging;
+using Application.DTOs.Product;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
-namespace Application.Core.Product.Commands;
-
-public class UpdateProductCommand : IRequest<Products>
+namespace Application.Core.Product.Commands
 {
-    [Required]
-    public int ID { get; set; }
-    public string name { get; set; }
-    public string description { get; set; }
-    public string code { get; set; }
-    public string barcode { get; set; }
+    /// <summary>
+    /// Comando CQRS para actualizar un producto existente
+    /// </summary>
+    public class UpdateProductCommand : IRequest<ProductResponseDto>
+    {
+        public int ProductId { get; set; }
+        public UpdateProductRequestDto ProductData { get; set; }
+        public int UpdatedByUserId { get; set; }
 
-    [Precision(18, 2)]
-    public decimal price { get; set; }
+        public UpdateProductCommand(int productId, UpdateProductRequestDto productData, int updatedByUserId)
+        {
+            ProductId = productId;
+            ProductData = productData;
+            UpdatedByUserId = updatedByUserId;
+        }
+    }
 }

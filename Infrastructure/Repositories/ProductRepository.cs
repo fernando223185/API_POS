@@ -15,7 +15,7 @@ namespace Infrastructure.Repositories
             _dbcontext = dbcontext;
         }
 
-        // ? MÉTODO AUXILIAR PARA CONVERTIR Product a Products
+        // ? Mï¿½TODO AUXILIAR PARA CONVERTIR Product a Products
         private Products ConvertToProducts(Product product)
         {
             var products = new Products();
@@ -52,7 +52,7 @@ namespace Infrastructure.Repositories
             return false;
         }
 
-        // ? VERSIÓN MEJORADA CON CONTEO TOTAL Y MEJOR FILTRADO
+        // ? VERSIï¿½N MEJORADA CON CONTEO TOTAL Y MEJOR FILTRADO
         public async Task<IEnumerable<Products>> GetByPageAsync(ProductPageQuery query)
         {
             var pageSize = query.Size ?? 10;
@@ -81,11 +81,11 @@ namespace Infrastructure.Repositories
                 .Take(pageSize)
                 .ToListAsync();
 
-            // ? CORREGIDO: Convertir usando método auxiliar
+            // ? CORREGIDO: Convertir usando mï¿½todo auxiliar
             return results.Select(ConvertToProducts);
         }
 
-        // ? NUEVO MÉTODO PARA OBTENER CONTEO TOTAL
+        // ? NUEVO Mï¿½TODO PARA OBTENER CONTEO TOTAL
         public async Task<int> GetTotalCountAsync(ProductPageQuery query)
         {
             IQueryable<Product> queryable = _dbcontext.Products.AsQueryable();
@@ -115,7 +115,7 @@ namespace Infrastructure.Repositories
             return await queryable.CountAsync();
         }
 
-        // ?? NUEVO MÉTODO PARA OBTENER PRODUCTOS PAGINADOS CON CONTEO
+        // ?? NUEVO Mï¿½TODO PARA OBTENER PRODUCTOS PAGINADOS CON CONTEO
         public async Task<(IEnumerable<Products> Products, int TotalCount)> GetPagedWithCountAsync(ProductPageQuery query)
         {
             var pageSize = query.Size ?? 10;
@@ -151,13 +151,13 @@ namespace Infrastructure.Repositories
             }
 
             // ? NUEVO: Filtros de inventario
-            // NOTA: warehouseId NO filtra productos, solo afecta qué stock se muestra
+            // NOTA: warehouseId NO filtra productos, solo afecta quï¿½ stock se muestra
             
             if (query.OnlyWithStock.HasValue && query.OnlyWithStock.Value)
             {
                 if (query.WarehouseId.HasValue)
                 {
-                    // Stock en un almacén específico
+                    // Stock en un almacï¿½n especï¿½fico
                     var productIdsWithStock = await _dbcontext.ProductStock
                         .Where(ps => ps.WarehouseId == query.WarehouseId.Value && ps.Quantity > 0)
                         .Select(ps => ps.ProductId)
@@ -167,7 +167,7 @@ namespace Infrastructure.Repositories
                 }
                 else
                 {
-                    // Stock total en cualquier almacén
+                    // Stock total en cualquier almacï¿½n
                     var productIdsWithStock = await _dbcontext.ProductStock
                         .Where(ps => ps.Quantity > 0)
                         .Select(ps => ps.ProductId)
@@ -202,7 +202,7 @@ namespace Infrastructure.Repositories
                 }
             }
 
-            // Obtener conteo total antes de paginación
+            // Obtener conteo total antes de paginaciï¿½n
             var totalCount = await queryable.CountAsync();
 
             // Aplicar ordenamiento
@@ -222,26 +222,26 @@ namespace Infrastructure.Repositories
                     : queryable.OrderBy(p => p.name)
             };
 
-            // Aplicar paginación
+            // Aplicar paginaciï¿½n
             var results = await queryable
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
-            // ?? CORREGIDO: Convertir usando método auxiliar
+            // ?? CORREGIDO: Convertir usando mï¿½todo auxiliar
             var products = results.Select(ConvertToProducts);
 
             return (products, totalCount);
         }
 
-        // ? MÉTODO PARA ESTADÍSTICAS DE PRODUCTOS
+        // ? Mï¿½TODO PARA ESTADï¿½STICAS DE PRODUCTOS
         public async Task<(int Total, int Active, int Inactive, decimal TotalValue, int LowStock)> GetStatisticsAsync()
         {
             var total = await _dbcontext.Products.CountAsync();
             var active = await _dbcontext.Products.CountAsync(p => p.IsActive);
             var inactive = total - active;
             
-            // ? CORREGIDO: Evitar división por cero y valores nulos
+            // ? CORREGIDO: Evitar divisiï¿½n por cero y valores nulos
             var totalValue = await _dbcontext.Products
                 .Where(p => p.price > 0 && p.MinimumStock > 0 && p.MaximumStock > 0)
                 .SumAsync(p => p.price * ((p.MinimumStock + p.MaximumStock) / 2));
@@ -253,7 +253,7 @@ namespace Infrastructure.Repositories
             return (total, active, inactive, totalValue, lowStock);
         }
 
-        // ? MÉTODO PARA TOP CATEGORÍAS
+        // ? Mï¿½TODO PARA TOP CATEGORï¿½AS
         public async Task<List<CategoryStats>> GetTopCategoriesAsync(int count = 5)
         {
             return await _dbcontext.ProductCategories
@@ -269,7 +269,7 @@ namespace Infrastructure.Repositories
                 .ToListAsync();
         }
 
-        // ? MÉTODO PARA PRODUCTOS SIN STOCK
+        // ? Mï¿½TODO PARA PRODUCTOS SIN STOCK
         public async Task<int> GetOutOfStockCountAsync()
         {
             return await _dbcontext.Products.CountAsync(p => p.MaximumStock == 0);
@@ -329,7 +329,7 @@ namespace Infrastructure.Repositories
             }
             else if (warehouseId.HasValue)
             {
-                // No hay stock pero se especificó un almacén, mostrar 0 para ese almacén
+                // No hay stock pero se especificï¿½ un almacï¿½n, mostrar 0 para ese almacï¿½n
                 var warehouse = await _dbcontext.Warehouses
                     .Include(w => w.Branch)
                     .FirstOrDefaultAsync(w => w.Id == warehouseId.Value);
@@ -352,7 +352,7 @@ namespace Infrastructure.Repositories
             }
             else
             {
-                // No hay stock y no se especificó almacén, mostrar 0 para todos los almacenes activos
+                // No hay stock y no se especificï¿½ almacï¿½n, mostrar 0 para todos los almacenes activos
                 var allWarehouses = await _dbcontext.Warehouses
                     .Include(w => w.Branch)
                     .Where(w => w.IsActive)
@@ -384,6 +384,7 @@ namespace Infrastructure.Repositories
                 .Include(p => p.PrimarySupplier)
                 .Include(p => p.CreatedBy)
                 .Include(p => p.UpdatedBy)
+                .Include(p => p.ProductImages)
                 .FirstOrDefaultAsync(c => c.ID == productID);
                 
             return product != null ? ConvertToProducts(product) : null;

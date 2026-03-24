@@ -4,7 +4,7 @@ namespace Application.DTOs.Product
 {
     public class CreateProductRequestDto
     {
-        // ? INFORMACI”N B¡SICA
+        // ? INFORMACIÔøΩN BÔøΩSICA
         [Required]
         [StringLength(200)]
         public string Name { get; set; } = string.Empty;
@@ -25,11 +25,11 @@ namespace Application.DTOs.Product
         [StringLength(100)]
         public string? Model { get; set; }
 
-        // ? CLASIFICACI”N
+        // ? CLASIFICACIÔøΩN
         public int? CategoryId { get; set; }
         public int? SubcategoryId { get; set; }
 
-        // ? INFORMACI”N FISCAL
+        // ? INFORMACIÔøΩN FISCAL
         [StringLength(10)]
         public string SatCode { get; set; } = "01010101";
 
@@ -43,7 +43,7 @@ namespace Application.DTOs.Product
         public string? CustomsCode { get; set; }
 
         [StringLength(50)]
-        public string CountryOfOrigin { get; set; } = "MÈxico";
+        public string CountryOfOrigin { get; set; } = "MÔøΩxico";
 
         // ? PRECIOS Y COSTOS
         [Range(0, double.MaxValue)]
@@ -68,7 +68,7 @@ namespace Application.DTOs.Product
         [StringLength(20)]
         public string Unit { get; set; } = "PZA";
 
-        // ? CARACTERÕSTICAS FÕSICAS
+        // ? CARACTERÔøΩSTICAS FÔøΩSICAS
         public decimal? Weight { get; set; }
         public decimal? Length { get; set; }
         public decimal? Width { get; set; }
@@ -80,7 +80,7 @@ namespace Application.DTOs.Product
         [StringLength(50)]
         public string? Size { get; set; }
 
-        // ? INFORMACI”N COMERCIAL AVANZADA
+        // ? INFORMACIÔøΩN COMERCIAL AVANZADA
         public int? Warranty { get; set; }
 
         [StringLength(50)]
@@ -98,7 +98,7 @@ namespace Application.DTOs.Product
         [StringLength(20)]
         public string? Bin { get; set; }
 
-        // ? CLASIFICACI”N AVANZADA
+        // ? CLASIFICACIÔøΩN AVANZADA
         [StringLength(500)]
         public string? Tags { get; set; }
 
@@ -111,7 +111,7 @@ namespace Application.DTOs.Product
         [StringLength(50)]
         public string? AgeGroup { get; set; }
 
-        // ? INFORMACI”N DE VENTAS
+        // ? INFORMACIÔøΩN DE VENTAS
         public decimal? MaxQuantityPerSale { get; set; }
         public decimal MinQuantityPerSale { get; set; } = 1;
 
@@ -136,7 +136,7 @@ namespace Application.DTOs.Product
         public DateTime? LaunchDate { get; set; }
         public DateTime? DiscontinuedDate { get; set; }
 
-        // ? INFORMACI”N T…CNICA
+        // ? INFORMACIÔøΩN TÔøΩCNICA
         [StringLength(2000)]
         public string? TechnicalSpecs { get; set; }
 
@@ -152,7 +152,7 @@ namespace Application.DTOs.Product
         [StringLength(50)]
         public string? ISBN { get; set; }
 
-        // ? LOGÕSTICA Y ENVÕO
+        // ? LOGÔøΩSTICA Y ENVÔøΩO
         public bool IsFragile { get; set; } = false;
         public bool RequiresSpecialHandling { get; set; } = false;
 
@@ -172,7 +172,7 @@ namespace Application.DTOs.Product
         public decimal? DefectRate { get; set; }
         public decimal? ReturnRate { get; set; }
 
-        // ? AN¡LISIS Y REPORTES
+        // ? ANÔøΩLISIS Y REPORTES
         [StringLength(5)]
         public string? ABCClassification { get; set; }
 
@@ -183,7 +183,7 @@ namespace Application.DTOs.Product
         public DateTime? LastSaleDate { get; set; }
         public decimal TotalSalesQuantity { get; set; } = 0;
 
-        // ? INFORMACI”N ADICIONAL
+        // ? INFORMACIÔøΩN ADICIONAL
         [StringLength(1000)]
         public string? InternalNotes { get; set; }
 
@@ -196,7 +196,7 @@ namespace Application.DTOs.Product
         [StringLength(500)]
         public string? SafetyWarnings { get; set; }
 
-        // ? CONFIGURACI”N
+        // ? CONFIGURACIÔøΩN
         public bool IsActive { get; set; } = true;
         public bool IsService { get; set; } = false;
         public bool AllowFractionalQuantities { get; set; } = false;
@@ -204,6 +204,218 @@ namespace Application.DTOs.Product
         public bool TrackExpiry { get; set; } = false;
 
         // ? PROVEEDORES
+        public int? PrimarySupplierId { get; set; }
+
+        [StringLength(100)]
+        public string? SupplierCode { get; set; }
+    }
+
+    /// <summary>
+    /// DTO para actualizar un producto existente
+    /// Los campos no requeridos permiten actualizaciones parciales
+    /// </summary>
+    public class UpdateProductRequestDto
+    {
+        // ‚úÖ INFORMACI√ìN B√ÅSICA
+        [Required]
+        [StringLength(200)]
+        public string Name { get; set; } = string.Empty;
+
+        [StringLength(1000)]
+        public string? Description { get; set; }
+
+        [Required]
+        [StringLength(50)]
+        public string Code { get; set; } = string.Empty;
+
+        [StringLength(50)]
+        public string? Barcode { get; set; }
+
+        [StringLength(100)]
+        public string? Brand { get; set; }
+
+        [StringLength(100)]
+        public string? Model { get; set; }
+
+        // ‚úÖ CLASIFICACI√ìN
+        public int? CategoryId { get; set; }
+        public int? SubcategoryId { get; set; }
+
+        // ‚úÖ INFORMACI√ìN FISCAL
+        [StringLength(10)]
+        public string SatCode { get; set; } = "01010101";
+
+        [StringLength(10)]
+        public string SatUnit { get; set; } = "PZA";
+
+        [StringLength(20)]
+        public string SatTaxType { get; set; } = "Tasa";
+
+        [StringLength(20)]
+        public string? CustomsCode { get; set; }
+
+        [StringLength(50)]
+        public string CountryOfOrigin { get; set; } = "M√©xico";
+
+        // ‚úÖ PRECIOS Y COSTOS
+        [Range(0, double.MaxValue)]
+        public decimal BaseCost { get; set; } = 0;
+
+        [Range(0, double.MaxValue)]
+        public decimal Price { get; set; } = 0;
+
+        [Range(0, 1)]
+        public decimal TaxRate { get; set; } = 0.16m;
+
+        // ‚úÖ INVENTARIO
+        [Range(0, double.MaxValue)]
+        public decimal MinimumStock { get; set; } = 0;
+
+        [Range(0, double.MaxValue)]
+        public decimal MaximumStock { get; set; } = 0;
+
+        [Range(0, double.MaxValue)]
+        public decimal ReorderPoint { get; set; } = 0;
+
+        [StringLength(20)]
+        public string Unit { get; set; } = "PZA";
+
+        // ‚úÖ CARACTER√çSTICAS F√çSICAS
+        public decimal? Weight { get; set; }
+        public decimal? Length { get; set; }
+        public decimal? Width { get; set; }
+        public decimal? Height { get; set; }
+
+        [StringLength(50)]
+        public string? Color { get; set; }
+
+        [StringLength(50)]
+        public string? Size { get; set; }
+
+        // ‚úÖ INFORMACI√ìN COMERCIAL AVANZADA
+        public int? Warranty { get; set; }
+
+        [StringLength(50)]
+        public string? WarrantyType { get; set; }
+
+        [StringLength(100)]
+        public string? Location { get; set; }
+
+        [StringLength(20)]
+        public string? Aisle { get; set; }
+
+        [StringLength(20)]
+        public string? Shelf { get; set; }
+
+        [StringLength(20)]
+        public string? Bin { get; set; }
+
+        // ‚úÖ CLASIFICACI√ìN AVANZADA
+        [StringLength(500)]
+        public string? Tags { get; set; }
+
+        [StringLength(50)]
+        public string? Season { get; set; }
+
+        [StringLength(20)]
+        public string? TargetGender { get; set; }
+
+        [StringLength(50)]
+        public string? AgeGroup { get; set; }
+
+        // ‚úÖ INFORMACI√ìN DE VENTAS
+        public decimal? MaxQuantityPerSale { get; set; }
+        public decimal MinQuantityPerSale { get; set; } = 1;
+
+        [StringLength(500)]
+        public string? SalesNotes { get; set; }
+
+        public bool IsDiscountAllowed { get; set; } = true;
+        public decimal? MaxDiscountPercentage { get; set; }
+
+        // ‚úÖ E-COMMERCE Y MARKETING
+        [StringLength(200)]
+        public string? SEOTitle { get; set; }
+
+        [StringLength(500)]
+        public string? SEODescription { get; set; }
+
+        [StringLength(300)]
+        public string? SEOKeywords { get; set; }
+
+        public bool IsWebVisible { get; set; } = true;
+        public bool IsFeatured { get; set; } = false;
+        public DateTime? LaunchDate { get; set; }
+        public DateTime? DiscontinuedDate { get; set; }
+
+        // ‚úÖ INFORMACI√ìN T√âCNICA
+        [StringLength(2000)]
+        public string? TechnicalSpecs { get; set; }
+
+        [StringLength(100)]
+        public string? ManufacturerPartNumber { get; set; }
+
+        [StringLength(50)]
+        public string? UPC { get; set; }
+
+        [StringLength(50)]
+        public string? EAN { get; set; }
+
+        [StringLength(50)]
+        public string? ISBN { get; set; }
+
+        // ‚úÖ LOG√çSTICA Y ENV√çO
+        public bool IsFragile { get; set; } = false;
+        public bool RequiresSpecialHandling { get; set; } = false;
+
+        [StringLength(50)]
+        public string? ShippingClass { get; set; }
+
+        public decimal? PackageLength { get; set; }
+        public decimal? PackageWidth { get; set; }
+        public decimal? PackageHeight { get; set; }
+        public decimal? PackageWeight { get; set; }
+
+        // ‚úÖ CONTROL DE CALIDAD
+        [StringLength(20)]
+        public string? QualityGrade { get; set; }
+
+        public DateTime? LastQualityCheck { get; set; }
+        public decimal? DefectRate { get; set; }
+        public decimal? ReturnRate { get; set; }
+
+        // ‚úÖ AN√ÅLISIS Y REPORTES
+        [StringLength(5)]
+        public string? ABCClassification { get; set; }
+
+        [StringLength(20)]
+        public string? VelocityCode { get; set; }
+
+        public decimal? ProfitMarginPercentage { get; set; }
+        public DateTime? LastSaleDate { get; set; }
+        public decimal TotalSalesQuantity { get; set; } = 0;
+
+        // ‚úÖ INFORMACI√ìN ADICIONAL
+        [StringLength(1000)]
+        public string? InternalNotes { get; set; }
+
+        [StringLength(500)]
+        public string? CustomerNotes { get; set; }
+
+        [StringLength(1000)]
+        public string? MaintenanceInstructions { get; set; }
+
+        [StringLength(500)]
+        public string? SafetyWarnings { get; set; }
+
+        // ‚úÖ CONFIGURACI√ìN
+        public bool IsActive { get; set; } = true;
+        public bool IsService { get; set; } = false;
+        public bool AllowFractionalQuantities { get; set; } = false;
+        public bool TrackSerial { get; set; } = false;
+        public bool TrackExpiry { get; set; } = false;
+
+        // ‚úÖ PROVEEDORES
         public int? PrimarySupplierId { get; set; }
 
         [StringLength(100)]
@@ -223,7 +435,7 @@ namespace Application.DTOs.Product
         public string? Brand { get; set; }
         public string? Model { get; set; }
 
-        // ClasificaciÛn
+        // ClasificaciÔøΩn
         public int? CategoryId { get; set; }
         public string? CategoryName { get; set; }
         public int? SubcategoryId { get; set; }
@@ -241,14 +453,14 @@ namespace Application.DTOs.Product
         public decimal ReorderPoint { get; set; }
         public string Unit { get; set; } = string.Empty;
 
-        // InformaciÛn fiscal
+        // InformaciÔøΩn fiscal
         public string SatCode { get; set; } = string.Empty;
         public string SatUnit { get; set; } = string.Empty;
         public string SatTaxType { get; set; } = string.Empty;
         public string? CustomsCode { get; set; }
         public string CountryOfOrigin { get; set; } = string.Empty;
 
-        // CaracterÌsticas fÌsicas
+        // CaracterÔøΩsticas fÔøΩsicas
         public decimal? Weight { get; set; }
         public decimal? Length { get; set; }
         public decimal? Width { get; set; }
@@ -256,7 +468,7 @@ namespace Application.DTOs.Product
         public string? Color { get; set; }
         public string? Size { get; set; }
 
-        // InformaciÛn comercial avanzada
+        // InformaciÔøΩn comercial avanzada
         public int? Warranty { get; set; }
         public string? WarrantyType { get; set; }
         public string? Location { get; set; }
@@ -264,13 +476,13 @@ namespace Application.DTOs.Product
         public string? Shelf { get; set; }
         public string? Bin { get; set; }
 
-        // ClasificaciÛn avanzada
+        // ClasificaciÔøΩn avanzada
         public string? Tags { get; set; }
         public string? Season { get; set; }
         public string? TargetGender { get; set; }
         public string? AgeGroup { get; set; }
 
-        // InformaciÛn de ventas
+        // InformaciÔøΩn de ventas
         public decimal? MaxQuantityPerSale { get; set; }
         public decimal MinQuantityPerSale { get; set; }
         public string? SalesNotes { get; set; }
@@ -286,14 +498,14 @@ namespace Application.DTOs.Product
         public DateTime? LaunchDate { get; set; }
         public DateTime? DiscontinuedDate { get; set; }
 
-        // InformaciÛn tÈcnica
+        // InformaciÔøΩn tÔøΩcnica
         public string? TechnicalSpecs { get; set; }
         public string? ManufacturerPartNumber { get; set; }
         public string? UPC { get; set; }
         public string? EAN { get; set; }
         public string? ISBN { get; set; }
 
-        // LogÌstica y envÌo
+        // LogÔøΩstica y envÔøΩo
         public bool IsFragile { get; set; }
         public bool RequiresSpecialHandling { get; set; }
         public string? ShippingClass { get; set; }
@@ -308,20 +520,20 @@ namespace Application.DTOs.Product
         public decimal? DefectRate { get; set; }
         public decimal? ReturnRate { get; set; }
 
-        // An·lisis y reportes
+        // AnÔøΩlisis y reportes
         public string? ABCClassification { get; set; }
         public string? VelocityCode { get; set; }
         public decimal? ProfitMarginPercentage { get; set; }
         public DateTime? LastSaleDate { get; set; }
         public decimal TotalSalesQuantity { get; set; }
 
-        // InformaciÛn adicional
+        // InformaciÔøΩn adicional
         public string? InternalNotes { get; set; }
         public string? CustomerNotes { get; set; }
         public string? MaintenanceInstructions { get; set; }
         public string? SafetyWarnings { get; set; }
 
-        // ConfiguraciÛn
+        // ConfiguraciÔøΩn
         public bool IsActive { get; set; }
         public bool IsService { get; set; }
         public bool AllowFractionalQuantities { get; set; }
@@ -362,7 +574,7 @@ namespace Application.DTOs.Product
         public bool IsActive { get; set; }
     }
 
-    // ? DTO especÌfico para tabla de productos (optimizado para frontend)
+    // ? DTO especÔøΩfico para tabla de productos (optimizado para frontend)
     public class ProductTableDto
     {
         public int ID { get; set; }
@@ -430,7 +642,7 @@ namespace Application.DTOs.Product
         public decimal TotalValue { get; set; }
     }
 
-    // ? NUEVO: DTO de respuesta paginada con ProductResponseDto (m·s completo)
+    // ? NUEVO: DTO de respuesta paginada con ProductResponseDto (mÔøΩs completo)
     public class ProductPagedResponseDto
     {
         public string Message { get; set; } = string.Empty;
