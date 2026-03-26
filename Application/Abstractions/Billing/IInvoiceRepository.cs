@@ -76,5 +76,10 @@ namespace Application.Abstractions.Billing
         /// Obtener resumen de facturación para un mes/año específico
         /// </summary>
         Task<(int totalInvoices, decimal totalAmount, int stampedInvoices, int pendingInvoices, int cancelledInvoices)> GetSummaryAsync(int year, int month);
+
+        /// <summary>
+        /// Reemplaza todos los detalles (conceptos) de una factura Borrador
+        /// </summary>
+        Task ReplaceDetailsAsync(int invoiceId, List<InvoiceDetail> newDetails);
     }
 }

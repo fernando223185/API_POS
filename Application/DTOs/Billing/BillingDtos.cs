@@ -515,15 +515,45 @@ namespace Application.DTOs.Billing
     /// </summary>
     public class UpdateInvoiceRequestDto
     {
-        public string? FormaPago { get; set; }
-        public string? MetodoPago { get; set; }
+        // Datos del receptor / cliente
+        public string? ClientName { get; set; }
+        public string? ClientRFC { get; set; }
+        public string? ClientUsoCFDI { get; set; }
+        public string? ClientRegimenFiscal { get; set; }
+        public string? ClientPostalCode { get; set; }
+
+        // Datos del comprobante
+        public string? PaymentForm { get; set; }      // -> FormaPago  (ej: "99", "01")
+        public string? PaymentMethod { get; set; }    // -> MetodoPago (ej: "PPD", "PUE")
         public string? CondicionesDePago { get; set; }
-        public string? ReceptorRfc { get; set; }
-        public string? ReceptorNombre { get; set; }
-        public string? ReceptorDomicilioFiscal { get; set; }
-        public string? ReceptorRegimenFiscal { get; set; }
-        public string? ReceptorUsoCfdi { get; set; }
+        public string? Currency { get; set; }
+        public decimal? ExchangeRate { get; set; }
         public string? Notes { get; set; }
+
+        // Montos recalculados
+        public decimal? Subtotal { get; set; }
+        public decimal? TotalDiscount { get; set; }
+        public decimal? TotalTax { get; set; }
+        public decimal? Total { get; set; }
+
+        // Ítems actualizados (opcional)
+        public List<UpdateInvoiceItemDto>? Items { get; set; }
+    }
+
+    public class UpdateInvoiceItemDto
+    {
+        public int? Id { get; set; }               // ID del detalle existente (null = nuevo)
+        public int? ProductId { get; set; }
+        public string? ProductCode { get; set; }
+        public string? Description { get; set; }
+        public decimal Quantity { get; set; }
+        public string? Unit { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal Discount { get; set; }
+        public decimal TaxRate { get; set; }
+        public decimal Amount { get; set; }
+        public decimal TaxAmount { get; set; }
+        public decimal Total { get; set; }
     }
 
     /// <summary>

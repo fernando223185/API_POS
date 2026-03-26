@@ -42,36 +42,74 @@ namespace Application.Core.Billing.CommandHandlers
 
             var req = command.Request;
 
-            if (!string.IsNullOrWhiteSpace(req.FormaPago))
-                invoice.FormaPago = req.FormaPago;
+            // Datos del receptor
+            if (!string.IsNullOrWhiteSpace(req.ClientRFC))
+                invoice.ReceptorRfc = req.ClientRFC;
 
-            if (!string.IsNullOrWhiteSpace(req.MetodoPago))
-                invoice.MetodoPago = req.MetodoPago;
+            if (!string.IsNullOrWhiteSpace(req.ClientName))
+                invoice.ReceptorNombre = req.ClientName;
+
+            if (!string.IsNullOrWhiteSpace(req.ClientPostalCode))
+                invoice.ReceptorDomicilioFiscal = req.ClientPostalCode;
+
+            if (!string.IsNullOrWhiteSpace(req.ClientRegimenFiscal))
+                invoice.ReceptorRegimenFiscal = req.ClientRegimenFiscal;
+
+            if (!string.IsNullOrWhiteSpace(req.ClientUsoCFDI))
+                invoice.ReceptorUsoCfdi = req.ClientUsoCFDI;
+
+            // Datos del comprobante
+            if (!string.IsNullOrWhiteSpace(req.PaymentForm))
+                invoice.FormaPago = req.PaymentForm;
+
+            if (!string.IsNullOrWhiteSpace(req.PaymentMethod))
+                invoice.MetodoPago = req.PaymentMethod;
 
             if (req.CondicionesDePago != null)
                 invoice.CondicionesDePago = req.CondicionesDePago;
 
-            if (!string.IsNullOrWhiteSpace(req.ReceptorRfc))
-                invoice.ReceptorRfc = req.ReceptorRfc;
+            if (!string.IsNullOrWhiteSpace(req.Currency))
+                invoice.Moneda = req.Currency;
 
-            if (!string.IsNullOrWhiteSpace(req.ReceptorNombre))
-                invoice.ReceptorNombre = req.ReceptorNombre;
-
-            if (!string.IsNullOrWhiteSpace(req.ReceptorDomicilioFiscal))
-                invoice.ReceptorDomicilioFiscal = req.ReceptorDomicilioFiscal;
-
-            if (req.ReceptorRegimenFiscal != null)
-                invoice.ReceptorRegimenFiscal = req.ReceptorRegimenFiscal;
-
-            if (!string.IsNullOrWhiteSpace(req.ReceptorUsoCfdi))
-                invoice.ReceptorUsoCfdi = req.ReceptorUsoCfdi;
+            if (req.ExchangeRate.HasValue)
+                invoice.TipoCambio = req.ExchangeRate.Value;
 
             if (req.Notes != null)
                 invoice.Notes = req.Notes;
 
+            // Montos
+            if (req.Subtotal.HasValue)
+                invoice.SubTotal = req.Subtotal.Value;
+
+            if (req.TotalDiscount.HasValue)
+                invoice.DiscountAmount = req.TotalDiscount.Value;
+
+            if (req.TotalTax.HasValue)
+                invoice.TaxAmount = req.TotalTax.Value;
+
+            if (req.Total.HasValue)
+                invoice.Total = req.Total.Value;
+
             invoice.UpdatedAt = DateTime.UtcNow;
 
             var updated = await _invoiceRepository.UpdateAsync(invoice);
+
+            // Actualizar ítems si se enviaron
+            if (req.Items != null && req.Items.Count > 0)
+                await _invoiceRepository.ReplaceDetailsAsync(updated.Id, req.Items.Select(item => new InvoiceDetail
+                {
+                    InvoiceId = updated.Id,
+                    ProductId = item.ProductId,
+                    NoIdentificacion = item.ProductCode,
+                    ClaveProdServ = "01010101",
+                    Cantidad = item.Quantity,
+                    ClaveUnidad = item.Unit ?? "H87",
+                    Descripcion = item.Description ?? string.Empty,
+                    ValorUnitario = item.UnitPrice,
+                    Descuento = item.Discount,
+                    Importe = item.Amount,
+                    ObjetoImp = "02"
+                }).ToList());
 
             var invoiceWithRelations = await _invoiceRepository.GetByIdAsync(updated.Id);
 

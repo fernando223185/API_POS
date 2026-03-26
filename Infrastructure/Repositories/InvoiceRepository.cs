@@ -82,6 +82,24 @@ namespace Infrastructure.Repositories
             return invoice;
         }
 
+        public async Task ReplaceDetailsAsync(int invoiceId, List<InvoiceDetail> newDetails)
+        {
+            var existing = await _context.InvoiceDetails
+                .Where(d => d.InvoiceId == invoiceId)
+                .ToListAsync();
+
+            _context.InvoiceDetails.RemoveRange(existing);
+
+            foreach (var detail in newDetails)
+            {
+                detail.InvoiceId = invoiceId;
+                detail.Id = 0; // asegurar que EF lo trate como nuevo
+            }
+
+            await _context.InvoiceDetails.AddRangeAsync(newDetails);
+            await _context.SaveChangesAsync();
+        }
+
         public async Task<(IEnumerable<Invoice> Invoices, int TotalCount)> GetPagedAsync(
             int page,
             int pageSize,
