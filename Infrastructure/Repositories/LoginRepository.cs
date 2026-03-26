@@ -21,8 +21,9 @@ namespace Infrastructure.Repositories
 
         public async Task<User> Login(User user)
         {
-            // Primero buscar el usuario por código
+            // Primero buscar el usuario por código con su rol
             var userInDb = await _dbcontext.User
+                .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.Code == user.Code);
 
             if (userInDb == null)

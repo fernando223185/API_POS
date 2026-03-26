@@ -18,7 +18,11 @@ namespace Application.DTOs.Users
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
-        // ? NUEVO: Control de almacén
+        // âœ… Empresa y Sucursal
+        public int? CompanyId { get; set; }
+        public int? BranchId { get; set; }
+
+        // âœ… Control de almacÃ©n
         public int? DefaultWarehouseId { get; set; }
         public string? DefaultWarehouseCode { get; set; }
         public string? DefaultWarehouseName { get; set; }
@@ -77,7 +81,7 @@ namespace Application.DTOs.Users
     /// </summary>
     public class CreateUserDto
     {
-        [Required(ErrorMessage = "El código es requerido")]
+        [Required(ErrorMessage = "El cï¿½digo es requerido")]
         [StringLength(100)]
         public string Code { get; set; } = string.Empty;
 
@@ -90,7 +94,7 @@ namespace Application.DTOs.Users
         public string Password { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El email es requerido")]
-        [EmailAddress(ErrorMessage = "Email inválido")]
+        [EmailAddress(ErrorMessage = "Email invï¿½lido")]
         [StringLength(255)]
         public string Email { get; set; } = string.Empty;
 
@@ -100,14 +104,14 @@ namespace Application.DTOs.Users
         [Required(ErrorMessage = "El RoleId es requerido")]
         public int RoleId { get; set; }
 
-        // ? NUEVO: Control de almacén
+        // ? NUEVO: Control de almacï¿½n
         /// <summary>
-        /// Almacén asignado por defecto (NULL si no tiene asignado)
+        /// Almacï¿½n asignado por defecto (NULL si no tiene asignado)
         /// </summary>
         public int? DefaultWarehouseId { get; set; }
 
         /// <summary>
-        /// Permite vender desde múltiples almacenes (false por defecto)
+        /// Permite vender desde mï¿½ltiples almacenes (false por defecto)
         /// </summary>
         public bool CanSellFromMultipleWarehouses { get; set; } = false;
     }
@@ -120,7 +124,7 @@ namespace Application.DTOs.Users
         [StringLength(255)]
         public string? Name { get; set; }
 
-        [EmailAddress(ErrorMessage = "Email inválido")]
+        [EmailAddress(ErrorMessage = "Email invÃ¡lido")]
         [StringLength(255)]
         public string? Email { get; set; }
 
@@ -131,7 +135,23 @@ namespace Application.DTOs.Users
 
         public bool? Active { get; set; }
 
-        // ? NUEVO: Control de almacén
+        /// <summary>
+        /// Nueva contraseÃ±a (opcional, solo si se desea cambiar)
+        /// </summary>
+        [MinLength(6, ErrorMessage = "La contraseÃ±a debe tener al menos 6 caracteres")]
+        public string? NewPassword { get; set; }
+
+        /// <summary>
+        /// ID de la empresa asignada
+        /// </summary>
+        public int? CompanyId { get; set; }
+
+        /// <summary>
+        /// ID de la sucursal asignada
+        /// </summary>
+        public int? BranchId { get; set; }
+
+        // âœ… Control de almacÃ©n
         public int? DefaultWarehouseId { get; set; }
         
         public bool? CanSellFromMultipleWarehouses { get; set; }

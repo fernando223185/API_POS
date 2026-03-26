@@ -19,5 +19,7 @@ namespace Application.DTOs.Auth
         public bool Active { get; set; }
         public int RoleId { get; set; }
         public string RoleName { get; set; }
+        public int? BranchId { get; set; }
+        public int? CompanyId { get; set; }
     }
 }

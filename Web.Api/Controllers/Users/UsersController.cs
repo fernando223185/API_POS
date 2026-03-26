@@ -26,7 +26,7 @@ namespace Web.Api.Controllers.Users
         /// ?? Obtener todos los usuarios del sistema
         /// </summary>
         [HttpGet]
-        [RequireAuthentication]  // Solo requiere autenticaciÛn, no permiso especÌfico
+        [RequireAuthentication]  // Solo requiere autenticaciÔøΩn, no permiso especÔøΩfico
         public async Task<IActionResult> GetAllUsers(
             [FromQuery] string? search = null,
             [FromQuery] int? roleId = null,
@@ -40,7 +40,7 @@ namespace Web.Api.Controllers.Users
                     .Include(u => u.Role)
                     .AsQueryable();
 
-                // Filtrar por b˙squeda (nombre, cÛdigo o email) - OPCIONAL
+                // Filtrar por bÔøΩsqueda (nombre, cÔøΩdigo o email) - OPCIONAL
                 if (!string.IsNullOrWhiteSpace(search))
                 {
                     query = query.Where(u => 
@@ -61,10 +61,10 @@ namespace Web.Api.Controllers.Users
                     query = query.Where(u => u.Active == active.Value);
                 }
 
-                // Contar total antes de paginaciÛn
+                // Contar total antes de paginaciÔøΩn
                 var total = await query.CountAsync();
 
-                // Aplicar paginaciÛn
+                // Aplicar paginaci√≥n
                 var users = await query
                     .OrderBy(u => u.Name)
                     .Skip((page - 1) * pageSize)
@@ -79,6 +79,10 @@ namespace Web.Api.Controllers.Users
                         RoleId = u.RoleId,
                         RoleName = u.Role.Name,
                         Active = u.Active,
+                        CompanyId = u.CompanyId,
+                        BranchId = u.BranchId,
+                        DefaultWarehouseId = u.DefaultWarehouseId,
+                        CanSellFromMultipleWarehouses = u.CanSellFromMultipleWarehouses,
                         CreatedAt = u.CreatedAt,
                         UpdatedAt = u.UpdatedAt
                     })
@@ -134,6 +138,10 @@ namespace Web.Api.Controllers.Users
                         RoleId = u.RoleId,
                         RoleName = u.Role.Name,
                         Active = u.Active,
+                        CompanyId = u.CompanyId,
+                        BranchId = u.BranchId,
+                        DefaultWarehouseId = u.DefaultWarehouseId,
+                        CanSellFromMultipleWarehouses = u.CanSellFromMultipleWarehouses,
                         CreatedAt = u.CreatedAt,
                         UpdatedAt = u.UpdatedAt
                     })
@@ -170,7 +178,7 @@ namespace Web.Api.Controllers.Users
         }
 
         /// <summary>
-        /// ?? Obtener estadÌsticas de usuarios
+        /// ?? Obtener estadÔøΩsticas de usuarios
         /// </summary>
         [HttpGet("statistics")]
         [RequireAuthentication]
@@ -194,11 +202,11 @@ namespace Web.Api.Controllers.Users
                     })
                     .ToListAsync();
 
-                Console.WriteLine($"? EstadÌsticas obtenidas: {totalUsers} usuarios totales");
+                Console.WriteLine($"? EstadÔøΩsticas obtenidas: {totalUsers} usuarios totales");
 
                 return Ok(new
                 {
-                    message = "EstadÌsticas obtenidas exitosamente",
+                    message = "EstadÔøΩsticas obtenidas exitosamente",
                     error = 0,
                     data = new
                     {
@@ -211,10 +219,102 @@ namespace Web.Api.Controllers.Users
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Error al obtener estadÌsticas: {ex.Message}");
+                Console.WriteLine($"? Error al obtener estad√≠sticas: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener estadÌsticas",
+                    message = "Error al obtener estad√≠sticas",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// ‚úÖ Actualizar informaci√≥n de un usuario
+        /// </summary>
+        [HttpPut("{id}")]
+        [RequireAuthentication]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDto dto)
+        {
+            try
+            {
+                var user = await _context.User.FindAsync(id);
+                if (user == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Usuario no encontrado",
+                        error = 1
+                    });
+                }
+
+                // Actualizar solo los campos proporcionados
+                if (!string.IsNullOrWhiteSpace(dto.Name))
+                    user.Name = dto.Name;
+
+                if (!string.IsNullOrWhiteSpace(dto.Email))
+                    user.Email = dto.Email;
+
+                if (dto.Phone != null)
+                    user.Phone = dto.Phone;
+
+                if (dto.RoleId.HasValue)
+                    user.RoleId = dto.RoleId.Value;
+
+                if (dto.CompanyId.HasValue)
+                    user.CompanyId = dto.CompanyId;
+
+                if (dto.BranchId.HasValue)
+                    user.BranchId = dto.BranchId;
+
+                if (dto.DefaultWarehouseId.HasValue)
+                    user.DefaultWarehouseId = dto.DefaultWarehouseId;
+
+                if (dto.CanSellFromMultipleWarehouses.HasValue)
+                    user.CanSellFromMultipleWarehouses = dto.CanSellFromMultipleWarehouses.Value;
+
+                if (dto.Active.HasValue)
+                    user.Active = dto.Active.Value;
+
+                // Actualizar contrase√±a si se proporcion√≥
+                if (!string.IsNullOrWhiteSpace(dto.NewPassword))
+                {
+                    user.PasswordHash = Application.Common.Security.PasswordHasher.HashPassword(dto.NewPassword);
+                }
+
+                user.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                Console.WriteLine($"‚úÖ Usuario actualizado: {user.Code}");
+
+                return Ok(new
+                {
+                    message = "Usuario actualizado exitosamente",
+                    error = 0,
+                    data = new UserResponseDto
+                    {
+                        Id = user.Id,
+                        Code = user.Code,
+                        Name = user.Name,
+                        Email = user.Email,
+                        Phone = user.Phone,
+                        RoleId = user.RoleId,
+                        Active = user.Active,
+                        CompanyId = user.CompanyId,
+                        BranchId = user.BranchId,
+                        DefaultWarehouseId = user.DefaultWarehouseId,
+                        CanSellFromMultipleWarehouses = user.CanSellFromMultipleWarehouses,
+                        UpdatedAt = user.UpdatedAt
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"‚ùå Error al actualizar usuario: {ex.Message}");
+                return StatusCode(500, new
+                {
+                    message = "Error al actualizar usuario",
                     error = 2,
                     details = ex.Message
                 });
@@ -369,7 +469,7 @@ namespace Web.Api.Controllers.Users
         }
 
         /// <summary>
-        /// ?? Obtener usuarios de un rol especÌfico
+        /// ?? Obtener usuarios de un rol especÔøΩfico
         /// </summary>
         [HttpGet("roles/{roleId}/users")]
         [RequireAuthentication]

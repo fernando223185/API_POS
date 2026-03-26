@@ -35,6 +35,25 @@ namespace Domain.Entities
         [ForeignKey("RoleId")]
         public Role Role { get; set; }  // Propiedad de navegación
 
+        // ✅ Asignación de Empresa y Sucursal
+        /// <summary>
+        /// ID de la empresa asignada al usuario
+        /// NULL = Usuario sin empresa asignada (ej: super administrador)
+        /// </summary>
+        public int? CompanyId { get; set; }
+        
+        /// <summary>
+        /// ID de la sucursal asignada al usuario
+        /// NULL = Usuario sin sucursal asignada
+        /// </summary>
+        public int? BranchId { get; set; }
+
+        [ForeignKey(nameof(CompanyId))]
+        public virtual Company? Company { get; set; }
+
+        [ForeignKey(nameof(BranchId))]
+        public virtual Branch? Branch { get; set; }
+
         // ✅ NUEVO: Sistema de control de almacén para ventas
         /// <summary>
         /// Almacén/Sucursal asignado por defecto al usuario

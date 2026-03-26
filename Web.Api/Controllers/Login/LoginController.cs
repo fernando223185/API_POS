@@ -68,7 +68,9 @@ namespace Web.Api.Controllers.LoginController
                             Email = user.Email,
                             Active = user.Active,
                             RoleId = user.RoleId,
-                            RoleName = user.Role?.Name ?? "Usuario"
+                            RoleName = user.Role?.Name ?? "Usuario",
+                            BranchId = user.BranchId,
+                            CompanyId = user.CompanyId
                         }
                     };
 

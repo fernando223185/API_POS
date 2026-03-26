@@ -61,6 +61,15 @@ namespace Infrastructure.Persistence
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<InvoiceDetail> InvoiceDetails { get; set; }
 
+        // ✅ NUEVO: Sistema de Cuentas por Cobrar y Complementos de Pago
+        public DbSet<InvoicePPD> InvoicesPPD { get; set; }
+        public DbSet<Payment> Payments { get; set; }
+        public DbSet<PaymentApplication> PaymentApplications { get; set; }
+        public DbSet<PaymentBatch> PaymentBatches { get; set; }
+        public DbSet<CustomerCreditPolicy> CustomerCreditPolicies { get; set; }
+        public DbSet<CustomerCreditHistory> CustomerCreditHistory { get; set; }
+        public DbSet<PaymentComplementLog> PaymentComplementLogs { get; set; }
+
         // ✅ NUEVO: Catálogos SAT para facturación
         public DbSet<SatUsoCfdi> SatUsoCfdi { get; set; }
         public DbSet<SatRegimenFiscal> SatRegimenFiscal { get; set; }
@@ -121,6 +130,19 @@ namespace Infrastructure.Persistence
                 .HasOne(u => u.DefaultWarehouse)
                 .WithMany()
                 .HasForeignKey(u => u.DefaultWarehouseId)
+                .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+            // ✅ CONFIGURACIÓN DE EMPRESA Y SUCURSAL DEL USUARIO
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.Company)
+                .WithMany()
+                .HasForeignKey(u => u.CompanyId)
+                .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
+
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.Branch)
+                .WithMany()
+                .HasForeignKey(u => u.BranchId)
                 .OnDelete(DeleteBehavior.Restrict); // NO CASCADE
 
             modelBuilder.Entity<User>()
@@ -514,6 +536,153 @@ namespace Infrastructure.Persistence
                 // Índices
                 entity.HasIndex(id => id.InvoiceId);
                 entity.HasIndex(id => id.ProductId);
+            });
+
+            // ✅ CONFIGURACIÓN DE CUENTAS POR COBRAR - INVOICES PPD
+            modelBuilder.Entity<InvoicePPD>(entity =>
+            {
+                entity.HasKey(i => i.Id);
+                entity.ToTable("InvoicesPPD");
+
+                entity.HasOne(i => i.Customer)
+                    .WithMany()
+                    .HasForeignKey(i => i.CustomerId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasOne(i => i.Company)
+                    .WithMany()
+                    .HasForeignKey(i => i.CompanyId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasOne(i => i.Branch)
+                    .WithMany()
+                    .HasForeignKey(i => i.BranchId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasIndex(i => i.InvoiceId);
+                entity.HasIndex(i => i.CustomerId);
+                entity.HasIndex(i => i.Status);
+                entity.HasIndex(i => i.DueDate);
+            });
+
+            // ✅ CONFIGURACIÓN DE PAGOS
+            modelBuilder.Entity<Payment>(entity =>
+            {
+                entity.HasKey(p => p.Id);
+                entity.ToTable("Payments");
+
+                entity.HasOne(p => p.Customer)
+                    .WithMany()
+                    .HasForeignKey(p => p.CustomerId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasOne(p => p.Company)
+                    .WithMany()
+                    .HasForeignKey(p => p.CompanyId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasOne(p => p.Branch)
+                    .WithMany()
+                    .HasForeignKey(p => p.BranchId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasIndex(p => p.CustomerId);
+                entity.HasIndex(p => p.PaymentDate);
+                entity.HasIndex(p => p.Status);
+            });
+
+            // ✅ CONFIGURACIÓN DE APLICACIÓN DE PAGOS
+            modelBuilder.Entity<PaymentApplication>(entity =>
+            {
+                entity.HasKey(pa => pa.Id);
+                entity.ToTable("PaymentApplications");
+
+                entity.HasOne(pa => pa.Payment)
+                    .WithMany(p => p.PaymentApplications)
+                    .HasForeignKey(pa => pa.PaymentId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE para evitar ciclos
+
+                entity.HasOne(pa => pa.InvoicePPD)
+                    .WithMany(i => i.PaymentApplications)
+                    .HasForeignKey(pa => pa.InvoicePPDId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE para evitar ciclos
+
+                entity.HasIndex(pa => pa.PaymentId);
+                entity.HasIndex(pa => pa.InvoicePPDId);
+            });
+
+            // ✅ CONFIGURACIÓN DE LOTES DE PAGO
+            modelBuilder.Entity<PaymentBatch>(entity =>
+            {
+                entity.HasKey(pb => pb.Id);
+                entity.ToTable("PaymentBatches");
+
+                entity.HasOne(pb => pb.Company)
+                    .WithMany()
+                    .HasForeignKey(pb => pb.CompanyId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasOne(pb => pb.Branch)
+                    .WithMany()
+                    .HasForeignKey(pb => pb.BranchId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasIndex(pb => pb.PaymentDate);
+                entity.HasIndex(pb => pb.Status);
+            });
+
+            // ✅ CONFIGURACIÓN DE POLÍTICAS DE CRÉDITO
+            modelBuilder.Entity<CustomerCreditPolicy>(entity =>
+            {
+                entity.HasKey(ccp => ccp.Id);
+                entity.ToTable("CustomerCreditPolicies");
+
+                entity.HasOne(ccp => ccp.Customer)
+                    .WithMany()
+                    .HasForeignKey(ccp => ccp.CustomerId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasOne(ccp => ccp.Company)
+                    .WithMany()
+                    .HasForeignKey(ccp => ccp.CompanyId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasIndex(ccp => new { ccp.CustomerId, ccp.CompanyId }).IsUnique();
+            });
+
+            // ✅ CONFIGURACIÓN DE HISTORIAL DE CRÉDITO
+            modelBuilder.Entity<CustomerCreditHistory>(entity =>
+            {
+                entity.HasKey(cch => cch.Id);
+                entity.ToTable("CustomerCreditHistory");
+
+                entity.HasOne(cch => cch.Customer)
+                    .WithMany()
+                    .HasForeignKey(cch => cch.CustomerId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasOne(cch => cch.Company)
+                    .WithMany()
+                    .HasForeignKey(cch => cch.CompanyId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasIndex(cch => cch.CustomerId);
+                entity.HasIndex(cch => cch.EventDate);
+            });
+
+            // ✅ CONFIGURACIÓN DE LOG DE COMPLEMENTOS
+            modelBuilder.Entity<PaymentComplementLog>(entity =>
+            {
+                entity.HasKey(pcl => pcl.Id);
+                entity.ToTable("PaymentComplementLogs");
+
+                entity.HasOne(pcl => pcl.Payment)
+                    .WithMany()
+                    .HasForeignKey(pcl => pcl.PaymentId)
+                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
+
+                entity.HasIndex(pcl => pcl.PaymentId);
+                entity.HasIndex(pcl => pcl.AttemptDate);
             });
         }
     }

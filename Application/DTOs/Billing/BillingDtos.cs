@@ -510,6 +510,23 @@ namespace Application.DTOs.Billing
     }
 
     /// <summary>
+    /// Request para actualizar una factura borrador
+    /// Solo se pueden actualizar facturas en estado Borrador
+    /// </summary>
+    public class UpdateInvoiceRequestDto
+    {
+        public string? FormaPago { get; set; }
+        public string? MetodoPago { get; set; }
+        public string? CondicionesDePago { get; set; }
+        public string? ReceptorRfc { get; set; }
+        public string? ReceptorNombre { get; set; }
+        public string? ReceptorDomicilioFiscal { get; set; }
+        public string? ReceptorRegimenFiscal { get; set; }
+        public string? ReceptorUsoCfdi { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    /// <summary>
     /// Response completo de una factura
     /// </summary>
     public class InvoiceResponseDto

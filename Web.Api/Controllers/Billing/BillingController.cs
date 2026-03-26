@@ -263,6 +263,47 @@ namespace Web.Api.Controllers.Billing
         }
 
         /// <summary>
+        /// Actualizar una factura en estado Borrador
+        /// Solo se permiten cambios en datos fiscales del receptor y condiciones de pago
+        /// </summary>
+        /// <param name="id">ID de la factura a actualizar</param>
+        /// <param name="request">Campos a actualizar</param>
+        [HttpPut("invoices/{id}")]
+        [RequirePermission("CFDI", "Edit")]
+        public async Task<IActionResult> UpdateInvoice(int id, [FromBody] UpdateInvoiceRequestDto request)
+        {
+            try
+            {
+                var userId = HttpContext.Items["UserId"] as int? ?? 0;
+
+                var command = new UpdateInvoiceCommand
+                {
+                    InvoiceId = id,
+                    Request = request,
+                    UserId = userId
+                };
+
+                var result = await _mediator.Send(command);
+
+                if (result.Error > 0)
+                {
+                    return BadRequest(result);
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Error al actualizar factura",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
         /// Crear una nueva factura (borrador o timbrada)
         /// Puede crear desde una venta existente o manualmente
         /// </summary>

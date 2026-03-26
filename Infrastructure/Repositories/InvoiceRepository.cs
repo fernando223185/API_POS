@@ -71,7 +71,13 @@ namespace Infrastructure.Repositories
 
         public async Task<Invoice> UpdateAsync(Invoice invoice)
         {
-            _context.Invoices.Update(invoice);
+            _context.Entry(invoice).State = EntityState.Modified;
+
+            // No modificar las propiedades de navegación (solo escalares de la raíz)
+            _context.Entry(invoice).Collection(i => i.Details).IsModified = false;
+            foreach (var detail in invoice.Details)
+                _context.Entry(detail).State = EntityState.Detached;
+
             await _context.SaveChangesAsync();
             return invoice;
         }

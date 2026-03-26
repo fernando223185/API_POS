@@ -26,6 +26,7 @@ using Application.Abstractions.Documents;  // ✅ NUEVO
 using Application.Abstractions.Sales;      // ✅ NUEVO - Sistema de ventas
 using Application.Abstractions.Billing;    // ✅ NUEVO - Timbrado CFDI
 using Application.Abstractions.Sat;        // ✅ NUEVO - Catálogos SAT
+using Application.Abstractions.AccountsReceivable;  // ✅ NUEVO - Cuentas por Cobrar
 using Application.Common.Services; 
 using Infrastructure;
 using Infrastructure.Services;
@@ -182,6 +183,16 @@ builder.Services.AddScoped<Application.Abstractions.Billing.IInvoiceRepository, 
 
 // ✅ NUEVO: Catálogos oficiales del SAT
 builder.Services.AddScoped<Application.Abstractions.Sat.ISatCatalogRepository, SatCatalogRepository>();
+
+// ✅ NUEVO: Sistema de Cuentas por Cobrar (solo el implementado por ahora)
+builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IInvoicePPDRepository, InvoicePPDRepository>();
+builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.ICustomerCreditPolicyRepository, CustomerCreditPolicyRepository>();
+builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.ICustomerCreditHistoryRepository, CustomerCreditHistoryRepository>();
+// TODO: Implementar y registrar los siguientes repositorios:
+// builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentRepository, PaymentRepository>();
+// builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentApplicationRepository, PaymentApplicationRepository>();
+// builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentBatchRepository, PaymentBatchRepository>();
+// builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentComplementLogRepository, PaymentComplementLogRepository>();
 
 // ✅ REGISTRAR SERVICIOS ADICIONALES
 builder.Services.AddScoped<IPermissionService, PermissionService>();
