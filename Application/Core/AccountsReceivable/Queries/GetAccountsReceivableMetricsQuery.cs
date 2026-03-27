@@ -9,5 +9,4 @@ namespace Application.Core.AccountsReceivable.Queries;
 public class GetAccountsReceivableMetricsQuery : IRequest<AccountsReceivableMetricsDto>
 {
     public int CompanyId { get; set; }
-    public int? BranchId { get; set; }
 }

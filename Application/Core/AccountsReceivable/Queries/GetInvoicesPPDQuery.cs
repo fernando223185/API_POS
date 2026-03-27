@@ -12,7 +12,7 @@ public class GetInvoicesPPDQuery : IRequest<InvoicePPDPageResponse>
     public int PageSize { get; set; } = 20;
     public int? CustomerId { get; set; }
     public int? CompanyId { get; set; }
-    public int? BranchId { get; set; }
+
     public string? Status { get; set; }
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }

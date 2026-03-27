@@ -9,7 +9,6 @@ namespace Application.Core.AccountsReceivable.Queries;
 public class GetCollectionForecastQuery : IRequest<CollectionForecastDto>
 {
     public int CompanyId { get; set; }
-    public int? BranchId { get; set; }
     public DateTime? FromDate { get; set; }
     public int Days { get; set; } = 90;
 }

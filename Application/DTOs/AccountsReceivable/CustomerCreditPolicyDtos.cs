@@ -34,8 +34,7 @@ public class CustomerCreditPolicyDto
 /// </summary>
 public class UpsertCustomerCreditPolicyRequest
 {
-    public int CustomerId { get; set; }
-    public int CompanyId { get; set; }
+    public int? CompanyId { get; set; } // Opcional: si no se envía, se usa el del usuario autenticado
     public decimal CreditLimit { get; set; }
     public int CreditDays { get; set; } = 30;
     public int OverdueGraceDays { get; set; } = 0;

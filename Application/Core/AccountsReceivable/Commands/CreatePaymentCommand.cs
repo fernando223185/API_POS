@@ -10,7 +10,6 @@ public class CreatePaymentCommand : IRequest<PaymentDto>
 {
     public int CustomerId { get; set; }
     public int CompanyId { get; set; }
-    public int BranchId { get; set; }
     public DateTime PaymentDate { get; set; }
     public string PaymentMethodSAT { get; set; } = string.Empty;
     public string? PaymentFormSAT { get; set; }

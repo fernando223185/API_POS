@@ -59,6 +59,9 @@ namespace Application.Core.Billing.CommandHandlers
                 invoice.ReceptorUsoCfdi = req.ClientUsoCFDI;
 
             // Datos del comprobante
+            if (req.InvoiceDate.HasValue)
+                invoice.InvoiceDate = req.InvoiceDate.Value;
+
             if (!string.IsNullOrWhiteSpace(req.PaymentForm))
                 invoice.FormaPago = req.PaymentForm;
 
@@ -92,24 +95,64 @@ namespace Application.Core.Billing.CommandHandlers
 
             invoice.UpdatedAt = DateTime.UtcNow;
 
+            // Guardar lista de detalles existentes ANTES de actualizar
+            // Se busca por ID, luego por código de producto, luego por descripción
+            var existingDetails = invoice.Details.ToList();
+
             var updated = await _invoiceRepository.UpdateAsync(invoice);
 
             // Actualizar ítems si se enviaron
             if (req.Items != null && req.Items.Count > 0)
-                await _invoiceRepository.ReplaceDetailsAsync(updated.Id, req.Items.Select(item => new InvoiceDetail
+            {
+                var details = req.Items.Select(item =>
                 {
-                    InvoiceId = updated.Id,
-                    ProductId = item.ProductId,
-                    NoIdentificacion = item.ProductCode,
-                    ClaveProdServ = "01010101",
-                    Cantidad = item.Quantity,
-                    ClaveUnidad = item.Unit ?? "H87",
-                    Descripcion = item.Description ?? string.Empty,
-                    ValorUnitario = item.UnitPrice,
-                    Descuento = item.Discount,
-                    Importe = item.Amount,
-                    ObjetoImp = "02"
-                }).ToList());
+                    // Buscar detalle existente: primero por Id, luego por código, luego por descripción
+                    var existing = existingDetails.FirstOrDefault(d => d.Id == (item.Id ?? -1))
+                        ?? existingDetails.FirstOrDefault(d => d.NoIdentificacion == item.ProductCode && item.ProductCode != null)
+                        ?? existingDetails.FirstOrDefault(d => d.Descripcion == item.Description && item.Description != null);
+
+                    // TaxRate puede venir como 16 (porcentaje) o 0.16 (decimal)
+                    decimal taxRateNorm = item.TaxRate > 1 ? item.TaxRate / 100m : item.TaxRate;
+                    bool tieneIva = taxRateNorm > 0 || item.TaxAmount > 0;
+                    decimal tasaOCuota = tieneIva ? (taxRateNorm > 0 ? Math.Round(taxRateNorm, 6) : 0.160000m) : 0m;
+                    decimal taxImporte = item.TaxAmount > 0
+                        ? Math.Round(item.TaxAmount, 2)
+                        : Math.Round(item.Amount * tasaOCuota, 2);
+
+                    // ClaveProdServ: del item > del detalle existente > del producto cargado
+                    var claveProdServ = !string.IsNullOrWhiteSpace(item.ClaveProdServ)
+                        ? item.ClaveProdServ
+                        : existing?.ClaveProdServ
+                          ?? existing?.Product?.SatCode
+                          ?? "01010101";
+
+                    return new InvoiceDetail
+                    {
+                        InvoiceId = updated.Id,
+                        ProductId = item.ProductId ?? existing?.ProductId,
+                        NoIdentificacion = item.ProductCode ?? existing?.NoIdentificacion,
+                        ClaveProdServ = claveProdServ,
+                        Cantidad = item.Quantity,
+                        ClaveUnidad = item.Unit ?? existing?.ClaveUnidad ?? "H87",
+                        Unidad = ResolveUnidad(item.Unit ?? existing?.ClaveUnidad) ?? existing?.Unidad,
+                        Descripcion = item.Description ?? existing?.Descripcion ?? string.Empty,
+                        ValorUnitario = item.UnitPrice,
+                        Descuento = item.Discount,
+                        Importe = item.Amount,
+                        ObjetoImp = tieneIva ? "02" : "01",
+
+                        // Impuestos trasladados (IVA)
+                        TieneTraslados = tieneIva,
+                        TrasladoBase = tieneIva ? item.Amount : null,
+                        TrasladoImpuesto = tieneIva ? "002" : null,
+                        TrasladoTipoFactor = tieneIva ? "Tasa" : null,
+                        TrasladoTasaOCuota = tieneIva ? tasaOCuota : null,
+                        TrasladoImporte = tieneIva ? taxImporte : null
+                    };
+                }).ToList();
+
+                await _invoiceRepository.ReplaceDetailsAsync(updated.Id, details);
+            }
 
             var invoiceWithRelations = await _invoiceRepository.GetByIdAsync(updated.Id);
 
@@ -197,5 +240,21 @@ namespace Application.Core.Billing.CommandHandlers
                 }).ToList()
             };
         }
+
+        private static string? ResolveUnidad(string? claveUnidad) => claveUnidad switch
+        {
+            "H87" => "Pieza",
+            "KGM" => "Kilogramo",
+            "LTR" => "Litro",
+            "MTR" => "Metro",
+            "MTK" => "Metro cuadrado",
+            "MTQ" => "Metro cúbico",
+            "E48" => "Unidad de servicio",
+            "ACT" => "Actividad",
+            "MON" => "Mes",
+            "DAY" => "Día",
+            "HUR" => "Hora",
+            _ => claveUnidad
+        };
     }
 }

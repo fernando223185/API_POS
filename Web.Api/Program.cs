@@ -188,11 +188,10 @@ builder.Services.AddScoped<Application.Abstractions.Sat.ISatCatalogRepository, S
 builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IInvoicePPDRepository, InvoicePPDRepository>();
 builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.ICustomerCreditPolicyRepository, CustomerCreditPolicyRepository>();
 builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.ICustomerCreditHistoryRepository, CustomerCreditHistoryRepository>();
-// TODO: Implementar y registrar los siguientes repositorios:
-// builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentRepository, PaymentRepository>();
-// builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentApplicationRepository, PaymentApplicationRepository>();
-// builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentBatchRepository, PaymentBatchRepository>();
-// builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentComplementLogRepository, PaymentComplementLogRepository>();
+builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentRepository, PaymentRepository>();
+builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentApplicationRepository, PaymentApplicationRepository>();
+builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentBatchRepository, PaymentBatchRepository>();
+builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentComplementLogRepository, PaymentComplementLogRepository>();
 
 // ✅ REGISTRAR SERVICIOS ADICIONALES
 builder.Services.AddScoped<IPermissionService, PermissionService>();

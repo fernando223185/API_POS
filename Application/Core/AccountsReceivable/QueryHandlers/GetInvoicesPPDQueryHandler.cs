@@ -24,7 +24,6 @@ public class GetInvoicesPPDQueryHandler : IRequestHandler<GetInvoicesPPDQuery, I
             pageSize: request.PageSize,
             customerId: request.CustomerId,
             companyId: request.CompanyId,
-            branchId: request.BranchId,
             status: request.Status,
             fromDate: request.FromDate,
             toDate: request.ToDate,

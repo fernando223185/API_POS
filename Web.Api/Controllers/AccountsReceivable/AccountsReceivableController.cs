@@ -118,12 +118,41 @@ public class AccountsReceivableController : ControllerBase
     #region Lotes de Pago
 
     /// <summary>
-    /// Crea un lote de pagos masivo
+    /// Obtiene listado paginado de lotes de pago con filtros
+    /// </summary>
+    [HttpGet("batches")]
+    [RequirePermission("CFDI", "View")]
+    public async Task<IActionResult> GetPaymentBatches([FromQuery] GetPaymentBatchesQuery query)
+    {
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Crea un lote de pagos masivo con creación automática de pagos
     /// </summary>
     [HttpPost("batches")]
     [RequirePermission("CFDI", "Create")]
-    public async Task<IActionResult> CreatePaymentBatch([FromBody] CreatePaymentBatchCommand command)
+    public async Task<IActionResult> CreatePaymentBatch([FromBody] CreatePaymentBatchRequest request)
     {
+        var userId = HttpContext.Items["UserId"] as int? ?? 0;
+
+        var command = new CreatePaymentBatchCommand
+        {
+            CompanyId = request.CompanyId,
+            PaymentDate = request.PaymentDate,
+            CustomBatchNumber = request.CustomBatchNumber,
+            BatchPrefix = request.BatchPrefix ?? "LOTE",
+            DefaultPaymentMethodSAT = request.DefaultPaymentMethodSAT,
+            DefaultPaymentFormSAT = request.DefaultPaymentFormSAT,
+            DefaultBankDestination = request.DefaultBankDestination,
+            DefaultAccountDestination = request.DefaultAccountDestination,
+            Description = request.Description,
+            Notes = request.Notes,
+            CreatedBy = userId,
+            Payments = request.Payments
+        };
+
         var result = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetPaymentBatchById), new { id = result.Id }, result);
     }
@@ -193,16 +222,19 @@ public class AccountsReceivableController : ControllerBase
         int customerId,
         [FromBody] UpsertCustomerCreditPolicyRequest request)
     {
+        var userId = HttpContext.Items["UserId"] as int? ?? 0;
+        
         var command = new UpsertCustomerCreditPolicyCommand
         {
             CustomerId = customerId,
-            CompanyId = request.CompanyId,
+            CompanyId = request.CompanyId ?? 0, // Si no se envía, el handler lo obtendrá del usuario
+            UserId = userId,
             CreditLimit = request.CreditLimit,
             CreditDays = request.CreditDays,
             OverdueGraceDays = request.OverdueGraceDays,
             AutoBlockOnOverdue = request.AutoBlockOnOverdue,
             Notes = request.Notes,
-            ExecutedBy = 0 // TODO: Obtener del usuario actual
+            ExecutedBy = userId
         };
         
         var result = await _mediator.Send(command);
@@ -239,12 +271,11 @@ public class AccountsReceivableController : ControllerBase
     /// </summary>
     [HttpGet("dashboard")]
     [RequirePermission("CFDI", "View")]
-    public async Task<IActionResult> GetDashboard([FromQuery] int companyId, [FromQuery] int? branchId = null)
+    public async Task<IActionResult> GetDashboard([FromQuery] int companyId)
     {
         var query = new GetAccountsReceivableDashboardQuery
         {
-            CompanyId = companyId,
-            BranchId = branchId
+            CompanyId = companyId
         };
         
         var result = await _mediator.Send(query);
@@ -283,13 +314,11 @@ public class AccountsReceivableController : ControllerBase
     [RequirePermission("CFDI", "View")]
     public async Task<IActionResult> GetOverdueReport(
         [FromQuery] int companyId,
-        [FromQuery] int? branchId = null,
         [FromQuery] int? minDaysOverdue = null)
     {
         var query = new GetOverdueInvoicesReportQuery
         {
             CompanyId = companyId,
-            BranchId = branchId,
             MinDaysOverdue = minDaysOverdue
         };
         
@@ -304,14 +333,12 @@ public class AccountsReceivableController : ControllerBase
     [RequirePermission("CFDI", "View")]
     public async Task<IActionResult> GetCollectionForecast(
         [FromQuery] int companyId,
-        [FromQuery] int? branchId = null,
         [FromQuery] DateTime? fromDate = null,
         [FromQuery] int days = 90)
     {
         var query = new GetCollectionForecastQuery
         {
             CompanyId = companyId,
-            BranchId = branchId,
             FromDate = fromDate,
             Days = days
         };
@@ -326,13 +353,11 @@ public class AccountsReceivableController : ControllerBase
     [HttpGet("metrics")]
     [RequirePermission("CFDI", "View")]
     public async Task<IActionResult> GetMetrics(
-        [FromQuery] int companyId,
-        [FromQuery] int? branchId = null)
+        [FromQuery] int companyId)
     {
         var query = new GetAccountsReceivableMetricsQuery
         {
-            CompanyId = companyId,
-            BranchId = branchId
+            CompanyId = companyId
         };
         
         var result = await _mediator.Send(query);

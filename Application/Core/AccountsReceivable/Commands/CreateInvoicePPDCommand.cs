@@ -14,7 +14,6 @@ public class CreateInvoicePPDCommand : IRequest<InvoicePPDDto>
     public string CustomerName { get; set; } = string.Empty;
     public string CustomerRFC { get; set; } = string.Empty;
     public int CompanyId { get; set; }
-    public int BranchId { get; set; }
     public string FolioUUID { get; set; } = string.Empty;
     public string? Serie { get; set; }
     public string? Folio { get; set; }

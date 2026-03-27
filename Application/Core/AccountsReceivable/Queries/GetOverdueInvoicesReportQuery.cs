@@ -9,6 +9,5 @@ namespace Application.Core.AccountsReceivable.Queries;
 public class GetOverdueInvoicesReportQuery : IRequest<OverdueInvoicesReportDto>
 {
     public int CompanyId { get; set; }
-    public int? BranchId { get; set; }
     public int? MinDaysOverdue { get; set; }
 }

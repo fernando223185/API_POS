@@ -1,4 +1,5 @@
 using Application.Abstractions.Billing;
+using Application.Abstractions.AccountsReceivable;
 using Application.Core.Billing.Commands;
 using Application.DTOs.Billing;
 using Domain.Entities;
@@ -13,13 +14,16 @@ namespace Application.Core.Billing.CommandHandlers
     {
         private readonly IInvoiceRepository _invoiceRepository;
         private readonly ISapiensService _sapiensService;
+        private readonly IInvoicePPDRepository _invoicePPDRepository;
 
         public TimbrarInvoiceCommandHandler(
             IInvoiceRepository invoiceRepository,
-            ISapiensService sapiensService)
+            ISapiensService sapiensService,
+            IInvoicePPDRepository invoicePPDRepository)
         {
             _invoiceRepository = invoiceRepository;
             _sapiensService = sapiensService;
+            _invoicePPDRepository = invoicePPDRepository;
         }
 
         public async Task<InvoiceResponseDto> Handle(
@@ -128,7 +132,49 @@ namespace Application.Core.Billing.CommandHandlers
                 Console.WriteLine($"   💾 Actualizando factura...");
                 var updatedInvoice = await _invoiceRepository.UpdateAsync(invoice);
 
-                // 7. Mapear a DTO
+                // 7. Si MetodoPago es PPD, registrar en InvoicesPPD
+                if (invoice.MetodoPago == "PPD")
+                {
+                    Console.WriteLine($"   📋 Factura PPD - registrando en cuentas por cobrar...");
+
+                    // Verificar que no exista ya un registro para esta factura
+                    var existing = await _invoicePPDRepository.GetByInvoiceIdAsync(updatedInvoice.Id);
+                    if (existing == null)
+                    {
+                        var invoicePPD = new InvoicePPD
+                        {
+                            InvoiceId = updatedInvoice.Id,
+                            CustomerId = invoice.CustomerId ?? 0,
+                            CustomerName = invoice.ReceptorNombre,
+                            CustomerRFC = invoice.ReceptorRfc,
+                            CompanyId = invoice.CompanyId,
+                            FolioUUID = updatedInvoice.Uuid!,
+                            Serie = updatedInvoice.Serie,
+                            Folio = updatedInvoice.Folio,
+                            SerieAndFolio = $"{updatedInvoice.Serie}-{updatedInvoice.Folio}",
+                            InvoiceDate = updatedInvoice.TimbradoAt ?? updatedInvoice.InvoiceDate,
+                            DueDate = (updatedInvoice.TimbradoAt ?? updatedInvoice.InvoiceDate).AddDays(30), // 30 días por defecto
+                            Currency = invoice.Moneda,
+                            ExchangeRate = invoice.TipoCambio,
+                            OriginalAmount = invoice.Total,
+                            PaidAmount = 0,
+                            BalanceAmount = invoice.Total,
+                            NextPartialityNumber = 1,
+                            TotalPartialities = 0,
+                            Status = "Pending",
+                            DaysOverdue = 0,
+                            IsActive = true,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow,
+                            CreatedBy = command.UserId
+                        };
+
+                        await _invoicePPDRepository.CreateAsync(invoicePPD);
+                        Console.WriteLine($"   ✓ InvoicePPD creado - Balance: ${invoice.Total:N2}");
+                    }
+                }
+
+                // 8. Mapear a DTO
                 var invoiceDto = MapToDto(updatedInvoice);
 
                 Console.WriteLine($"   ✓ Factura timbrada exitosamente");
@@ -210,7 +256,7 @@ namespace Application.Core.Billing.CommandHandlers
                     Nombre = invoice.ReceptorNombre,
                     DomicilioFiscalReceptor = invoice.ReceptorDomicilioFiscal,
                     RegimenFiscalReceptor = invoice.ReceptorRegimenFiscal,
-                    UsoCfdi = invoice.ReceptorUsoCfdi
+                    UsoCFDI = invoice.ReceptorUsoCfdi
                 },
 
                 Conceptos = conceptos,

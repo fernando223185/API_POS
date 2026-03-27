@@ -158,7 +158,7 @@ namespace Application.Core.Billing.CommandHandlers
                 // Comprobante
                 Serie = serie,
                 Folio = folio,
-                InvoiceDate = DateTime.UtcNow,
+                InvoiceDate = request.InvoiceDate ?? DateTime.UtcNow,
                 FormaPago = request.FormaPago,
                 MetodoPago = request.MetodoPago,
                 CondicionesDePago = request.CondicionesDePago,
@@ -294,7 +294,7 @@ namespace Application.Core.Billing.CommandHandlers
                 // Comprobante
                 Serie = serie,
                 Folio = folio,
-                InvoiceDate = DateTime.UtcNow,
+                InvoiceDate = request.InvoiceDate ?? DateTime.UtcNow,
                 FormaPago = request.FormaPago,
                 MetodoPago = request.MetodoPago,
                 CondicionesDePago = request.CondicionesDePago,
@@ -480,7 +480,7 @@ namespace Application.Core.Billing.CommandHandlers
                     Nombre = invoice.ReceptorNombre,
                     DomicilioFiscalReceptor = invoice.ReceptorDomicilioFiscal,
                     RegimenFiscalReceptor = invoice.ReceptorRegimenFiscal,
-                    UsoCfdi = invoice.ReceptorUsoCfdi
+                    UsoCFDI = invoice.ReceptorUsoCfdi
                 },
 
                 Conceptos = conceptos,
@@ -551,33 +551,37 @@ namespace Application.Core.Billing.CommandHandlers
                 return null;
             }
 
+            var ic = System.Globalization.CultureInfo.InvariantCulture;
+
+            var trasladosGlobales = invoice.Details
+                .Where(d => d.TieneTraslados)
+                .GroupBy(d => new { d.TrasladoImpuesto, d.TrasladoTipoFactor, d.TrasladoTasaOCuota })
+                .Select(g => new
+                {
+                    Base = g.Sum(d => d.TrasladoBase)?.ToString("0.00", ic),
+                    Impuesto = g.Key.TrasladoImpuesto,
+                    TipoFactor = g.Key.TrasladoTipoFactor,
+                    TasaOCuota = g.Key.TrasladoTasaOCuota?.ToString("0.000000", ic),
+                    Importe = g.Sum(d => d.TrasladoImporte)?.ToString("0.00", ic)
+                })
+                .ToList();
+
+            var retencionesGlobales = invoice.Details
+                .Where(d => d.TieneRetenciones)
+                .GroupBy(d => new { d.RetencionImpuesto })
+                .Select(g => new
+                {
+                    Impuesto = g.Key.RetencionImpuesto,
+                    Importe = g.Sum(d => d.RetencionImporte)?.ToString("0.00", ic)
+                })
+                .ToList();
+
             var impuestos = new
             {
-                TotalImpuestosTrasladados = totalTraslados > 0 ? totalTraslados : (decimal?)null,
-                TotalImpuestosRetenidos = totalRetenciones > 0 ? totalRetenciones : (decimal?)null,
-
-                Traslados = invoice.Details
-                    .Where(d => d.TieneTraslados)
-                    .GroupBy(d => new { d.TrasladoImpuesto, d.TrasladoTipoFactor, d.TrasladoTasaOCuota })
-                    .Select(g => new
-                    {
-                        Base = g.Sum(d => d.TrasladoBase),
-                        Impuesto = g.Key.TrasladoImpuesto,
-                        TipoFactor = g.Key.TrasladoTipoFactor,
-                        TasaOCuota = g.Key.TrasladoTasaOCuota,
-                        Importe = g.Sum(d => d.TrasladoImporte)
-                    })
-                    .ToList(),
-
-                Retenciones = invoice.Details
-                    .Where(d => d.TieneRetenciones)
-                    .GroupBy(d => new { d.RetencionImpuesto })
-                    .Select(g => new
-                    {
-                        Impuesto = g.Key.RetencionImpuesto,
-                        Importe = g.Sum(d => d.RetencionImporte)
-                    })
-                    .ToList()
+                TotalImpuestosTrasladados = totalTraslados > 0 ? totalTraslados.ToString("0.00", ic) : null,
+                TotalImpuestosRetenidos = totalRetenciones > 0 ? totalRetenciones.ToString("0.00", ic) : null,
+                Retenciones = retencionesGlobales.Count > 0 ? retencionesGlobales : null,
+                Traslados = trasladosGlobales.Count > 0 ? trasladosGlobales : null
             };
 
             return impuestos;

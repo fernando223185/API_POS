@@ -10,6 +10,7 @@ public class UpsertCustomerCreditPolicyCommand : IRequest<CustomerCreditPolicyDt
 {
     public int CustomerId { get; set; }
     public int CompanyId { get; set; }
+    public int UserId { get; set; } // Para obtener CompanyId si no se proporciona
     public decimal CreditLimit { get; set; }
     public int CreditDays { get; set; } = 30;
     public int OverdueGraceDays { get; set; } = 0;

@@ -30,7 +30,6 @@ public class InvoicePPD
 
     // Información de la Empresa
     public int CompanyId { get; set; }
-    public int BranchId { get; set; }
 
     // Datos del CFDI
     [MaxLength(36)]
@@ -90,9 +89,6 @@ public class InvoicePPD
 
     [ForeignKey(nameof(CompanyId))]
     public virtual Company? Company { get; set; }
-
-    [ForeignKey(nameof(BranchId))]
-    public virtual Branch? Branch { get; set; }
 
     public virtual ICollection<PaymentApplication> PaymentApplications { get; set; } = new List<PaymentApplication>();
 }

@@ -54,16 +54,13 @@ public class InvoicePPDRepository : IInvoicePPDRepository
             .ToListAsync();
     }
 
-    public async Task<List<InvoicePPD>> GetOverdueAsync(int companyId, int? branchId = null, int? minDaysOverdue = null)
+    public async Task<List<InvoicePPD>> GetOverdueAsync(int companyId, int? minDaysOverdue = null)
     {
         var query = _context.InvoicesPPD
             .Where(i => i.CompanyId == companyId 
                      && i.IsActive 
                      && i.BalanceAmount > 0
                      && i.DueDate < DateTime.UtcNow);
-
-        if (branchId.HasValue)
-            query = query.Where(i => i.BranchId == branchId.Value);
 
         if (minDaysOverdue.HasValue)
         {
@@ -82,7 +79,6 @@ public class InvoicePPDRepository : IInvoicePPDRepository
         int pageSize,
         int? customerId = null,
         int? companyId = null,
-        int? branchId = null,
         string? status = null,
         DateTime? fromDate = null,
         DateTime? toDate = null,
@@ -100,9 +96,6 @@ public class InvoicePPDRepository : IInvoicePPDRepository
 
         if (companyId.HasValue)
             query = query.Where(i => i.CompanyId == companyId.Value);
-
-        if (branchId.HasValue)
-            query = query.Where(i => i.BranchId == branchId.Value);
 
         if (!string.IsNullOrEmpty(status))
             query = query.Where(i => i.Status == status);
@@ -182,15 +175,12 @@ public class InvoicePPDRepository : IInvoicePPDRepository
             .SumAsync(i => i.BalanceAmount);
     }
 
-    public async Task<Dictionary<string, decimal>> GetAgingReportAsync(int companyId, int? branchId = null)
+    public async Task<Dictionary<string, decimal>> GetAgingReportAsync(int companyId)
     {
         var query = _context.InvoicesPPD
             .Where(i => i.CompanyId == companyId 
                      && i.IsActive 
                      && i.BalanceAmount > 0);
-
-        if (branchId.HasValue)
-            query = query.Where(i => i.BranchId == branchId.Value);
 
         var now = DateTime.UtcNow;
         var invoices = await query.ToListAsync();
@@ -215,5 +205,20 @@ public class InvoicePPDRepository : IInvoicePPDRepository
         };
 
         return aging;
+    }
+
+    public async Task<(decimal pendingAmount, decimal overdueAmount)> GetCustomerBalanceSummaryAsync(int customerId, int companyId)
+    {
+        var today = DateTime.Today;
+        
+        var invoices = await _context.InvoicesPPD
+            .Where(i => i.CustomerId == customerId && i.CompanyId == companyId && i.Status == "Pending")
+            .AsNoTracking()
+            .ToListAsync();
+
+        var pendingAmount = invoices.Sum(i => i.BalanceAmount);
+        var overdueAmount = invoices.Where(i => i.DueDate < today).Sum(i => i.BalanceAmount);
+
+        return (pendingAmount, overdueAmount);
     }
 }

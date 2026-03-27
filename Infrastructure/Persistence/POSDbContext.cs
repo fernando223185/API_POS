@@ -554,11 +554,6 @@ namespace Infrastructure.Persistence
                     .HasForeignKey(i => i.CompanyId)
                     .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
 
-                entity.HasOne(i => i.Branch)
-                    .WithMany()
-                    .HasForeignKey(i => i.BranchId)
-                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
-
                 entity.HasIndex(i => i.InvoiceId);
                 entity.HasIndex(i => i.CustomerId);
                 entity.HasIndex(i => i.Status);
@@ -579,11 +574,6 @@ namespace Infrastructure.Persistence
                 entity.HasOne(p => p.Company)
                     .WithMany()
                     .HasForeignKey(p => p.CompanyId)
-                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
-
-                entity.HasOne(p => p.Branch)
-                    .WithMany()
-                    .HasForeignKey(p => p.BranchId)
                     .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
 
                 entity.HasIndex(p => p.CustomerId);
@@ -620,11 +610,6 @@ namespace Infrastructure.Persistence
                 entity.HasOne(pb => pb.Company)
                     .WithMany()
                     .HasForeignKey(pb => pb.CompanyId)
-                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
-
-                entity.HasOne(pb => pb.Branch)
-                    .WithMany()
-                    .HasForeignKey(pb => pb.BranchId)
                     .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
 
                 entity.HasIndex(pb => pb.PaymentDate);

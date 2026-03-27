@@ -19,7 +19,6 @@ public class PaymentBatch
 
     // Empresa
     public int CompanyId { get; set; }
-    public int BranchId { get; set; }
 
     // Resumen del Lote
     public DateTime PaymentDate { get; set; }
@@ -68,9 +67,6 @@ public class PaymentBatch
     // Navegación
     [ForeignKey(nameof(CompanyId))]
     public virtual Company? Company { get; set; }
-
-    [ForeignKey(nameof(BranchId))]
-    public virtual Branch? Branch { get; set; }
 
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
 }

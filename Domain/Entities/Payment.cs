@@ -25,7 +25,6 @@ public class Payment
 
     // Empresa
     public int CompanyId { get; set; }
-    public int BranchId { get; set; }
 
     // Batch (OPCIONAL)
     public int? BatchId { get; set; }
@@ -94,9 +93,6 @@ public class Payment
 
     [ForeignKey(nameof(CompanyId))]
     public virtual Company? Company { get; set; }
-
-    [ForeignKey(nameof(BranchId))]
-    public virtual Branch? Branch { get; set; }
 
     [ForeignKey(nameof(BatchId))]
     public virtual PaymentBatch? Batch { get; set; }

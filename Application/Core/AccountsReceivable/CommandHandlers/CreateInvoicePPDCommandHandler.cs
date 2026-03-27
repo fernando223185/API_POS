@@ -54,7 +54,6 @@ public class CreateInvoicePPDCommandHandler : IRequestHandler<CreateInvoicePPDCo
             CustomerName = request.CustomerName,
             CustomerRFC = request.CustomerRFC,
             CompanyId = request.CompanyId,
-            BranchId = request.BranchId,
             FolioUUID = request.FolioUUID,
             Serie = request.Serie,
             Folio = request.Folio,

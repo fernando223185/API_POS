@@ -378,6 +378,11 @@ namespace Application.DTOs.Billing
         public string? Serie { get; set; }
 
         /// <summary>
+        /// Fecha de emisión del comprobante. Si no se envía, se usa la fecha actual.
+        /// </summary>
+        public DateTime? InvoiceDate { get; set; }
+
+        /// <summary>
         /// Forma de pago SAT (01, 02, 03, etc.)
         /// </summary>
         public string FormaPago { get; set; } = "01";
@@ -523,6 +528,7 @@ namespace Application.DTOs.Billing
         public string? ClientPostalCode { get; set; }
 
         // Datos del comprobante
+        public DateTime? InvoiceDate { get; set; }    // Fecha de emisión (permite seleccionar fecha anterior)
         public string? PaymentForm { get; set; }      // -> FormaPago  (ej: "99", "01")
         public string? PaymentMethod { get; set; }    // -> MetodoPago (ej: "PPD", "PUE")
         public string? CondicionesDePago { get; set; }
@@ -545,14 +551,15 @@ namespace Application.DTOs.Billing
         public int? Id { get; set; }               // ID del detalle existente (null = nuevo)
         public int? ProductId { get; set; }
         public string? ProductCode { get; set; }
+        public string? ClaveProdServ { get; set; } // Clave SAT del producto/servicio
         public string? Description { get; set; }
         public decimal Quantity { get; set; }
         public string? Unit { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal Discount { get; set; }
-        public decimal TaxRate { get; set; }
-        public decimal Amount { get; set; }
-        public decimal TaxAmount { get; set; }
+        public decimal TaxRate { get; set; }       // ej: 16 para IVA 16%
+        public decimal Amount { get; set; }        // importe sin impuestos
+        public decimal TaxAmount { get; set; }     // importe del impuesto
         public decimal Total { get; set; }
     }
 
