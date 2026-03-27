@@ -8,8 +8,7 @@ public class CreatePaymentRequest
     public int CustomerId { get; set; }
     public int CompanyId { get; set; }
     public DateTime PaymentDate { get; set; }
-    public string PaymentMethodSAT { get; set; } = string.Empty; // 03, 02, 01, etc.
-    public string? PaymentFormSAT { get; set; }
+    public string PaymentFormSAT { get; set; } = string.Empty; // 01=Efectivo, 02=Cheque, 03=Transferencia, 04=Tarjeta,  28=Tarjeta débito, 99=Por definir
     public string Currency { get; set; } = "MXN";
     public decimal ExchangeRate { get; set; } = 1.0M;
     public string? BankOrigin { get; set; }
@@ -46,12 +45,38 @@ public class PaymentDto
     public DateTime PaymentDate { get; set; }
     public decimal TotalAmount { get; set; }
     public string Currency { get; set; } = string.Empty;
-    public string PaymentMethodSAT { get; set; } = string.Empty;
+    public string PaymentFormSAT { get; set; } = string.Empty;
     public string? Reference { get; set; }
+    
+    // Datos del emisor (snapshot al timbrar)
+    public string? EmisorRfc { get; set; }
+    public string? EmisorNombre { get; set; }
+    public string? EmisorRegimenFiscal { get; set; }
+    public string? LugarExpedicion { get; set; }
+    
+    // Datos del receptor (snapshot al timbrar)
+    public string? ReceptorRfc { get; set; }
+    public string? ReceptorNombre { get; set; }
+    public string? ReceptorDomicilioFiscal { get; set; }
+    public string? ReceptorRegimenFiscal { get; set; }
+    public string? ReceptorUsoCfdi { get; set; }
+    
     public string Status { get; set; } = string.Empty;
     public int AppliedToInvoices { get; set; }
     public int ComplementsGenerated { get; set; }
     public int ComplementsWithError { get; set; }
+    
+    // Datos de timbrado del complemento de pago
+    public string? Uuid { get; set; }
+    public DateTime? TimbradoAt { get; set; }
+    public string? XmlCfdi { get; set; }
+    public string? CadenaOriginalSat { get; set; }
+    public string? SelloCfdi { get; set; }
+    public string? SelloSat { get; set; }
+    public string? NoCertificadoCfdi { get; set; }
+    public string? NoCertificadoSat { get; set; }
+    public string? QrCode { get; set; }
+    
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? AppliedAt { get; set; }
@@ -74,6 +99,15 @@ public class PaymentApplicationDto
     public decimal PreviousBalance { get; set; }
     public decimal AmountApplied { get; set; }
     public decimal NewBalance { get; set; }
+    // Datos de impuestos del documento relacionado
+    public string DocumentCurrency { get; set; } = "MXN";
+    public decimal DocumentExchangeRate { get; set; } = 1.0M;
+    public string TaxObject { get; set; } = "02";
+    public decimal TaxBase { get; set; }
+    public string TaxCode { get; set; } = "002";
+    public string TaxFactorType { get; set; } = "Tasa";
+    public decimal TaxRate { get; set; } = 0.160000M;
+    public decimal TaxAmount { get; set; }
     public string? ComplementUUID { get; set; }
     public string? ComplementSerieAndFolio { get; set; }
     public string ComplementStatus { get; set; } = string.Empty;
@@ -115,39 +149,30 @@ public class CreatePaymentBatchRequest
 {
     public int CompanyId { get; set; }
     public DateTime PaymentDate { get; set; }
-    /// <summary>Folio personalizado del lote. Si no se envía, se genera automáticamente (LOTE-2026-001)</summary>
+    /// <summary>Folio personalizado del lote. Si no se envía, se genera automáticamente (BTCP-COMP001-260326-001)</summary>
     public string? CustomBatchNumber { get; set; }
-    /// <summary>Prefijo del folio autogenerado. Default: LOTE</summary>
-    public string? BatchPrefix { get; set; } = "LOTE";
-    public string? DefaultPaymentMethodSAT { get; set; }
-    public string? DefaultPaymentFormSAT { get; set; } // 01=Efectivo, 02=Cheque, 03=Transferencia
-    public string? DefaultBankDestination { get; set; }
-    public string? DefaultAccountDestination { get; set; }
+    /// <summary>Forma de pago común para todos los pagos del lote (01=Efectivo, 02=Cheque, 03=Transferencia). Se puede sobreescribir por pago.</summary>
+    public string? PaymentFormSAT { get; set; } = "03";
+    /// <summary>Banco destino común (tu banco donde reciben los pagos). Se puede sobreescribir por pago.</summary>
+    public string? BankDestination { get; set; }
+    /// <summary>Cuenta destino común (tu cuenta donde reciben los pagos). Se puede sobreescribir por pago.</summary>
+    public string? AccountDestination { get; set; }
     public string? Description { get; set; }
     public string? Notes { get; set; }
     public List<BatchPaymentItem> Payments { get; set; } = new();
 }
 
 /// <summary>
-/// Item de pago dentro de un batch: un pago por cliente con sus facturas y montos
+/// Item de pago dentro de un batch: un pago por cliente con sus facturas.
+/// Todos los pagos del lote comparten: forma de pago, banco destino, cuenta destino (nivel batch).
 /// </summary>
 public class BatchPaymentItem
 {
     public int CustomerId { get; set; }
-    /// <summary>Fecha del pago. Si es null se usa la fecha del lote (útil cuando depósitos llegaron en días distintos)</summary>
-    public DateTime? PaymentDate { get; set; }
-    /// <summary>Referencia del pago (número de transferencia, cheque, etc.)</summary>
+    /// <summary>Referencia del pago (número de transferencia, SPEI, cheque, etc.)</summary>
     public string? Reference { get; set; }
-    /// <summary>Método de pago SAT específico de este pago (sobreescribe el default del lote)</summary>
-    public string? PaymentMethodSAT { get; set; }
-    /// <summary>Forma de pago SAT específico de este pago (sobreescribe el default del lote)</summary>
-    public string? PaymentFormSAT { get; set; }
-    /// <summary>Banco origen del cliente (siempre varía por pago)</summary>
-    public string? BankOrigin { get; set; }
-    /// <summary>Banco destino específico de este pago (sobreescribe el default del lote)</summary>
-    public string? BankDestination { get; set; }
-    /// <summary>Cuenta destino específica de este pago (sobreescribe el default del lote)</summary>
-    public string? AccountDestination { get; set; }
+    /// <summary>Fecha del pago. Si es null se usa la fecha del lote</summary>
+    public DateTime? PaymentDate { get; set; }
     /// <summary>Facturas a aplicar con su monto específico</summary>
     public List<BatchInvoiceApplication> Invoices { get; set; } = new();
 }

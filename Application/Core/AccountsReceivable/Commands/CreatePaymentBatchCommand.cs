@@ -10,14 +10,11 @@ public class CreatePaymentBatchCommand : IRequest<PaymentBatchDto>
 {
     public int CompanyId { get; set; }
     public DateTime PaymentDate { get; set; }
-    /// <summary>Folio personalizado. Si null, se genera automáticamente.</summary>
+    /// <summary>Folio personalizado. Si null, se genera automáticamente con formato BTCP-[CompanyCode]-[DDMMYY]-[001]</summary>
     public string? CustomBatchNumber { get; set; }
-    /// <summary>Prefijo para generación automática. Default: LOTE</summary>
-    public string BatchPrefix { get; set; } = "LOTE";
-    public string? DefaultPaymentMethodSAT { get; set; }
-    public string? DefaultPaymentFormSAT { get; set; }
-    public string? DefaultBankDestination { get; set; }
-    public string? DefaultAccountDestination { get; set; }
+    public string? PaymentFormSAT { get; set; }
+    public string? BankDestination { get; set; }
+    public string? AccountDestination { get; set; }
     public string? Description { get; set; }
     public string? Notes { get; set; }
     public int CreatedBy { get; set; }

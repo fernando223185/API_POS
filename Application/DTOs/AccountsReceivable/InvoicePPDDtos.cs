@@ -10,6 +10,9 @@ public class InvoicePPDDto
     public int CustomerId { get; set; }
     public string CustomerName { get; set; } = string.Empty;
     public string CustomerRFC { get; set; } = string.Empty;
+    public string? CustomerZipCode { get; set; }
+    public string? CustomerTaxRegime { get; set; }
+    public string? CustomerCfdiUse { get; set; }
     public string FolioUUID { get; set; } = string.Empty;
     public string? Serie { get; set; }
     public string? Folio { get; set; }
@@ -19,6 +22,8 @@ public class InvoicePPDDto
     public string Currency { get; set; } = "MXN";
     public decimal ExchangeRate { get; set; }
     public decimal OriginalAmount { get; set; }
+    public decimal Subtotal { get; set; }
+    public decimal TaxAmount { get; set; }
     public decimal PaidAmount { get; set; }
     public decimal BalanceAmount { get; set; }
     public int NextPartialityNumber { get; set; }
@@ -39,6 +44,9 @@ public class CreateInvoicePPDRequest
     public int CustomerId { get; set; }
     public string CustomerName { get; set; } = string.Empty;
     public string CustomerRFC { get; set; } = string.Empty;
+    public string? CustomerZipCode { get; set; } // Código postal del domicilio fiscal
+    public string? CustomerTaxRegime { get; set; } // Régimen fiscal SAT (601, 603, 616, etc.)
+    public string? CustomerCfdiUse { get; set; } // Uso del CFDI (debe ser CP01 para complemento de pago)
     public int CompanyId { get; set; }
     public int BranchId { get; set; }
     public string FolioUUID { get; set; } = string.Empty;
@@ -49,6 +57,8 @@ public class CreateInvoicePPDRequest
     public string Currency { get; set; } = "MXN";
     public decimal ExchangeRate { get; set; } = 1.0M;
     public decimal TotalAmount { get; set; }
+    public decimal Subtotal { get; set; } // Subtotal de la factura (sin impuestos)
+    public decimal TaxAmount { get; set; } // Total de impuestos (IVA + otros)
     public string? Notes { get; set; }
 }
 

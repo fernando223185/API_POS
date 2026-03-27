@@ -263,7 +263,7 @@ public class GeneratePaymentComplementsCommandHandler
                                 new
                                 {
                                     FechaPago      = fechaPago,
-                                    FormaDePagoP   = payment.PaymentMethodSAT,
+                                    FormaDePagoP   = payment.PaymentFormSAT,
                                     MonedaP        = payment.Currency,
                                     Monto          = impPagado.ToString("0.##", ic),
 

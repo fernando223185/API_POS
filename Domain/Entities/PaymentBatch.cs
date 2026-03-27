@@ -14,8 +14,8 @@ public class PaymentBatch
     [Key]
     public int Id { get; set; }
 
-    [MaxLength(20)]
-    public string BatchNumber { get; set; } = string.Empty; // LOTE-2026-001
+    [MaxLength(50)]
+    public string BatchNumber { get; set; } = string.Empty; // BTCP-COMP001-270326-001
 
     // Empresa
     public int CompanyId { get; set; }
@@ -31,15 +31,15 @@ public class PaymentBatch
     [MaxLength(3)]
     public string Currency { get; set; } = "MXN";
 
-    // Datos SAT Comunes (opcional, pueden variar por pago)
+    // Datos por defecto del lote (pueden ser sobreescritos en cada pago)
     [MaxLength(2)]
-    public string? DefaultPaymentMethodSAT { get; set; }
+    public string? PaymentFormSAT { get; set; } // 01=Efectivo, 02=Cheque, 03=Transferencia, etc.
 
     [MaxLength(100)]
-    public string? DefaultBankDestination { get; set; }
+    public string? BankDestination { get; set; }
 
     [MaxLength(20)]
-    public string? DefaultAccountDestination { get; set; }
+    public string? AccountDestination { get; set; }
 
     // Control de Proceso
     [MaxLength(20)]

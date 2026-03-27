@@ -14,7 +14,7 @@ public class PaymentComplementLog
     public int Id { get; set; }
 
     // Relaciones
-    public int PaymentApplicationId { get; set; }
+    public int? PaymentApplicationId { get; set; }
     public int PaymentId { get; set; }
     public int? BatchId { get; set; }
 

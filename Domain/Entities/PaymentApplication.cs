@@ -49,6 +49,32 @@ public class PaymentApplication
     [Precision(18, 2)]
     public decimal NewBalance { get; set; }
 
+    // Datos de Moneda del Documento Relacionado
+    [MaxLength(3)]
+    public string DocumentCurrency { get; set; } = "MXN"; // MonedaDR
+
+    [Precision(18, 6)]
+    public decimal DocumentExchangeRate { get; set; } = 1.0M; // EquivalenciaDR
+
+    [MaxLength(2)]
+    public string TaxObject { get; set; } = "02"; // ObjetoImpDR (01=No objeto, 02=Sí objeto de impuestos)
+
+    // Impuestos del Documento Relacionado (ImpuestosDR > TrasladosDR)
+    [Precision(18, 6)]
+    public decimal TaxBase { get; set; } = 0; // BaseDR - Base del impuesto
+
+    [MaxLength(3)]
+    public string TaxCode { get; set; } = "002"; // ImpuestoDR (002=IVA, 001=ISR)
+
+    [MaxLength(20)]
+    public string TaxFactorType { get; set; } = "Tasa"; // TipoFactorDR
+
+    [Precision(8, 6)]
+    public decimal TaxRate { get; set; } = 0.160000M; // TasaOCuotaDR (0.160000 para IVA 16%)
+
+    [Precision(18, 6)]
+    public decimal TaxAmount { get; set; } = 0; // ImporteDR - Importe del impuesto
+
     // Datos del Complemento Generado
     [MaxLength(36)]
     public string? ComplementUUID { get; set; }

@@ -51,7 +51,7 @@ public class GetPaymentBatchByIdQueryHandler : IRequestHandler<GetPaymentBatchBy
                 PaymentDate = p.PaymentDate,
                 TotalAmount = p.TotalAmount,
                 Currency = p.Currency,
-                PaymentMethodSAT = p.PaymentMethodSAT,
+                PaymentFormSAT = p.PaymentFormSAT,
                 Status = p.Status,
                 AppliedToInvoices = p.AppliedToInvoices,
                 ComplementsGenerated = p.ComplementsGenerated,

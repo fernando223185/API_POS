@@ -1,4 +1,5 @@
 using Application.Abstractions.AccountsReceivable;
+using Application.Abstractions.Config;
 using Application.Core.AccountsReceivable.Commands;
 using Application.DTOs.AccountsReceivable;
 using Domain.Entities;
@@ -15,21 +16,28 @@ public class CreatePaymentBatchCommandHandler : IRequestHandler<CreatePaymentBat
     private readonly IPaymentRepository _paymentRepository;
     private readonly IPaymentApplicationRepository _applicationRepository;
     private readonly IInvoicePPDRepository _invoicePPDRepository;
+    private readonly ICompanyRepository _companyRepository;
 
     public CreatePaymentBatchCommandHandler(
         IPaymentBatchRepository batchRepository,
         IPaymentRepository paymentRepository,
         IPaymentApplicationRepository applicationRepository,
-        IInvoicePPDRepository invoicePPDRepository)
+        IInvoicePPDRepository invoicePPDRepository,
+        ICompanyRepository companyRepository)
     {
         _batchRepository = batchRepository;
         _paymentRepository = paymentRepository;
         _applicationRepository = applicationRepository;
         _invoicePPDRepository = invoicePPDRepository;
+        _companyRepository = companyRepository;
     }
 
     public async Task<PaymentBatchDto> Handle(CreatePaymentBatchCommand command, CancellationToken cancellationToken)
     {
+        // 0. Obtener la empresa para usar su código en el folio del lote
+        var company = await _companyRepository.GetByIdAsync(command.CompanyId)
+            ?? throw new InvalidOperationException($"Empresa con ID {command.CompanyId} no encontrada.");
+
         // 1. Determinar número de lote: personalizado o autogenerado
         string batchNumber;
         if (!string.IsNullOrWhiteSpace(command.CustomBatchNumber))
@@ -43,7 +51,13 @@ public class CreatePaymentBatchCommandHandler : IRequestHandler<CreatePaymentBat
         }
         else
         {
-            batchNumber = await _batchRepository.GenerateBatchNumberAsync(command.BatchPrefix ?? "LOTE");
+            // Generar folio automático: BTCP-[CompanyCode]-[DDMMYY]-[Consecutivo]
+            // Ejemplo: BTCP-COMP001-260326-001
+            batchNumber = await _batchRepository.GenerateBatchNumberAsync(
+                company.Code,
+                command.PaymentDate,
+                "BTCP" // Prefijo fijo para lotes de complementos de pago
+            );
         }
 
         // 2. Crear entidad de lote
@@ -52,9 +66,9 @@ public class CreatePaymentBatchCommandHandler : IRequestHandler<CreatePaymentBat
             BatchNumber = batchNumber,
             CompanyId = command.CompanyId,
             PaymentDate = command.PaymentDate,
-            DefaultPaymentMethodSAT = command.DefaultPaymentMethodSAT,
-            DefaultBankDestination = command.DefaultBankDestination,
-            DefaultAccountDestination = command.DefaultAccountDestination,
+            PaymentFormSAT = command.PaymentFormSAT,
+            BankDestination = command.BankDestination,
+            AccountDestination = command.AccountDestination,
             Description = command.Description,
             Notes = command.Notes,
             Status = "Draft",
@@ -72,23 +86,38 @@ public class CreatePaymentBatchCommandHandler : IRequestHandler<CreatePaymentBat
             // Generar número de pago
             var paymentNumber = await _paymentRepository.GeneratePaymentNumberAsync();
 
+            // Obtener la primera factura para extraer datos del receptor
+            var firstInvoice = await _invoicePPDRepository.GetByIdAsync(paymentItem.Invoices.First().InvoicePPDId);
+            if (firstInvoice == null)
+                throw new InvalidOperationException($"Factura {paymentItem.Invoices.First().InvoicePPDId} no encontrada.");
+
             var payment = new Payment
             {
                 PaymentNumber = paymentNumber,
                 CustomerId = paymentItem.CustomerId,
+                CustomerName = firstInvoice.CustomerName,
                 CompanyId = command.CompanyId,
                 IsBatchPayment = true,
                 PaymentDate = paymentItem.PaymentDate ?? command.PaymentDate,
-                // Método/forma de pago: específico del pago o default del lote
-                PaymentMethodSAT = paymentItem.PaymentMethodSAT ?? command.DefaultPaymentMethodSAT ?? "03",
-                PaymentFormSAT = paymentItem.PaymentFormSAT ?? command.DefaultPaymentFormSAT,
+                // Forma de pago del lote
+                PaymentFormSAT = command.PaymentFormSAT ?? "03",
                 Currency = "MXN",
                 ExchangeRate = 1.0M,
-                BankOrigin = paymentItem.BankOrigin,
-                // Banco/cuenta destino: específico del pago o default del lote
-                BankDestination = paymentItem.BankDestination ?? command.DefaultBankDestination,
-                BankAccountDestination = paymentItem.AccountDestination ?? command.DefaultAccountDestination,
+                // Banco/cuenta destino del lote
+                BankDestination = command.BankDestination,
+                BankAccountDestination = command.AccountDestination,
                 Reference = paymentItem.Reference,
+                // Snapshot de datos del emisor (Company) al momento de creación
+                EmisorRfc = company.TaxId,
+                EmisorNombre = company.LegalName,
+                EmisorRegimenFiscal = company.SatTaxRegime,
+                LugarExpedicion = company.FiscalZipCode,
+                // Snapshot de datos del receptor desde la factura PPD (datos con los que se timbró)
+                ReceptorRfc = firstInvoice.CustomerRFC,
+                ReceptorNombre = firstInvoice.CustomerName,
+                ReceptorDomicilioFiscal = firstInvoice.CustomerZipCode ?? string.Empty,
+                ReceptorRegimenFiscal = firstInvoice.CustomerTaxRegime ?? string.Empty,
+                ReceptorUsoCfdi = "CP01", // CP01 = Pagos (fijo para complementos de pago)
                 Status = "Draft",
                 CreatedAt = DateTime.UtcNow
             };
@@ -109,14 +138,34 @@ public class CreatePaymentBatchCommandHandler : IRequestHandler<CreatePaymentBat
 
                 paymentTotal += amountToPay;
 
+                // Calcular impuestos proporcionalmente al monto pagado
+                decimal proportionPaid = invoice.OriginalAmount > 0 ? amountToPay / invoice.OriginalAmount : 0;
+                decimal taxBase = Math.Round(invoice.Subtotal * proportionPaid, 6);
+                decimal taxAmount = Math.Round(invoice.TaxAmount * proportionPaid, 6);
+
                 var application = new PaymentApplication
                 {
                     InvoicePPDId = invoiceItem.InvoicePPDId,
-                    PaymentType = amountToPay >= invoice.BalanceAmount ? "Total" : "Parcial",
+                    CustomerId = invoice.CustomerId,
+                    CustomerName = invoice.CustomerName,
+                    FolioUUID = invoice.FolioUUID,
+                    SerieAndFolio = invoice.SerieAndFolio,
+                    OriginalInvoiceAmount = invoice.OriginalAmount,
+                    PaymentType = amountToPay >= invoice.BalanceAmount ? "FullPayment" : "PartialPayment",
                     PartialityNumber = invoice.NextPartialityNumber,
                     PreviousBalance = invoice.BalanceAmount,
                     AmountApplied = amountToPay,
                     NewBalance = invoice.BalanceAmount - amountToPay,
+                    // Datos de moneda del documento relacionado
+                    DocumentCurrency = invoice.Currency,
+                    DocumentExchangeRate = invoice.ExchangeRate,
+                    TaxObject = "02", // 02 = Sí objeto de impuestos
+                    // Impuestos calculados proporcionalmente
+                    TaxBase = taxBase,
+                    TaxCode = "002", // 002 = IVA
+                    TaxFactorType = "Tasa",
+                    TaxRate = 0.160000M, // IVA 16%
+                    TaxAmount = taxAmount,
                     ComplementStatus = "Pending",
                     CreatedAt = DateTime.UtcNow
                 };

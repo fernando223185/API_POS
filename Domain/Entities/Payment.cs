@@ -42,12 +42,9 @@ public class Payment
     [Precision(18, 6)]
     public decimal ExchangeRate { get; set; } = 1.0M;
 
-    // Datos SAT
+    // Datos SAT - Forma de Pago (c_FormaPago)
     [MaxLength(2)]
-    public string PaymentMethodSAT { get; set; } = string.Empty; // 03=Transferencia, 02=Cheque, etc.
-
-    [MaxLength(2)]
-    public string? PaymentFormSAT { get; set; }
+    public string PaymentFormSAT { get; set; } = string.Empty; // 01=Efectivo, 02=Cheque, 03=Transferencia, 04=Tarjeta crédito, 28=Tarjeta débito, 99=Por definir
 
     // Datos Bancarios (opcionales)
     [MaxLength(100)]
@@ -65,6 +62,68 @@ public class Payment
     [MaxLength(50)]
     public string? Reference { get; set; }
 
+    // ========================================
+    // EMISOR (Snapshot al momento del timbrado)
+    // ========================================
+
+    /// <summary>
+    /// RFC del emisor (snapshot de Company.RFC)
+    /// </summary>
+    [MaxLength(13)]
+    public string? EmisorRfc { get; set; }
+
+    /// <summary>
+    /// Nombre del emisor (snapshot de Company.Name)
+    /// </summary>
+    [MaxLength(300)]
+    public string? EmisorNombre { get; set; }
+
+    /// <summary>
+    /// Régimen fiscal del emisor (snapshot de Company.TaxRegime)
+    /// </summary>
+    [MaxLength(3)]
+    public string? EmisorRegimenFiscal { get; set; }
+
+    /// <summary>
+    /// Código postal de expedición (snapshot de Company.ZipCode)
+    /// </summary>
+    [MaxLength(5)]
+    public string? LugarExpedicion { get; set; }
+
+    // ========================================
+    // RECEPTOR (Snapshot al momento del timbrado)
+    // ========================================
+
+    /// <summary>
+    /// RFC del receptor (snapshot de Customer.RFC)
+    /// </summary>
+    [MaxLength(13)]
+    public string? ReceptorRfc { get; set; }
+
+    /// <summary>
+    /// Nombre del receptor (snapshot de Customer.Name)
+    /// </summary>
+    [MaxLength(300)]
+    public string? ReceptorNombre { get; set; }
+
+    /// <summary>
+    /// Código postal del receptor (snapshot de Customer.ZipCode)
+    /// </summary>
+    [MaxLength(5)]
+    public string? ReceptorDomicilioFiscal { get; set; }
+
+    /// <summary>
+    /// Régimen fiscal del receptor (snapshot de Customer.TaxRegime)
+    /// </summary>
+    [MaxLength(3)]
+    public string? ReceptorRegimenFiscal { get; set; }
+
+    /// <summary>
+    /// Uso CFDI del receptor. Para complementos de pago siempre es "CP01"
+    /// </summary>
+    [MaxLength(4)]
+    public string? ReceptorUsoCfdi { get; set; }
+
     // Control
     [MaxLength(20)]
     public string Status { get; set; } = "Draft"; // Draft, Applied, Complemented, Cancelled
@@ -72,6 +131,58 @@ public class Payment
     public int AppliedToInvoices { get; set; } = 0;
     public int ComplementsGenerated { get; set; } = 0;
     public int ComplementsWithError { get; set; } = 0;
+
+    // ========================================
+    // DATOS DE TIMBRADO DEL COMPLEMENTO DE PAGO
+    // ========================================
+
+    /// <summary>
+    /// UUID del complemento de pago timbrado
+    /// </summary>
+    [MaxLength(50)]
+    public string? Uuid { get; set; }
+
+    /// <summary>
+    /// Fecha y hora de timbrado
+    /// </summary>
+    public DateTime? TimbradoAt { get; set; }
+
+    /// <summary>
+    /// XML completo del complemento de pago timbrado
+    /// </summary>
+    public string? XmlCfdi { get; set; }
+
+    /// <summary>
+    /// Cadena original del SAT
+    /// </summary>
+    public string? CadenaOriginalSat { get; set; }
+
+    /// <summary>
+    /// Sello digital del CFDI
+    /// </summary>
+    public string? SelloCfdi { get; set; }
+
+    /// <summary>
+    /// Sello digital del SAT
+    /// </summary>
+    public string? SelloSat { get; set; }
+
+    /// <summary>
+    /// Número de certificado del CFDI
+    /// </summary>
+    [MaxLength(20)]
+    public string? NoCertificadoCfdi { get; set; }
+
+    /// <summary>
+    /// Número de certificado del SAT
+    /// </summary>
+    [MaxLength(20)]
+    public string? NoCertificadoSat { get; set; }
+
+    /// <summary>
+    /// Código QR en base64
+    /// </summary>
+    public string? QrCode { get; set; }
 
     // Auditoría
     [MaxLength(1000)]

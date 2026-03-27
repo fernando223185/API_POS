@@ -28,6 +28,16 @@ public class InvoicePPD
     [MaxLength(13)]
     public string CustomerRFC { get; set; } = string.Empty;
 
+    // Datos Fiscales del Receptor (para complemento de pago)
+    [MaxLength(10)]
+    public string? CustomerZipCode { get; set; } // DomicilioFiscalReceptor
+
+    [MaxLength(10)]
+    public string? CustomerTaxRegime { get; set; } // RegimenFiscalReceptor (601, 603, 616, etc.)
+
+    [MaxLength(5)]
+    public string? CustomerCfdiUse { get; set; } // UsoCFDI (CP01 para complemento de pago)
+
     // Información de la Empresa
     public int CompanyId { get; set; }
 
@@ -56,6 +66,12 @@ public class InvoicePPD
 
     [Precision(18, 2)]
     public decimal OriginalAmount { get; set; }
+
+    [Precision(18, 2)]
+    public decimal Subtotal { get; set; } = 0; // Subtotal de la factura original
+
+    [Precision(18, 2)]
+    public decimal TaxAmount { get; set; } = 0; // Total de impuestos (IVA) de la factura
 
     [Precision(18, 2)]
     public decimal PaidAmount { get; set; } = 0;

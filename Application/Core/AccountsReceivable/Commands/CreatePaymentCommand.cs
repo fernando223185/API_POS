@@ -11,8 +11,7 @@ public class CreatePaymentCommand : IRequest<PaymentDto>
     public int CustomerId { get; set; }
     public int CompanyId { get; set; }
     public DateTime PaymentDate { get; set; }
-    public string PaymentMethodSAT { get; set; } = string.Empty;
-    public string? PaymentFormSAT { get; set; }
+    public string PaymentFormSAT { get; set; } = string.Empty;
     public string Currency { get; set; } = "MXN";
     public decimal ExchangeRate { get; set; } = 1.0M;
     public string? BankOrigin { get; set; }

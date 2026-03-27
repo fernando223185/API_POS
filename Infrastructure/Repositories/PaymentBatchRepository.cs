@@ -54,19 +54,22 @@ public class PaymentBatchRepository : IPaymentBatchRepository
         return batch;
     }
 
-    public async Task<string> GenerateBatchNumberAsync(string prefix = "LOTE")
+    public async Task<string> GenerateBatchNumberAsync(string companyCode, DateTime paymentDate, string prefix = "BTCP")
     {
-        var year = DateTime.Now.Year;
+        // Formato: BTCP-COMP001-260326-001
+        var dateStr = paymentDate.ToString("ddMMyy"); // Ejemplo: 260326
+        var searchPattern = $"{prefix}-{companyCode}-{dateStr}-";
+        
         var lastBatch = await _context.PaymentBatches
-            .Where(b => b.BatchNumber.StartsWith($"{prefix}-{year}"))
+            .Where(b => b.BatchNumber.StartsWith(searchPattern))
             .OrderByDescending(b => b.BatchNumber)
             .FirstOrDefaultAsync();
 
         if (lastBatch == null)
-            return $"{prefix}-{year}-001";
+            return $"{searchPattern}001";
 
         var lastNumber = int.Parse(lastBatch.BatchNumber.Split('-').Last());
-        return $"{prefix}-{year}-{(lastNumber + 1):D3}";
+        return $"{searchPattern}{(lastNumber + 1):D3}";
     }
 
     public async Task<List<PaymentBatch>> GetRecentBatchesAsync(int companyId, int limit = 10)

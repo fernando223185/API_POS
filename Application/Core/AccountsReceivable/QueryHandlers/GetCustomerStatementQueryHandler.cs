@@ -145,7 +145,7 @@ public class GetCustomerStatementQueryHandler : IRequestHandler<GetCustomerState
                 PaymentDate = p.PaymentDate,
                 TotalAmount = p.TotalAmount,
                 Currency = p.Currency,
-                PaymentMethodSAT = p.PaymentMethodSAT,
+                PaymentFormSAT = p.PaymentFormSAT,
                 Status = p.Status,
                 CreatedAt = p.CreatedAt
             }).ToList(),

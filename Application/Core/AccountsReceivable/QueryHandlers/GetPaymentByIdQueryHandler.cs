@@ -37,7 +37,7 @@ public class GetPaymentByIdQueryHandler : IRequestHandler<GetPaymentByIdQuery, P
             PaymentDate = payment.PaymentDate,
             TotalAmount = payment.TotalAmount,
             Currency = payment.Currency,
-            PaymentMethodSAT = payment.PaymentMethodSAT,
+            PaymentFormSAT = payment.PaymentFormSAT,
             Reference = payment.Reference,
             Status = payment.Status,
             AppliedToInvoices = payment.AppliedToInvoices,

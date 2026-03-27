@@ -11,7 +11,7 @@ public interface IPaymentBatchRepository
     Task<PaymentBatch?> GetByIdAsync(int id);
     Task<PaymentBatch?> GetByBatchNumberAsync(string batchNumber);
     Task<PaymentBatch> UpdateAsync(PaymentBatch batch);
-    Task<string> GenerateBatchNumberAsync(string prefix = "LOTE");
+    Task<string> GenerateBatchNumberAsync(string companyCode, DateTime paymentDate, string prefix = "BTCP");
     Task<bool> ExistsByBatchNumberAsync(string batchNumber);
     Task<List<PaymentBatch>> GetRecentBatchesAsync(int companyId, int limit = 10);
     Task<(List<PaymentBatch> items, int totalCount)> GetPagedAsync(
