@@ -3,6 +3,7 @@ using Application.Abstractions.Sales;
 using Application.Core.Billing.Commands;
 using Application.DTOs.Billing;
 using MediatR;
+using System.Globalization;
 
 namespace Application.Core.Billing.CommandHandlers
 {
@@ -231,7 +232,7 @@ namespace Application.Core.Billing.CommandHandlers
                 FormaPago = request.FormaPago,
                 Serie = serie,
                 Folio = folio,
-                Fecha = sale.SaleDate.ToString("yyyy-MM-ddTHH:mm:ss"),
+                Fecha = ObtenerFechaCfdi(),
                 Sello = "",
                 NoCertificado = "",
                 Certificado = "",
@@ -282,6 +283,15 @@ namespace Application.Core.Billing.CommandHandlers
             };
 
             return cfdi;
+        }
+
+        private static string ObtenerFechaCfdi()
+        {
+            TimeZoneInfo tz;
+            try { tz = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time (Mexico)"); }
+            catch { tz = TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City"); }
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz)
+                .ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture);
         }
     }
 }

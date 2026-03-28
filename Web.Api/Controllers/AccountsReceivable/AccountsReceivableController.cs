@@ -395,4 +395,60 @@ public class AccountsReceivableController : ControllerBase
     }
 
     #endregion
+
+    #region Documentos de Pago (PDF / XML)
+
+    /// <summary>
+    /// Descarga el XML timbrado de un complemento de pago
+    /// </summary>
+    [HttpGet("payments/{id}/xml")]
+    [RequirePermission("CFDI", "View")]
+    public async Task<IActionResult> DownloadPaymentXml(int id)
+    {
+        try
+        {
+            var (bytes, fileName) = await _mediator.Send(new GetPaymentXmlQuery { PaymentId = id });
+            return File(bytes, "application/xml", fileName);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message, error = 1 });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message, error = 1 });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error al generar XML", error = 2, details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Descarga el PDF del complemento de pago timbrado
+    /// </summary>
+    [HttpGet("payments/{id}/pdf")]
+    [RequirePermission("CFDI", "View")]
+    public async Task<IActionResult> DownloadPaymentPdf(int id)
+    {
+        try
+        {
+            var (bytes, fileName) = await _mediator.Send(new GetPaymentPdfQuery { PaymentId = id });
+            return File(bytes, "application/pdf", fileName);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message, error = 1 });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message, error = 1 });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error al generar PDF", error = 2, details = ex.Message });
+        }
+    }
+
+    #endregion
 }

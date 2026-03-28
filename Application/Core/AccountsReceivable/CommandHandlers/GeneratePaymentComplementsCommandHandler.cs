@@ -191,6 +191,18 @@ public class GeneratePaymentComplementsCommandHandler
     }
 
     // ─────────────────────────────────────────────────────────────
+    //  Hora local de México (zona fiscal) para el campo Fecha del CFDI
+    // ─────────────────────────────────────────────────────────────
+    private static string ObtenerFechaCfdi()
+    {
+        TimeZoneInfo tz;
+        try { tz = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time (Mexico)"); }
+        catch { tz = TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City"); }
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz)
+            .ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture);
+    }
+
+    // ─────────────────────────────────────────────────────────────
     //  Construcción del CFDI 4.0 tipo "P" (Complemento de Pago)
     //  Genera UN complemento con TODOS los DoctoRelacionado
     // ─────────────────────────────────────────────────────────────
@@ -201,9 +213,10 @@ public class GeneratePaymentComplementsCommandHandler
         CompanyEntity company,
         IFormatProvider ic)
     {
-        // Calcular totales acumulados para Pago20:Totales
-        decimal totalBaseIVA16 = 0;
-        decimal totalImpuestoIVA16 = 0;
+        // Acumuladores a 6 decimales: se usan en BaseP/ImporteP (ImpuestosP)
+        // Los Totales (Pago20:Totales) se redondean a 2 decimales al final
+        decimal totalBaseIVA16_6 = 0;
+        decimal totalImpuestoIVA16_6 = 0;
         decimal montoTotalPagos = applications.Sum(a => a.AmountApplied);
 
         // Construir array de DoctoRelacionado
@@ -214,12 +227,13 @@ public class GeneratePaymentComplementsCommandHandler
             var invoice = invoices.FirstOrDefault(i => i.Id == app.InvoiceId);
             if (invoice == null) continue;
 
-            // Cálculo de impuestos para este documento
-            decimal baseIVA16 = Math.Round(app.AmountApplied / 1.16m, 2);
-            decimal importeIVA16 = Math.Round(app.AmountApplied - baseIVA16, 2);
+            // Cálculo a 6 decimales: BaseDR × TasaOCuotaDR = ImporteDR exacto (regla SAT CRP20261)
+            decimal baseIVA16 = Math.Round(app.AmountApplied / 1.16m, 6);
+            decimal importeIVA16 = Math.Round(baseIVA16 * 0.16m, 6);
 
-            totalBaseIVA16 += baseIVA16;
-            totalImpuestoIVA16 += importeIVA16;
+            // Acumular a 6 decimales para que BaseP/ImporteP = suma de BaseDR/ImporteDR
+            totalBaseIVA16_6 += baseIVA16;
+            totalImpuestoIVA16_6 += importeIVA16;
 
             decimal saldoAnterior = app.PreviousBalance;
             decimal impPagado = app.AmountApplied;
@@ -267,8 +281,8 @@ public class GeneratePaymentComplementsCommandHandler
                 Version = "2.0",
                 Totales = new TotalesDto
                 {
-                    TotalTrasladosBaseIVA16 = totalBaseIVA16.ToString("0.00", ic),
-                    TotalTrasladosImpuestoIVA16 = totalImpuestoIVA16.ToString("0.00", ic),
+                    TotalTrasladosBaseIVA16 = Math.Round(totalBaseIVA16_6, 2).ToString("0.00", ic),
+                    TotalTrasladosImpuestoIVA16 = Math.Round(totalImpuestoIVA16_6, 2).ToString("0.00", ic),
                     MontoTotalPagos = montoTotalPagos.ToString("0.00", ic)
                 },
                 Pago = new[]
@@ -287,11 +301,11 @@ public class GeneratePaymentComplementsCommandHandler
                             {
                                 new TrasladoPDto
                                 {
-                                    BaseP = totalBaseIVA16.ToString("0.000000", ic),
+                                    BaseP = totalBaseIVA16_6.ToString("0.000000", ic),
                                     ImpuestoP = "002",
                                     TipoFactorP = "Tasa",
                                     TasaOCuotaP = "0.160000",
-                                    ImporteP = totalImpuestoIVA16.ToString("0.000000", ic)
+                                    ImporteP = totalImpuestoIVA16_6.ToString("0.000000", ic)
                                 }
                             }
                         }
@@ -306,7 +320,7 @@ public class GeneratePaymentComplementsCommandHandler
             Serie = "CP",
             Folio = folio,
             TipoDeComprobante = "P",
-            Fecha = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss", ic),
+            Fecha = ObtenerFechaCfdi(),
             Sello = "",
             NoCertificado = "",
             Certificado = "",

@@ -3,6 +3,7 @@ using Application.Core.Billing.Commands;
 using Application.DTOs.Billing;
 using Domain.Entities;
 using MediatR;
+using System.Globalization;
 
 namespace Application.Core.Billing.CommandHandlers
 {
@@ -200,7 +201,7 @@ namespace Application.Core.Billing.CommandHandlers
                 FormaPago = invoice.FormaPago,
                 Serie = invoice.Serie,
                 Folio = invoice.Folio,
-                Fecha = invoice.InvoiceDate.ToString("yyyy-MM-ddTHH:mm:ss"),
+                Fecha = ObtenerFechaCfdi(),
                 MetodoPago = invoice.MetodoPago,
                 Sello = "",
                 NoCertificado = "",
@@ -334,6 +335,15 @@ namespace Application.Core.Billing.CommandHandlers
             };
 
             return impuestos;
+        }
+
+        private static string ObtenerFechaCfdi()
+        {
+            TimeZoneInfo tz;
+            try { tz = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time (Mexico)"); }
+            catch { tz = TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City"); }
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz)
+                .ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture);
         }
 
         private InvoiceDto MapToDto(Invoice invoice)
