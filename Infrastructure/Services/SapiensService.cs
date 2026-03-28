@@ -2,8 +2,10 @@ using Application.Abstractions.Billing;
 using Application.DTOs.Billing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using System.Globalization;
 using System.Text;
-using System.Text.Json;
 
 namespace Infrastructure.Services
 {
@@ -113,15 +115,16 @@ namespace Infrastructure.Services
                     data = cfdiData
                 };
 
-                // Serializar con opciones específicas (ignorar nulls, formato indentado para logging)
-                var jsonOptions = new JsonSerializerOptions
+                // Serializar con Newtonsoft.Json para manejar correctamente Dictionary keys con ':'
+                var jsonSettings = new JsonSerializerSettings
                 {
-                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-                    WriteIndented = true,
-                    PropertyNamingPolicy = null // Respetar nombres de propiedades tal cual
+                    NullValueHandling = NullValueHandling.Ignore,
+                    Formatting = Formatting.Indented,
+                    Culture = CultureInfo.InvariantCulture, // CRÍTICO: Usar punto decimal, no coma
+                    ContractResolver = new DefaultContractResolver() // Respetar nombres tal cual
                 };
 
-                var jsonContent = JsonSerializer.Serialize(requestDto.data, jsonOptions);
+                var jsonContent = JsonConvert.SerializeObject(requestDto.data, jsonSettings);
                 
                 // Log del JSON enviado para debugging
                 _logger.LogInformation("📤 JSON enviado a Sapiens:\n{JsonContent}", jsonContent);
@@ -145,10 +148,7 @@ namespace Infrastructure.Services
                     // Intentar parsear como error de Sapiens
                     try
                     {
-                        var errorResponse = JsonSerializer.Deserialize<SapiensErrorResponseDto>(responseContent, new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
+                        var errorResponse = JsonConvert.DeserializeObject<SapiensErrorResponseDto>(responseContent);
 
                         if (errorResponse != null)
                         {
@@ -164,10 +164,7 @@ namespace Infrastructure.Services
                 }
 
                 // Parsear respuesta exitosa
-                var timbradoResponse = JsonSerializer.Deserialize<SapiensTimbradoResponseDto>(responseContent, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                var timbradoResponse = JsonConvert.DeserializeObject<SapiensTimbradoResponseDto>(responseContent);
 
                 if (timbradoResponse == null || timbradoResponse.data == null)
                 {

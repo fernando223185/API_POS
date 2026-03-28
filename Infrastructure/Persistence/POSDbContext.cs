@@ -62,7 +62,6 @@ namespace Infrastructure.Persistence
         public DbSet<InvoiceDetail> InvoiceDetails { get; set; }
 
         // ✅ NUEVO: Sistema de Cuentas por Cobrar y Complementos de Pago
-        public DbSet<InvoicePPD> InvoicesPPD { get; set; }
         public DbSet<Payment> Payments { get; set; }
         public DbSet<PaymentApplication> PaymentApplications { get; set; }
         public DbSet<PaymentBatch> PaymentBatches { get; set; }
@@ -538,28 +537,6 @@ namespace Infrastructure.Persistence
                 entity.HasIndex(id => id.ProductId);
             });
 
-            // ✅ CONFIGURACIÓN DE CUENTAS POR COBRAR - INVOICES PPD
-            modelBuilder.Entity<InvoicePPD>(entity =>
-            {
-                entity.HasKey(i => i.Id);
-                entity.ToTable("InvoicesPPD");
-
-                entity.HasOne(i => i.Customer)
-                    .WithMany()
-                    .HasForeignKey(i => i.CustomerId)
-                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
-
-                entity.HasOne(i => i.Company)
-                    .WithMany()
-                    .HasForeignKey(i => i.CompanyId)
-                    .OnDelete(DeleteBehavior.NoAction); // NO CASCADE
-
-                entity.HasIndex(i => i.InvoiceId);
-                entity.HasIndex(i => i.CustomerId);
-                entity.HasIndex(i => i.Status);
-                entity.HasIndex(i => i.DueDate);
-            });
-
             // ✅ CONFIGURACIÓN DE PAGOS
             modelBuilder.Entity<Payment>(entity =>
             {
@@ -592,13 +569,13 @@ namespace Infrastructure.Persistence
                     .HasForeignKey(pa => pa.PaymentId)
                     .OnDelete(DeleteBehavior.NoAction); // NO CASCADE para evitar ciclos
 
-                entity.HasOne(pa => pa.InvoicePPD)
+                entity.HasOne(pa => pa.Invoice)
                     .WithMany(i => i.PaymentApplications)
-                    .HasForeignKey(pa => pa.InvoicePPDId)
+                    .HasForeignKey(pa => pa.InvoiceId)
                     .OnDelete(DeleteBehavior.NoAction); // NO CASCADE para evitar ciclos
 
                 entity.HasIndex(pa => pa.PaymentId);
-                entity.HasIndex(pa => pa.InvoicePPDId);
+                entity.HasIndex(pa => pa.InvoiceId);
             });
 
             // ✅ CONFIGURACIÓN DE LOTES DE PAGO

@@ -37,13 +37,17 @@ GET/POST/PUT: /api/accounts-receivable
 GET    /api/accounts-receivable/invoices-ppd
        Query params: pageNumber, pageSize, customerId, status, fromDate, toDate, 
                      minDaysOverdue, minAmount, searchTerm
+       Descripción: Lista facturas PPD con información de cobranza (saldo, días vencidos)
 
 GET    /api/accounts-receivable/invoices-ppd/{id}
+       Descripción: Obtiene UNA factura PPD por ID con información completa de cobranza
+       Retorna: Saldos (original, pagado, balance), días vencidos, estado de pago, 
+                historial de pagos aplicados (con UUID de complementos)
 
-POST   /api/accounts-receivable/invoices-ppd
-       Body: { invoiceId, customerId, customerName, customerRFC, companyId, 
-               branchId, folioUUID, serie, folio, invoiceDate, creditDays, 
-               totalAmount, ... }
+GET    /api/billing/invoices/{id}
+       Descripción: Obtiene estructura completa del CFDI para visualización fiscal
+       Retorna: Comprobante, emisor, receptor, conceptos, timbrado (SIN info de cobranza)
+```
 ```
 
 ### Pagos

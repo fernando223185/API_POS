@@ -11,10 +11,8 @@ public class CreatePaymentRequest
     public string PaymentFormSAT { get; set; } = string.Empty; // 01=Efectivo, 02=Cheque, 03=Transferencia, 04=Tarjeta,  28=Tarjeta débito, 99=Por definir
     public string Currency { get; set; } = "MXN";
     public decimal ExchangeRate { get; set; } = 1.0M;
-    public string? BankOrigin { get; set; }
-    public string? BankAccountOrigin { get; set; }
     public string? BankDestination { get; set; }
-    public string? BankAccountDestination { get; set; }
+    public string? AccountDestination { get; set; }
     public string? Reference { get; set; }
     public string? Notes { get; set; }
     public List<PaymentInvoiceItem> Invoices { get; set; } = new();
@@ -47,6 +45,8 @@ public class PaymentDto
     public string Currency { get; set; } = string.Empty;
     public string PaymentFormSAT { get; set; } = string.Empty;
     public string? Reference { get; set; }
+    public string? BankDestination { get; set; }
+    public string? AccountDestination { get; set; }
     
     // Datos del emisor (snapshot al timbrar)
     public string? EmisorRfc { get; set; }
@@ -67,6 +67,8 @@ public class PaymentDto
     public int ComplementsWithError { get; set; }
     
     // Datos de timbrado del complemento de pago
+    public string? ComplementSerie { get; set; }
+    public string? ComplementFolio { get; set; }
     public string? Uuid { get; set; }
     public DateTime? TimbradoAt { get; set; }
     public string? XmlCfdi { get; set; }
@@ -76,6 +78,10 @@ public class PaymentDto
     public string? NoCertificadoCfdi { get; set; }
     public string? NoCertificadoSat { get; set; }
     public string? QrCode { get; set; }
+    public string? XmlPath { get; set; }
+    public string? PdfPath { get; set; }
+    public bool EmailSent { get; set; }
+    public string? ComplementError { get; set; }
     
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -91,7 +97,7 @@ public class PaymentApplicationDto
 {
     public int Id { get; set; }
     public int PaymentId { get; set; }
-    public int InvoicePPDId { get; set; }
+    public int InvoiceId { get; set; }
     public string FolioUUID { get; set; } = string.Empty;
     public string SerieAndFolio { get; set; } = string.Empty;
     public string PaymentType { get; set; } = string.Empty;
@@ -108,15 +114,8 @@ public class PaymentApplicationDto
     public string TaxFactorType { get; set; } = "Tasa";
     public decimal TaxRate { get; set; } = 0.160000M;
     public decimal TaxAmount { get; set; }
-    public string? ComplementUUID { get; set; }
-    public string? ComplementSerieAndFolio { get; set; }
-    public string ComplementStatus { get; set; } = string.Empty;
-    public string? ComplementError { get; set; }
-    public string? XmlPath { get; set; }
-    public string? PdfPath { get; set; }
-    public bool EmailSent { get; set; }
     public DateTime CreatedAt { get; set; }
-    public DateTime? GeneratedAt { get; set; }
+    public DateTime? AppliedAt { get; set; }
 }
 
 /// <summary>
@@ -250,3 +249,33 @@ public class PaymentBatchPagedResultDto
     public bool HasNextPage => PageNumber < TotalPages;
 }
 
+/// <summary>
+/// Response paginado de pagos
+/// </summary>
+public class PaymentPagedResultDto
+{
+    public List<PaymentDto> Data { get; set; } = new();
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalRecords { get; set; }
+    public int TotalPages { get; set; }
+    
+    // Resumen
+    public PaymentSummaryDto? Summary { get; set; }
+}
+
+/// <summary>
+/// Resumen de pagos
+/// </summary>
+public class PaymentSummaryDto
+{
+    public int TotalPayments { get; set; }
+    public int AppliedPayments { get; set; }
+    public int PendingPayments { get; set; }
+    public int CancelledPayments { get; set; }
+    public int WithComplement { get; set; }
+    public int WithoutComplement { get; set; }
+    
+    public decimal TotalAmount { get; set; }
+    public decimal AverageAmount { get; set; }
+}

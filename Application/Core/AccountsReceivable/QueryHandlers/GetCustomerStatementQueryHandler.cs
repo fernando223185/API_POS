@@ -1,4 +1,5 @@
 using Application.Abstractions.AccountsReceivable;
+using Application.Abstractions.Billing;
 using Application.Core.AccountsReceivable.Queries;
 using Application.DTOs.AccountsReceivable;
 using MediatR;
@@ -10,13 +11,13 @@ namespace Application.Core.AccountsReceivable.QueryHandlers;
 /// </summary>
 public class GetCustomerStatementQueryHandler : IRequestHandler<GetCustomerStatementQuery, CustomerStatementDto?>
 {
-    private readonly IInvoicePPDRepository _invoiceRepository;
+    private readonly IInvoiceRepository _invoiceRepository;
     private readonly IPaymentRepository _paymentRepository;
     private readonly ICustomerCreditPolicyRepository _policyRepository;
     private readonly ICustomerCreditHistoryRepository _historyRepository;
 
     public GetCustomerStatementQueryHandler(
-        IInvoicePPDRepository invoiceRepository,
+        IInvoiceRepository invoiceRepository,
         IPaymentRepository paymentRepository,
         ICustomerCreditPolicyRepository policyRepository,
         ICustomerCreditHistoryRepository historyRepository)
@@ -30,19 +31,19 @@ public class GetCustomerStatementQueryHandler : IRequestHandler<GetCustomerState
     public async Task<CustomerStatementDto?> Handle(GetCustomerStatementQuery request, CancellationToken cancellationToken)
     {
         // Obtener facturas pendientes del cliente
-        var (invoices, _) = await _invoiceRepository.GetPagedAsync(
+        var (invoices, _) = await _invoiceRepository.GetPPDPagedAsync(
             pageNumber: 1,
             pageSize: int.MaxValue,
             customerId: request.CustomerId,
             companyId: request.CompanyId,
-            status: "Pending");
+            paymentStatus: "Pending");
 
         if (!invoices.Any())
             return null; // Cliente no encontrado o sin facturas
 
         var firstInvoice = invoices.First();
-        var totalPending = invoices.Sum(i => i.BalanceAmount);
-        var totalOverdue = invoices.Where(i => i.DaysOverdue > 0).Sum(i => i.BalanceAmount);
+        var totalPending = invoices.Sum(i => i.BalanceAmount ?? 0);
+        var totalOverdue = invoices.Where(i => (i.DaysOverdue ?? 0) > 0).Sum(i => i.BalanceAmount ?? 0);
 
         // Obtener política de crédito
         var policy = await _policyRepository.GetByCustomerIdAsync(request.CustomerId);
@@ -58,7 +59,7 @@ public class GetCustomerStatementQueryHandler : IRequestHandler<GetCustomerState
             {
                 Id = policy.Id,
                 CustomerId = policy.CustomerId,
-                CustomerName = firstInvoice.CustomerName,
+                CustomerName = firstInvoice.ReceptorNombre,
                 CompanyId = policy.CompanyId,
                 CreditLimit = policy.CreditLimit,
                 CreditDays = policy.CreditDays,
@@ -104,8 +105,8 @@ public class GetCustomerStatementQueryHandler : IRequestHandler<GetCustomerState
         return new CustomerStatementDto
         {
             CustomerId = request.CustomerId,
-            CustomerName = firstInvoice.CustomerName,
-            CustomerRFC = firstInvoice.CustomerRFC,
+            CustomerName = firstInvoice.ReceptorNombre,
+            CustomerRFC = firstInvoice.ReceptorRfc,
             CreditPolicy = policyDto,
             TotalPending = totalPending,
             TotalOverdue = totalOverdue,
@@ -113,24 +114,22 @@ public class GetCustomerStatementQueryHandler : IRequestHandler<GetCustomerState
             Invoices = invoices.Select(i => new InvoicePPDDto
             {
                 Id = i.Id,
-                InvoiceId = i.InvoiceId,
                 CustomerId = i.CustomerId,
-                CustomerName = i.CustomerName,
-                CustomerRFC = i.CustomerRFC,
-                FolioUUID = i.FolioUUID,
+                CustomerName = i.ReceptorNombre,
+                CustomerRFC = i.ReceptorRfc,
                 Serie = i.Serie,
                 Folio = i.Folio,
-                SerieAndFolio = i.SerieAndFolio,
+                Uuid = i.Uuid,
                 InvoiceDate = i.InvoiceDate,
                 DueDate = i.DueDate,
-                Currency = i.Currency,
-                ExchangeRate = i.ExchangeRate,
-                OriginalAmount = i.OriginalAmount,
+                Moneda = i.Moneda,
+                TipoCambio = i.TipoCambio,
+                Total = i.Total,
                 PaidAmount = i.PaidAmount,
                 BalanceAmount = i.BalanceAmount,
                 NextPartialityNumber = i.NextPartialityNumber,
                 TotalPartialities = i.TotalPartialities,
-                Status = i.Status,
+                PaymentStatus = i.PaymentStatus,
                 DaysOverdue = i.DaysOverdue,
                 LastPaymentDate = i.LastPaymentDate,
                 Notes = i.Notes,

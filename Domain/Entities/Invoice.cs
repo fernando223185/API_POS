@@ -256,5 +256,59 @@ namespace Domain.Entities
         public User? CreatedBy { get; set; }
 
         public DateTime? UpdatedAt { get; set; }
+
+        // ========================================
+        // CAMPOS PARA FACTURAS PPD (Pago en Parcialidades o Diferido)
+        // Solo aplican cuando MetodoPago = "PPD"
+        // ========================================
+
+        /// <summary>
+        /// Fecha de vencimiento de la factura (solo para PPD)
+        /// </summary>
+        public DateTime? DueDate { get; set; }
+
+        /// <summary>
+        /// Monto pagado acumulado (solo para PPD)
+        /// </summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal PaidAmount { get; set; } = 0;
+
+        /// <summary>
+        /// Saldo pendiente (solo para PPD). Se calcula como Total - PaidAmount
+        /// </summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? BalanceAmount { get; set; }
+
+        /// <summary>
+        /// Número de la siguiente parcialidad a generar (solo para PPD)
+        /// </summary>
+        public int? NextPartialityNumber { get; set; }
+
+        /// <summary>
+        /// Total de parcialidades generadas (complementos de pago emitidos)
+        /// </summary>
+        public int TotalPartialities { get; set; } = 0;
+
+        /// <summary>
+        /// Días de vencimiento (calculado, solo para PPD)
+        /// </summary>
+        public int? DaysOverdue { get; set; }
+
+        /// <summary>
+        /// Fecha del último pago aplicado (solo para PPD)
+        /// </summary>
+        public DateTime? LastPaymentDate { get; set; }
+
+        /// <summary>
+        /// Estado de cobranza para facturas PPD: Pending, PartiallyPaid, Paid, Overdue, Cancelled
+        /// NULL para facturas PUE
+        /// </summary>
+        [MaxLength(20)]
+        public string? PaymentStatus { get; set; }
+
+        /// <summary>
+        /// Relación con aplicaciones de pago (complementos de pago asociados)
+        /// </summary>
+        public List<PaymentApplication> PaymentApplications { get; set; } = new();
     }
 }

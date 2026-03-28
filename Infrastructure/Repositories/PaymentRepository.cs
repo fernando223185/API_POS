@@ -72,4 +72,82 @@ public class PaymentRepository : IPaymentRepository
             .CountAsync();
         return $"{prefix}-{year}-{(count + 1):D4}";
     }
+
+    public async Task<(List<Payment> items, int totalCount)> GetPagedAsync(
+        int pageNumber,
+        int pageSize,
+        int? customerId = null,
+        int? companyId = null,
+        string? status = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        bool? hasComplement = null,
+        string? searchTerm = null)
+    {
+        var query = _context.Payments
+            .Include(p => p.PaymentApplications)
+            .AsNoTracking()
+            .AsQueryable();
+
+        // Aplicar filtros
+        if (customerId.HasValue)
+        {
+            query = query.Where(p => p.CustomerId == customerId.Value);
+        }
+
+        if (companyId.HasValue)
+        {
+            query = query.Where(p => p.CompanyId == companyId.Value);
+        }
+
+        if (!string.IsNullOrEmpty(status))
+        {
+            query = query.Where(p => p.Status == status);
+        }
+
+        if (fromDate.HasValue)
+        {
+            query = query.Where(p => p.PaymentDate >= fromDate.Value);
+        }
+
+        if (toDate.HasValue)
+        {
+            query = query.Where(p => p.PaymentDate <= toDate.Value);
+        }
+
+        if (hasComplement.HasValue)
+        {
+            if (hasComplement.Value)
+            {
+                query = query.Where(p => p.Uuid != null);
+            }
+            else
+            {
+                query = query.Where(p => p.Uuid == null);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            var searchUpper = searchTerm.ToUpper();
+            query = query.Where(p =>
+                p.PaymentNumber.ToUpper().Contains(searchUpper) ||
+                (p.Reference != null && p.Reference.ToUpper().Contains(searchUpper)) ||
+                p.CustomerName.ToUpper().Contains(searchUpper)
+            );
+        }
+
+        // Total de registros
+        var totalCount = await query.CountAsync();
+
+        // Paginación
+        var items = await query
+            .OrderByDescending(p => p.PaymentDate)
+            .ThenByDescending(p => p.Id)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
 }

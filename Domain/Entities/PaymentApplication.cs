@@ -17,7 +17,14 @@ public class PaymentApplication
 
     // Relaciones
     public int PaymentId { get; set; }
-    public int InvoicePPDId { get; set; }
+    
+    /// <summary>
+    /// ID de la factura a la que se aplica el pago
+    /// </summary>
+    public int InvoiceId { get; set; }
+
+    [ForeignKey("InvoiceId")]
+    public Invoice? Invoice { get; set; }
 
     // Datos de la Factura (desnormalizados para performance)
     public int CustomerId { get; set; }
@@ -75,57 +82,13 @@ public class PaymentApplication
     [Precision(18, 6)]
     public decimal TaxAmount { get; set; } = 0; // ImporteDR - Importe del impuesto
 
-    // Datos del Complemento Generado
-    [MaxLength(36)]
-    public string? ComplementUUID { get; set; }
-
-    [MaxLength(10)]
-    public string? ComplementSerie { get; set; }
-
-    [MaxLength(20)]
-    public string? ComplementFolio { get; set; }
-
-    [MaxLength(30)]
-    public string? ComplementSerieAndFolio { get; set; }
-
-    [MaxLength(20)]
-    public string ComplementStatus { get; set; } = "Pending"; // Pending, Generating, Generated, Sent, Error, Cancelled
-
-    [MaxLength(1000)]
-    public string? ComplementError { get; set; }
-
-    // Archivos
-    [MaxLength(500)]
-    public string? XmlPath { get; set; }
-
-    [MaxLength(500)]
-    public string? PdfPath { get; set; }
-
-    [Column(TypeName = "ntext")]
-    public string? XmlContent { get; set; }
-
-    public bool EmailSent { get; set; } = false;
-    public DateTime? EmailSentAt { get; set; }
-
-    // Datos SAT del Complemento
-    public DateTime? SATCertificationDate { get; set; }
-
-    [MaxLength(50)]
-    public string? SATSerialNumber { get; set; }
-
     // Metadata
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? AppliedAt { get; set; }
-    public DateTime? GeneratedAt { get; set; }
-    public int RetryCount { get; set; } = 0;
-    public DateTime? LastRetryAt { get; set; }
 
     // Navegación
     [ForeignKey(nameof(PaymentId))]
     public virtual Payment? Payment { get; set; }
-
-    [ForeignKey(nameof(InvoicePPDId))]
-    public virtual InvoicePPD? InvoicePPD { get; set; }
 
     public virtual ICollection<PaymentComplementLog> PaymentComplementLogs { get; set; } = new List<PaymentComplementLog>();
 }

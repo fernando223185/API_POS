@@ -1,4 +1,5 @@
 using Application.Abstractions.AccountsReceivable;
+using Application.Abstractions.Billing;
 using Application.Core.AccountsReceivable.Queries;
 using Application.DTOs.AccountsReceivable;
 using MediatR;
@@ -10,9 +11,9 @@ namespace Application.Core.AccountsReceivable.QueryHandlers;
 /// </summary>
 public class GetCollectionForecastQueryHandler : IRequestHandler<GetCollectionForecastQuery, CollectionForecastDto>
 {
-    private readonly IInvoicePPDRepository _invoiceRepository;
+    private readonly IInvoiceRepository _invoiceRepository;
 
-    public GetCollectionForecastQueryHandler(IInvoicePPDRepository invoiceRepository)
+    public GetCollectionForecastQueryHandler(IInvoiceRepository invoiceRepository)
     {
         _invoiceRepository = invoiceRepository;
     }
@@ -23,11 +24,11 @@ public class GetCollectionForecastQueryHandler : IRequestHandler<GetCollectionFo
         var toDate = fromDate.AddDays(request.Days);
 
         // Obtener facturas pendientes
-        var (invoices, _) = await _invoiceRepository.GetPagedAsync(
+        var (invoices, _) = await _invoiceRepository.GetPPDPagedAsync(
             pageNumber: 1,
             pageSize: int.MaxValue,
             companyId: request.CompanyId,
-            status: "Pending");
+            paymentStatus: "Pending");
 
         // Filtrar por rango de fechas de vencimiento
         var forecastInvoices = invoices
@@ -53,7 +54,7 @@ public class GetCollectionForecastQueryHandler : IRequestHandler<GetCollectionFo
                 PeriodName = $"{currentDate:dd/MM} - {periodEnd:dd/MM}",
                 StartDate = currentDate,
                 EndDate = periodEnd,
-                Amount = periodInvoices.Sum(i => i.BalanceAmount),
+                Amount = periodInvoices.Sum(i => i.BalanceAmount ?? 0),
                 InvoiceCount = periodInvoices.Count
             });
 

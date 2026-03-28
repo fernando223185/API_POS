@@ -14,4 +14,18 @@ public interface IPaymentRepository
     Task<List<Payment>> GetByBatchIdAsync(int batchId);
     Task<Payment> UpdateAsync(Payment payment);
     Task<string> GeneratePaymentNumberAsync(string prefix = "PAG");
+    
+    /// <summary>
+    /// Obtener pagos paginados con filtros
+    /// </summary>
+    Task<(List<Payment> items, int totalCount)> GetPagedAsync(
+        int pageNumber,
+        int pageSize,
+        int? customerId = null,
+        int? companyId = null,
+        string? status = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        bool? hasComplement = null,
+        string? searchTerm = null);
 }

@@ -1,4 +1,5 @@
 using Application.Abstractions.AccountsReceivable;
+using Application.Abstractions.Billing;
 using Application.Core.AccountsReceivable.Commands;
 using Application.DTOs.AccountsReceivable;
 using Domain.Entities;
@@ -13,18 +14,18 @@ public class UpsertCustomerCreditPolicyCommandHandler : IRequestHandler<UpsertCu
 {
     private readonly ICustomerCreditPolicyRepository _policyRepository;
     private readonly ICustomerCreditHistoryRepository _historyRepository;
-    private readonly IInvoicePPDRepository _invoicePPDRepository;
+    private readonly IInvoiceRepository _invoiceRepository;
     private readonly Application.Abstractions.Catalogue.IUserRepository _userRepository;
 
     public UpsertCustomerCreditPolicyCommandHandler(
         ICustomerCreditPolicyRepository policyRepository,
         ICustomerCreditHistoryRepository historyRepository,
-        IInvoicePPDRepository invoicePPDRepository,
+        IInvoiceRepository invoiceRepository,
         Application.Abstractions.Catalogue.IUserRepository userRepository)
     {
         _policyRepository = policyRepository;
         _historyRepository = historyRepository;
-        _invoicePPDRepository = invoicePPDRepository;
+        _invoiceRepository = invoiceRepository;
         _userRepository = userRepository;
     }
 
@@ -127,7 +128,7 @@ public class UpsertCustomerCreditPolicyCommandHandler : IRequestHandler<UpsertCu
         }
 
         // 2. Calcular métricas actuales
-        var (pendingAmount, overdueAmount) = await _invoicePPDRepository.GetCustomerBalanceSummaryAsync(command.CustomerId, command.CompanyId);
+        var (pendingAmount, overdueAmount) = await _invoiceRepository.GetCustomerBalanceSummaryAsync(command.CustomerId, command.CompanyId);
         var availableCredit = policy.CreditLimit - pendingAmount;
 
         // 3. Retornar DTO

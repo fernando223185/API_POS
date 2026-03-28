@@ -47,6 +47,34 @@ public class TopCustomerBalanceDto
 }
 
 /// <summary>
+/// DTO para factura PPD (pago en parcialidades)
+/// </summary>
+public class InvoicePPDDto
+{
+    public int Id { get; set; }
+    public int? CustomerId { get; set; }
+    public string CustomerName { get; set; } = string.Empty;
+    public string CustomerRFC { get; set; } = string.Empty;
+    public string Serie { get; set; } = string.Empty;
+    public string Folio { get; set; } = string.Empty;
+    public string Uuid { get; set; } = string.Empty;
+    public DateTime InvoiceDate { get; set; }
+    public DateTime? DueDate { get; set; }
+    public string Moneda { get; set; } = "MXN";
+    public decimal? TipoCambio { get; set; }
+    public decimal Total { get; set; }
+    public decimal PaidAmount { get; set; }
+    public decimal? BalanceAmount { get; set; }
+    public int? NextPartialityNumber { get; set; }
+    public int TotalPartialities { get; set; }
+    public string? PaymentStatus { get; set; }
+    public int? DaysOverdue { get; set; }
+    public DateTime? LastPaymentDate { get; set; }
+    public string? Notes { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>
 /// Estado de cuenta del cliente
 /// </summary>
 public class CustomerStatementDto
@@ -121,4 +149,112 @@ public class OverdueCustomerSummary
     public DateTime? OldestDueDate { get; set; }
     public int MaxDaysOverdue { get; set; }
     public string CreditStatus { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Response paginado de facturas PPD
+/// </summary>
+public class InvoicePPDPagedResultDto
+{
+    public List<InvoicePPDDto> Data { get; set; } = new();
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalRecords { get; set; }
+    public int TotalPages { get; set; }
+    
+    // Resumen
+    public InvoicePPDSummaryDto? Summary { get; set; }
+}
+
+/// <summary>
+/// Resumen de facturas PPD
+/// </summary>
+public class InvoicePPDSummaryDto
+{
+    public int TotalInvoices { get; set; }
+    public int PendingInvoices { get; set; }
+    public int PartiallyPaidInvoices { get; set; }
+    public int PaidInvoices { get; set; }
+    public int OverdueInvoices { get; set; }
+    
+    public decimal TotalAmount { get; set; }
+    public decimal TotalPaid { get; set; }
+    public decimal TotalBalance { get; set; }
+    public decimal TotalOverdueAmount { get; set; }
+    
+    public int AverageDaysOverdue { get; set; }
+}
+
+/// <summary>
+/// Detalle completo de una factura PPD incluyendo historial de pagos
+/// </summary>
+public class InvoicePPDDetailDto
+{
+    // Información básica de la factura
+    public int Id { get; set; }
+    public int? CustomerId { get; set; }
+    public string CustomerName { get; set; } = string.Empty;
+    public string CustomerRFC { get; set; } = string.Empty;
+    public string Serie { get; set; } = string.Empty;
+    public string Folio { get; set; } = string.Empty;
+    public string SerieAndFolio => $"{Serie}-{Folio}";
+    public string Uuid { get; set; } = string.Empty;
+    
+    // Fechas
+    public DateTime InvoiceDate { get; set; }
+    public DateTime? DueDate { get; set; }
+    
+    // Montos
+    public string Moneda { get; set; } = "MXN";
+    public decimal? TipoCambio { get; set; }
+    public decimal Subtotal { get; set; }
+    public decimal ImpuestosTrasladadosTotal { get; set; }
+    public decimal? ImpuestosRetenidosTotal { get; set; }
+    public decimal Total { get; set; }
+    public decimal PaidAmount { get; set; }
+    public decimal BalanceAmount { get; set; }
+    
+    // Estado de pago
+    public int NextPartialityNumber { get; set; }
+    public int TotalPartialities { get; set; }
+    public string? PaymentStatus { get; set; }
+    public int? DaysOverdue { get; set; }
+    public DateTime? LastPaymentDate { get; set; }
+    
+    // Información fiscal
+    public string TipoDeComprobante { get; set; } = string.Empty;
+    public string MetodoPago { get; set; } = string.Empty;
+    public string FormaPago { get; set; } = string.Empty;
+    public string UsoCFDI { get; set; } = string.Empty;
+    
+    // Emisor
+    public string EmisorRfc { get; set; } = string.Empty;
+    public string EmisorNombre { get; set; } = string.Empty;
+    
+    // Receptor
+    public string ReceptorRfc { get; set; } = string.Empty;
+    public string ReceptorNombre { get; set; } = string.Empty;
+    
+    // Notas y auditoría
+    public string? Notes { get; set; }
+    public DateTime CreatedAt { get; set; }
+    
+    // Historial de pagos aplicados
+    public List<PaymentApplicationSummaryDto> PaymentsApplied { get; set; } = new();
+}
+
+/// <summary>
+/// Resumen de pago aplicado a una factura
+/// </summary>
+public class PaymentApplicationSummaryDto
+{
+    public int PaymentId { get; set; }
+    public string PaymentNumber { get; set; } = string.Empty;
+    public DateTime PaymentDate { get; set; }
+    public decimal AmountApplied { get; set; }
+    public int PartialityNumber { get; set; }
+    public string PaymentMethodSAT { get; set; } = string.Empty;
+    public string? Reference { get; set; }
+    public string? Uuid { get; set; } // UUID del complemento de pago
+    public string Status { get; set; } = string.Empty;
 }

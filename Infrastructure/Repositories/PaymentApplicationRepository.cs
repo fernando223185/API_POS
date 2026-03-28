@@ -25,7 +25,7 @@ public class PaymentApplicationRepository : IPaymentApplicationRepository
     {
         return await _context.PaymentApplications
             .Include(a => a.Payment)
-            .Include(a => a.InvoicePPD)
+            .Include(a => a.Invoice)
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id);
     }
@@ -38,10 +38,10 @@ public class PaymentApplicationRepository : IPaymentApplicationRepository
             .ToListAsync();
     }
 
-    public async Task<List<PaymentApplication>> GetByInvoiceIdAsync(int invoicePPDId)
+    public async Task<List<PaymentApplication>> GetByInvoiceIdAsync(int invoiceId)
     {
         return await _context.PaymentApplications
-            .Where(a => a.InvoicePPDId == invoicePPDId)
+            .Where(a => a.InvoiceId == invoiceId)
             .AsNoTracking()
             .ToListAsync();
     }
@@ -53,11 +53,15 @@ public class PaymentApplicationRepository : IPaymentApplicationRepository
         return application;
     }
 
+    /// <summary>
+    /// Cuenta las aplicaciones pendientes de un pago
+    /// NOTA: El estado del complemento ahora está en Payment, no en PaymentApplication
+    /// </summary>
     public async Task<int> CountPendingComplementsAsync(int paymentId)
     {
+        // Ya no hay estado de complemento por aplicación, ahora es por Payment
+        // Simplemente contamos las aplicaciones del pago
         return await _context.PaymentApplications
-            .CountAsync(a => a.PaymentId == paymentId
-                          && a.ComplementStatus != "Generated"
-                          && a.ComplementStatus != "Cancelled");
+            .CountAsync(a => a.PaymentId == paymentId);
     }
 }

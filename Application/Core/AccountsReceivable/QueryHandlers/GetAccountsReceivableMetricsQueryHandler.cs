@@ -1,4 +1,5 @@
 using Application.Abstractions.AccountsReceivable;
+using Application.Abstractions.Billing;
 using Application.Core.AccountsReceivable.Queries;
 using Application.DTOs.AccountsReceivable;
 using MediatR;
@@ -10,11 +11,11 @@ namespace Application.Core.AccountsReceivable.QueryHandlers;
 /// </summary>
 public class GetAccountsReceivableMetricsQueryHandler : IRequestHandler<GetAccountsReceivableMetricsQuery, AccountsReceivableMetricsDto>
 {
-    private readonly IInvoicePPDRepository _invoiceRepository;
+    private readonly IInvoiceRepository _invoiceRepository;
     private readonly IPaymentRepository _paymentRepository;
 
     public GetAccountsReceivableMetricsQueryHandler(
-        IInvoicePPDRepository invoiceRepository,
+        IInvoiceRepository invoiceRepository,
         IPaymentRepository paymentRepository)
     {
         _invoiceRepository = invoiceRepository;
@@ -24,18 +25,18 @@ public class GetAccountsReceivableMetricsQueryHandler : IRequestHandler<GetAccou
     public async Task<AccountsReceivableMetricsDto> Handle(GetAccountsReceivableMetricsQuery request, CancellationToken cancellationToken)
     {
         // Obtener todas las facturas (pendientes y pagadas)
-        var (allInvoices, _) = await _invoiceRepository.GetPagedAsync(
+        var (allInvoices, _) = await _invoiceRepository.GetPPDPagedAsync(
             pageNumber: 1,
             pageSize: int.MaxValue,
             companyId: request.CompanyId);
 
-        var pendingInvoices = allInvoices.Where(i => i.Status == "Pending").ToList();
-        var overdueInvoices = pendingInvoices.Where(i => i.DaysOverdue > 0).ToList();
+        var pendingInvoices = allInvoices.Where(i => i.PaymentStatus == "Pending").ToList();
+        var overdueInvoices = pendingInvoices.Where(i => (i.DaysOverdue ?? 0) > 0).ToList();
 
         // 1. DSO (Days Sales Outstanding)
         // DSO = (Cuentas por Cobrar / Ventas diarias promedio)
-        var totalReceivable = pendingInvoices.Sum(i => i.BalanceAmount);
-        var totalSales = allInvoices.Sum(i => i.OriginalAmount);
+        var totalReceivable = pendingInvoices.Sum(i => i.BalanceAmount ?? 0);
+        var totalSales = allInvoices.Sum(i => i.Total);
         var daysInPeriod = 90; // últimos 90 días
         var averageDailySales = totalSales / daysInPeriod;
         var dso = averageDailySales > 0 ? (int)(totalReceivable / averageDailySales) : 0;
@@ -62,8 +63,8 @@ public class GetAccountsReceivableMetricsQueryHandler : IRequestHandler<GetAccou
 
         // 5. Tasa de Recuperación
         // % del monto total recuperado vs monto original
-        var totalPaidAmount = allInvoices.Where(i => i.Status == "Paid").Sum(i => i.OriginalAmount);
-        var totalOriginalAmount = allInvoices.Sum(i => i.OriginalAmount);
+        var totalPaidAmount = allInvoices.Where(i => i.Status == "Paid").Sum(i => i.Total);
+        var totalOriginalAmount = allInvoices.Sum(i => i.Total);
         var recoveryRate = totalOriginalAmount > 0
             ? totalPaidAmount / totalOriginalAmount * 100
             : 0;

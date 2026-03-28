@@ -81,5 +81,35 @@ namespace Application.Abstractions.Billing
         /// Reemplaza todos los detalles (conceptos) de una factura Borrador
         /// </summary>
         Task ReplaceDetailsAsync(int invoiceId, List<InvoiceDetail> newDetails);
+
+        /// <summary>
+        /// Obtener todas las facturas timbradas con método de pago PPD (para reconciliación)
+        /// </summary>
+        Task<List<Invoice>> GetPPDInvoicesAsync(int? companyId = null);
+
+        /// <summary>
+        /// Obtener facturas PPD vencidas
+        /// </summary>
+        Task<List<Invoice>> GetOverduePPDInvoicesAsync(int? companyId = null, int? minDaysOverdue = null);
+
+        /// <summary>
+        /// Obtener resumen de saldo de un cliente (pendiente y vencido)
+        /// </summary>
+        Task<(decimal pendingAmount, decimal overdueAmount)> GetCustomerBalanceSummaryAsync(int customerId, int? companyId = null);
+
+        /// <summary>
+        /// Obtener facturas PPD paginadas con filtros específicos
+        /// </summary>
+        Task<(List<Invoice> items, int totalCount)> GetPPDPagedAsync(
+            int pageNumber,
+            int pageSize,
+            int? customerId = null,
+            int? companyId = null,
+            string? paymentStatus = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
+            int? minDaysOverdue = null,
+            decimal? minAmount = null,
+            string? searchTerm = null);
     }
 }

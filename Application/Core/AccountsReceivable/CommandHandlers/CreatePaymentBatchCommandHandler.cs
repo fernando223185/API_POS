@@ -1,4 +1,5 @@
 using Application.Abstractions.AccountsReceivable;
+using Application.Abstractions.Billing;
 using Application.Abstractions.Config;
 using Application.Core.AccountsReceivable.Commands;
 using Application.DTOs.AccountsReceivable;
@@ -15,20 +16,20 @@ public class CreatePaymentBatchCommandHandler : IRequestHandler<CreatePaymentBat
     private readonly IPaymentBatchRepository _batchRepository;
     private readonly IPaymentRepository _paymentRepository;
     private readonly IPaymentApplicationRepository _applicationRepository;
-    private readonly IInvoicePPDRepository _invoicePPDRepository;
+    private readonly IInvoiceRepository _invoiceRepository;
     private readonly ICompanyRepository _companyRepository;
 
     public CreatePaymentBatchCommandHandler(
         IPaymentBatchRepository batchRepository,
         IPaymentRepository paymentRepository,
         IPaymentApplicationRepository applicationRepository,
-        IInvoicePPDRepository invoicePPDRepository,
+        IInvoiceRepository invoiceRepository,
         ICompanyRepository companyRepository)
     {
         _batchRepository = batchRepository;
         _paymentRepository = paymentRepository;
         _applicationRepository = applicationRepository;
-        _invoicePPDRepository = invoicePPDRepository;
+        _invoiceRepository = invoiceRepository;
         _companyRepository = companyRepository;
     }
 
@@ -87,7 +88,7 @@ public class CreatePaymentBatchCommandHandler : IRequestHandler<CreatePaymentBat
             var paymentNumber = await _paymentRepository.GeneratePaymentNumberAsync();
 
             // Obtener la primera factura para extraer datos del receptor
-            var firstInvoice = await _invoicePPDRepository.GetByIdAsync(paymentItem.Invoices.First().InvoicePPDId);
+            var firstInvoice = await _invoiceRepository.GetByIdAsync(paymentItem.Invoices.First().InvoicePPDId);
             if (firstInvoice == null)
                 throw new InvalidOperationException($"Factura {paymentItem.Invoices.First().InvoicePPDId} no encontrada.");
 
@@ -95,7 +96,7 @@ public class CreatePaymentBatchCommandHandler : IRequestHandler<CreatePaymentBat
             {
                 PaymentNumber = paymentNumber,
                 CustomerId = paymentItem.CustomerId,
-                CustomerName = firstInvoice.CustomerName,
+                CustomerName = firstInvoice.ReceptorNombre,
                 CompanyId = command.CompanyId,
                 IsBatchPayment = true,
                 PaymentDate = paymentItem.PaymentDate ?? command.PaymentDate,
@@ -113,10 +114,10 @@ public class CreatePaymentBatchCommandHandler : IRequestHandler<CreatePaymentBat
                 EmisorRegimenFiscal = company.SatTaxRegime,
                 LugarExpedicion = company.FiscalZipCode,
                 // Snapshot de datos del receptor desde la factura PPD (datos con los que se timbró)
-                ReceptorRfc = firstInvoice.CustomerRFC,
-                ReceptorNombre = firstInvoice.CustomerName,
-                ReceptorDomicilioFiscal = firstInvoice.CustomerZipCode ?? string.Empty,
-                ReceptorRegimenFiscal = firstInvoice.CustomerTaxRegime ?? string.Empty,
+                ReceptorRfc = firstInvoice.ReceptorRfc,
+                ReceptorNombre = firstInvoice.ReceptorNombre,
+                ReceptorDomicilioFiscal = firstInvoice.ReceptorDomicilioFiscal,
+                ReceptorRegimenFiscal = firstInvoice.ReceptorRegimenFiscal ?? string.Empty,
                 ReceptorUsoCfdi = "CP01", // CP01 = Pagos (fijo para complementos de pago)
                 Status = "Draft",
                 CreatedAt = DateTime.UtcNow
@@ -128,37 +129,37 @@ public class CreatePaymentBatchCommandHandler : IRequestHandler<CreatePaymentBat
 
             foreach (var invoiceItem in paymentItem.Invoices)
             {
-                var invoice = await _invoicePPDRepository.GetByIdAsync(invoiceItem.InvoicePPDId);
+                var invoice = await _invoiceRepository.GetByIdAsync(invoiceItem.InvoicePPDId);
                 if (invoice == null) continue;
 
                 // Usar el monto especificado, o el saldo total si no se proporcionó
                 var amountToPay = (invoiceItem.AmountToPay.HasValue && invoiceItem.AmountToPay.Value > 0)
-                    ? Math.Min(invoiceItem.AmountToPay.Value, invoice.BalanceAmount) // No pagar más del saldo
-                    : invoice.BalanceAmount;
+                    ? Math.Min(invoiceItem.AmountToPay.Value, invoice.BalanceAmount ?? 0) // No pagar más del saldo
+                    : (invoice.BalanceAmount ?? 0);
 
                 paymentTotal += amountToPay;
 
                 // Calcular impuestos proporcionalmente al monto pagado
-                decimal proportionPaid = invoice.OriginalAmount > 0 ? amountToPay / invoice.OriginalAmount : 0;
-                decimal taxBase = Math.Round(invoice.Subtotal * proportionPaid, 6);
-                decimal taxAmount = Math.Round(invoice.TaxAmount * proportionPaid, 6);
+                decimal proportionPaid = invoice.Total > 0 ? amountToPay / invoice.Total : 0;
+                decimal taxBase = Math.Round(invoice.SubTotal * proportionPaid, 6);
+                decimal taxAmount = Math.Round((invoice.Total - invoice.SubTotal) * proportionPaid, 6);
 
                 var application = new PaymentApplication
                 {
-                    InvoicePPDId = invoiceItem.InvoicePPDId,
-                    CustomerId = invoice.CustomerId,
-                    CustomerName = invoice.CustomerName,
-                    FolioUUID = invoice.FolioUUID,
-                    SerieAndFolio = invoice.SerieAndFolio,
-                    OriginalInvoiceAmount = invoice.OriginalAmount,
-                    PaymentType = amountToPay >= invoice.BalanceAmount ? "FullPayment" : "PartialPayment",
-                    PartialityNumber = invoice.NextPartialityNumber,
-                    PreviousBalance = invoice.BalanceAmount,
+                    InvoiceId = invoiceItem.InvoicePPDId,
+                    CustomerId = invoice.CustomerId ?? 0,
+                    CustomerName = invoice.ReceptorNombre,
+                    FolioUUID = invoice.Uuid,
+                    SerieAndFolio = $"{invoice.Serie}-{invoice.Folio}",
+                    OriginalInvoiceAmount = invoice.Total,
+                    PaymentType = amountToPay >= (invoice.BalanceAmount ?? 0) ? "FullPayment" : "PartialPayment",
+                    PartialityNumber = invoice.NextPartialityNumber ?? 1,
+                    PreviousBalance = invoice.BalanceAmount ?? 0,
                     AmountApplied = amountToPay,
-                    NewBalance = invoice.BalanceAmount - amountToPay,
+                    NewBalance = (invoice.BalanceAmount ?? 0) - amountToPay,
                     // Datos de moneda del documento relacionado
-                    DocumentCurrency = invoice.Currency,
-                    DocumentExchangeRate = invoice.ExchangeRate,
+                    DocumentCurrency = invoice.Moneda,
+                    DocumentExchangeRate = invoice.TipoCambio,
                     TaxObject = "02", // 02 = Sí objeto de impuestos
                     // Impuestos calculados proporcionalmente
                     TaxBase = taxBase,
@@ -166,7 +167,6 @@ public class CreatePaymentBatchCommandHandler : IRequestHandler<CreatePaymentBat
                     TaxFactorType = "Tasa",
                     TaxRate = 0.160000M, // IVA 16%
                     TaxAmount = taxAmount,
-                    ComplementStatus = "Pending",
                     CreatedAt = DateTime.UtcNow
                 };
 

@@ -1,4 +1,4 @@
-using Application.Abstractions.AccountsReceivable;
+using Application.Abstractions.Billing;
 using Application.Core.AccountsReceivable.Queries;
 using Application.DTOs.AccountsReceivable;
 using MediatR;
@@ -6,66 +6,95 @@ using MediatR;
 namespace Application.Core.AccountsReceivable.QueryHandlers;
 
 /// <summary>
-/// Handler para obtener facturas PPD con paginación y filtros
+/// Handler para obtener facturas PPD con información de cobranza
 /// </summary>
-public class GetInvoicesPPDQueryHandler : IRequestHandler<GetInvoicesPPDQuery, InvoicePPDPageResponse>
+public class GetInvoicesPPDQueryHandler : IRequestHandler<GetInvoicesPPDQuery, InvoicePPDPagedResultDto>
 {
-    private readonly IInvoicePPDRepository _repository;
+    private readonly IInvoiceRepository _invoiceRepository;
 
-    public GetInvoicesPPDQueryHandler(IInvoicePPDRepository repository)
+    public GetInvoicesPPDQueryHandler(IInvoiceRepository invoiceRepository)
     {
-        _repository = repository;
+        _invoiceRepository = invoiceRepository;
     }
 
-    public async Task<InvoicePPDPageResponse> Handle(GetInvoicesPPDQuery request, CancellationToken cancellationToken)
+    public async Task<InvoicePPDPagedResultDto> Handle(GetInvoicesPPDQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _repository.GetPagedAsync(
+        // Obtener facturas PPD paginadas usando el repositorio
+        var (invoices, totalRecords) = await _invoiceRepository.GetPPDPagedAsync(
             pageNumber: request.PageNumber,
             pageSize: request.PageSize,
             customerId: request.CustomerId,
             companyId: request.CompanyId,
-            status: request.Status,
+            paymentStatus: request.PaymentStatus,
             fromDate: request.FromDate,
             toDate: request.ToDate,
             minDaysOverdue: request.MinDaysOverdue,
-            minAmount: request.MinAmount,
-            searchTerm: request.SearchTerm);
+            searchTerm: request.SearchTerm
+        );
 
-        var dtos = items.Select(invoice => new InvoicePPDDto
+        // Mapear a DTOs
+        var today = DateTime.UtcNow.Date;
+        var data = invoices.Select(i => new InvoicePPDDto
         {
-            Id = invoice.Id,
-            InvoiceId = invoice.InvoiceId,
-            CustomerId = invoice.CustomerId,
-            CustomerName = invoice.CustomerName,
-            CustomerRFC = invoice.CustomerRFC,
-            FolioUUID = invoice.FolioUUID,
-            Serie = invoice.Serie,
-            Folio = invoice.Folio,
-            SerieAndFolio = invoice.SerieAndFolio,
-            InvoiceDate = invoice.InvoiceDate,
-            DueDate = invoice.DueDate,
-            Currency = invoice.Currency,
-            ExchangeRate = invoice.ExchangeRate,
-            OriginalAmount = invoice.OriginalAmount,
-            PaidAmount = invoice.PaidAmount,
-            BalanceAmount = invoice.BalanceAmount,
-            NextPartialityNumber = invoice.NextPartialityNumber,
-            TotalPartialities = invoice.TotalPartialities,
-            Status = invoice.Status,
-            DaysOverdue = invoice.DaysOverdue,
-            LastPaymentDate = invoice.LastPaymentDate,
-            Notes = invoice.Notes,
-            CreatedAt = invoice.CreatedAt
+            Id = i.Id,
+            CustomerId = i.CustomerId,
+            CustomerName = i.Customer?.CompanyName ?? i.ReceptorNombre,
+            CustomerRFC = i.Customer?.TaxId ?? i.ReceptorRfc,
+            Serie = i.Serie,
+            Folio = i.Folio,
+            Uuid = i.Uuid ?? string.Empty,
+            InvoiceDate = i.InvoiceDate,
+            DueDate = i.DueDate,
+            Moneda = i.Moneda,
+            TipoCambio = i.TipoCambio,
+            Total = i.Total,
+            PaidAmount = i.PaidAmount,
+            BalanceAmount = i.BalanceAmount ?? (i.Total - i.PaidAmount),
+            NextPartialityNumber = i.NextPartialityNumber,
+            TotalPartialities = i.TotalPartialities,
+            PaymentStatus = i.PaymentStatus,
+            DaysOverdue = i.DaysOverdue,
+            LastPaymentDate = i.LastPaymentDate,
+            Notes = i.Notes,
+            CreatedAt = i.CreatedAt
         }).ToList();
 
-        return new InvoicePPDPageResponse
+        // Calcular resumen (usando todas las facturas PPD sin paginar)
+        var (allInvoices, _) = await _invoiceRepository.GetPPDPagedAsync(
+            pageNumber: 1,
+            pageSize: int.MaxValue,
+            customerId: request.CustomerId,
+            companyId: request.CompanyId
+        );
+
+        var summary = new InvoicePPDSummaryDto
         {
-            Items = dtos,
-            TotalCount = totalCount,
-            PageNumber = request.PageNumber,
+            TotalInvoices = allInvoices.Count,
+            PendingInvoices = allInvoices.Count(i => i.PaymentStatus == "Pending"),
+            PartiallyPaidInvoices = allInvoices.Count(i => i.PaymentStatus == "PartiallyPaid"),
+            PaidInvoices = allInvoices.Count(i => i.PaymentStatus == "Paid"),
+            OverdueInvoices = allInvoices.Count(i => i.PaymentStatus == "Overdue" || (i.DueDate.HasValue && i.DueDate.Value < today && (i.BalanceAmount ?? 0) > 0)),
+            
+            TotalAmount = allInvoices.Sum(i => i.Total),
+            TotalPaid = allInvoices.Sum(i => i.PaidAmount),
+            TotalBalance = allInvoices.Sum(i => i.BalanceAmount ?? (i.Total - i.PaidAmount)),
+            TotalOverdueAmount = allInvoices
+                .Where(i => i.DueDate.HasValue && i.DueDate.Value < today && (i.BalanceAmount ?? 0) > 0)
+                .Sum(i => i.BalanceAmount ?? (i.Total - i.PaidAmount)),
+            
+            AverageDaysOverdue = allInvoices.Any(i => i.DaysOverdue.HasValue && i.DaysOverdue > 0)
+                ? (int)allInvoices.Where(i => i.DaysOverdue.HasValue && i.DaysOverdue > 0).Average(i => i.DaysOverdue ?? 0)
+                : 0
+        };
+
+        return new InvoicePPDPagedResultDto
+        {
+            Data = data,
+            Page = request.PageNumber,
             PageSize = request.PageSize,
-            TotalAmount = dtos.Sum(d => d.OriginalAmount),
-            TotalBalance = dtos.Sum(d => d.BalanceAmount)
+            TotalRecords = totalRecords,
+            TotalPages = (int)Math.Ceiling(totalRecords / (double)request.PageSize),
+            Summary = summary
         };
     }
 }

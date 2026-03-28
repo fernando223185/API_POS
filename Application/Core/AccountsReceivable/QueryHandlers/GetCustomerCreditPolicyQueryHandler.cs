@@ -1,4 +1,5 @@
 using Application.Abstractions.AccountsReceivable;
+using Application.Abstractions.Billing;
 using Application.Core.AccountsReceivable.Queries;
 using Application.DTOs.AccountsReceivable;
 using MediatR;
@@ -11,14 +12,14 @@ namespace Application.Core.AccountsReceivable.QueryHandlers;
 public class GetCustomerCreditPolicyQueryHandler : IRequestHandler<GetCustomerCreditPolicyQuery, CustomerCreditPolicyDto?>
 {
     private readonly ICustomerCreditPolicyRepository _policyRepository;
-    private readonly IInvoicePPDRepository _invoicePPDRepository;
+    private readonly IInvoiceRepository _invoiceRepository;
 
     public GetCustomerCreditPolicyQueryHandler(
         ICustomerCreditPolicyRepository policyRepository,
-        IInvoicePPDRepository invoicePPDRepository)
+        IInvoiceRepository invoiceRepository)
     {
         _policyRepository = policyRepository;
-        _invoicePPDRepository = invoicePPDRepository;
+        _invoiceRepository = invoiceRepository;
     }
 
     public async Task<CustomerCreditPolicyDto?> Handle(GetCustomerCreditPolicyQuery request, CancellationToken cancellationToken)
@@ -30,7 +31,7 @@ public class GetCustomerCreditPolicyQueryHandler : IRequestHandler<GetCustomerCr
             return null;
 
         // Calcular métricas actuales
-        var (pendingAmount, overdueAmount) = await _invoicePPDRepository.GetCustomerBalanceSummaryAsync(
+        var (pendingAmount, overdueAmount) = await _invoiceRepository.GetCustomerBalanceSummaryAsync(
             request.CustomerId, 
             policy.CompanyId);
 

@@ -184,8 +184,7 @@ builder.Services.AddScoped<Application.Abstractions.Billing.IInvoiceRepository, 
 // ✅ NUEVO: Catálogos oficiales del SAT
 builder.Services.AddScoped<Application.Abstractions.Sat.ISatCatalogRepository, SatCatalogRepository>();
 
-// ✅ NUEVO: Sistema de Cuentas por Cobrar (solo el implementado por ahora)
-builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IInvoicePPDRepository, InvoicePPDRepository>();
+// ✅ NUEVO: Sistema de Cuentas por Cobrar
 builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.ICustomerCreditPolicyRepository, CustomerCreditPolicyRepository>();
 builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.ICustomerCreditHistoryRepository, CustomerCreditHistoryRepository>();
 builder.Services.AddScoped<Application.Abstractions.AccountsReceivable.IPaymentRepository, PaymentRepository>();

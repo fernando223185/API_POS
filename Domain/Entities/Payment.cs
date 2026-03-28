@@ -137,6 +137,18 @@ public class Payment
     // ========================================
 
     /// <summary>
+    /// Serie del complemento de pago (para el CFDI tipo "P")
+    /// </summary>
+    [MaxLength(10)]
+    public string? ComplementSerie { get; set; }
+
+    /// <summary>
+    /// Folio del complemento de pago
+    /// </summary>
+    [MaxLength(20)]
+    public string? ComplementFolio { get; set; }
+
+    /// <summary>
     /// UUID del complemento de pago timbrado
     /// </summary>
     [MaxLength(50)]
@@ -183,6 +195,23 @@ public class Payment
     /// Código QR en base64
     /// </summary>
     public string? QrCode { get; set; }
+
+    // Archivos del complemento
+    [MaxLength(500)]
+    public string? XmlPath { get; set; }
+
+    [MaxLength(500)]
+    public string? PdfPath { get; set; }
+
+    public bool EmailSent { get; set; } = false;
+    public DateTime? EmailSentAt { get; set; }
+
+    // Generación del complemento
+    [MaxLength(1000)]
+    public string? ComplementError { get; set; }
+
+    public int RetryCount { get; set; } = 0;
+    public DateTime? LastRetryAt { get; set; }
 
     // Auditoría
     [MaxLength(1000)]

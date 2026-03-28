@@ -1,4 +1,5 @@
 using Application.Abstractions.AccountsReceivable;
+using Application.Abstractions.Billing;
 using Application.Abstractions.Config;
 using Application.Core.AccountsReceivable.Commands;
 using Application.DTOs.AccountsReceivable;
@@ -15,18 +16,18 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
 {
     private readonly IPaymentRepository _paymentRepository;
     private readonly IPaymentApplicationRepository _applicationRepository;
-    private readonly IInvoicePPDRepository _invoicePPDRepository;
+    private readonly IInvoiceRepository _invoiceRepository;
     private readonly ICompanyRepository _companyRepository;
 
     public CreatePaymentCommandHandler(
         IPaymentRepository paymentRepository,
         IPaymentApplicationRepository applicationRepository,
-        IInvoicePPDRepository invoicePPDRepository,
+        IInvoiceRepository invoiceRepository,
         ICompanyRepository companyRepository)
     {
         _paymentRepository = paymentRepository;
         _applicationRepository = applicationRepository;
-        _invoicePPDRepository = invoicePPDRepository;
+        _invoiceRepository = invoiceRepository;
         _companyRepository = companyRepository;
     }
 
@@ -39,32 +40,32 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
         // 1. Validar facturas y calcular total
         decimal totalAmount = 0;
         string customerName = string.Empty;
-        InvoicePPD? firstInvoice = null;
+        Invoice? firstInvoice = null;
 
-        var invoicePPDs = new List<(PaymentInvoiceItem item, InvoicePPD ppd)>();
+        var invoices = new List<(PaymentInvoiceItem item, Invoice invoice)>();
 
         foreach (var item in command.Invoices)
         {
-            var ppd = await _invoicePPDRepository.GetByIdAsync(item.InvoicePPDId)
+            var invoice = await _invoiceRepository.GetByIdAsync(item.InvoicePPDId)
                 ?? throw new InvalidOperationException(
-                    $"Factura PPD {item.InvoicePPDId} no encontrada.");
+                    $"Factura {item.InvoicePPDId} no encontrada.");
 
             // Guardar la primera factura para obtener datos del receptor
             if (firstInvoice == null)
-                firstInvoice = ppd;
+                firstInvoice = invoice;
 
-            if (ppd.BalanceAmount <= 0)
+            if ((invoice.BalanceAmount ?? 0) <= 0)
                 throw new InvalidOperationException(
-                    $"La factura {ppd.SerieAndFolio} ya está liquidada.");
+                    $"La factura {invoice.Serie}-{invoice.Folio} ya está liquidada.");
 
-            if (item.AmountToPay <= 0 || item.AmountToPay > ppd.BalanceAmount)
+            if (item.AmountToPay <= 0 || item.AmountToPay > (invoice.BalanceAmount ?? 0))
                 throw new InvalidOperationException(
-                    $"Monto inválido para la factura {ppd.SerieAndFolio}. " +
-                    $"Saldo disponible: {ppd.BalanceAmount:0.00}.");
+                    $"Monto inválido para la factura {invoice.Serie}-{invoice.Folio}. " +
+                    $"Saldo disponible: {invoice.BalanceAmount:0.00}.");
 
             totalAmount += item.AmountToPay;
-            customerName = ppd.CustomerName;
-            invoicePPDs.Add((item, ppd));
+            customerName = invoice.ReceptorNombre;
+            invoices.Add((item, invoice));
         }
 
         // 2. Generar número de pago
@@ -86,23 +87,21 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
             Currency = command.Currency,
             ExchangeRate = command.ExchangeRate,
             PaymentFormSAT = command.PaymentFormSAT,
-            BankOrigin = command.BankOrigin,
-            BankAccountOrigin = command.BankAccountOrigin,
             BankDestination = command.BankDestination,
-            BankAccountDestination = command.BankAccountDestination,
+            BankAccountDestination = command.AccountDestination,
             Reference = command.Reference,
             Notes = command.Notes,
-            // Snapshot de datos del emisor (Company) al momento de creación
-            EmisorRfc = company.TaxId,
-            EmisorNombre = company.LegalName,
-            EmisorRegimenFiscal = company.SatTaxRegime,
-            LugarExpedicion = company.FiscalZipCode,
-            // Snapshot de datos del receptor desde la factura PPD (datos con los que se timbró)
-            ReceptorRfc = firstInvoice.CustomerRFC,
-            ReceptorNombre = firstInvoice.CustomerName,
-            ReceptorDomicilioFiscal = firstInvoice.CustomerZipCode ?? string.Empty,
-            ReceptorRegimenFiscal = firstInvoice.CustomerTaxRegime ?? string.Empty,
-            ReceptorUsoCfdi = "CP01", // CP01 = Pagos (fijo para complementos de pago)
+            // Datos del emisor: usar los del command si se enviaron, sino snapshot de Company
+            EmisorRfc = command.EmisorRfc ?? company.TaxId,
+            EmisorNombre = command.EmisorNombre ?? company.LegalName,
+            EmisorRegimenFiscal = command.EmisorRegimenFiscal ?? company.SatTaxRegime,
+            LugarExpedicion = command.LugarExpedicion ?? company.FiscalZipCode,
+            // Datos del receptor: usar los del command si se enviaron, sino snapshot de la factura
+            ReceptorRfc = command.ReceptorRfc ?? firstInvoice.ReceptorRfc,
+            ReceptorNombre = command.ReceptorNombre ?? firstInvoice.ReceptorNombre,
+            ReceptorDomicilioFiscal = command.ReceptorDomicilioFiscal ?? firstInvoice.ReceptorDomicilioFiscal,
+            ReceptorRegimenFiscal = command.ReceptorRegimenFiscal ?? firstInvoice.ReceptorRegimenFiscal ?? string.Empty,
+            ReceptorUsoCfdi = command.ReceptorUsoCfdi ?? "CP01", // CP01 = Pagos (fijo para complementos de pago)
             Status = "Applied",
             AppliedToInvoices = command.Invoices.Count,
             ComplementsGenerated = 0,
@@ -117,34 +116,34 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
         // 4. Crear una PaymentApplication por cada factura
         var savedApplications = new List<PaymentApplication>();
 
-        foreach (var (item, ppd) in invoicePPDs)
+        foreach (var (item, invoice) in invoices)
         {
-            var newBalance = Math.Round(ppd.BalanceAmount - item.AmountToPay, 2);
+            var newBalance = Math.Round((invoice.BalanceAmount ?? 0) - item.AmountToPay, 2);
 
             // Calcular impuestos proporcionalmente al monto pagado
             // Ejemplo: Si la factura es de $1000 con $160 de IVA y se paga $500,
             // entonces la base es $431.03 y el IVA es $68.97
-            decimal proportionPaid = ppd.OriginalAmount > 0 ? item.AmountToPay / ppd.OriginalAmount : 0;
-            decimal taxBase = Math.Round(ppd.Subtotal * proportionPaid, 6);
-            decimal taxAmount = Math.Round(ppd.TaxAmount * proportionPaid, 6);
+            decimal proportionPaid = invoice.Total > 0 ? item.AmountToPay / invoice.Total : 0;
+            decimal taxBase = Math.Round(invoice.SubTotal * proportionPaid, 6);
+            decimal taxAmount = Math.Round((invoice.Total - invoice.SubTotal) * proportionPaid, 6);
 
             var application = new PaymentApplication
             {
                 PaymentId = savedPayment.Id,
-                InvoicePPDId = ppd.Id,
-                CustomerId = ppd.CustomerId,
-                CustomerName = ppd.CustomerName,
-                FolioUUID = ppd.FolioUUID,
-                SerieAndFolio = ppd.SerieAndFolio,
-                OriginalInvoiceAmount = ppd.OriginalAmount,
+                InvoiceId = invoice.Id,
+                CustomerId = invoice.CustomerId ?? 0,
+                CustomerName = invoice.ReceptorNombre,
+                FolioUUID = invoice.Uuid,
+                SerieAndFolio = $"{invoice.Serie}-{invoice.Folio}",
+                OriginalInvoiceAmount = invoice.Total,
                 PaymentType = newBalance <= 0 ? "FullPayment" : "PartialPayment",
-                PartialityNumber = ppd.NextPartialityNumber,
-                PreviousBalance = ppd.BalanceAmount,
+                PartialityNumber = invoice.NextPartialityNumber ?? 1,
+                PreviousBalance = invoice.BalanceAmount ?? 0,
                 AmountApplied = item.AmountToPay,
                 NewBalance = newBalance,
                 // Datos de moneda del documento relacionado
-                DocumentCurrency = ppd.Currency,
-                DocumentExchangeRate = ppd.ExchangeRate,
+                DocumentCurrency = invoice.Moneda,
+                DocumentExchangeRate = invoice.TipoCambio,
                 TaxObject = "02", // 02 = Sí objeto de impuestos
                 // Impuestos calculados proporcionalmente
                 TaxBase = taxBase,
@@ -152,7 +151,6 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
                 TaxFactorType = "Tasa",
                 TaxRate = 0.160000M, // IVA 16%
                 TaxAmount = taxAmount,
-                ComplementStatus = "Pending",
                 CreatedAt = DateTime.UtcNow,
                 AppliedAt = DateTime.UtcNow
             };
@@ -185,7 +183,7 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
             {
                 Id = a.Id,
                 PaymentId = a.PaymentId,
-                InvoicePPDId = a.InvoicePPDId,
+                InvoiceId = a.InvoiceId,
                 FolioUUID = a.FolioUUID,
                 SerieAndFolio = a.SerieAndFolio,
                 PaymentType = a.PaymentType,
@@ -201,9 +199,8 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
                 TaxFactorType = a.TaxFactorType,
                 TaxRate = a.TaxRate,
                 TaxAmount = a.TaxAmount,
-                ComplementStatus = a.ComplementStatus,
                 CreatedAt = a.CreatedAt,
-                GeneratedAt = a.GeneratedAt
+                AppliedAt = a.AppliedAt
             }).ToList()
         };
     }

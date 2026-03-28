@@ -21,49 +21,6 @@ public class AccountsReceivableController : ControllerBase
         _mediator = mediator;
     }
 
-    #region Facturas PPD
-
-    /// <summary>
-    /// Obtiene facturas PPD pendientes de pago con paginación y filtros
-    /// </summary>
-    [HttpGet("invoices-ppd")]
-    [RequirePermission("CFDI", "View")]
-    public async Task<IActionResult> GetInvoicesPPD([FromQuery] GetInvoicesPPDQuery query)
-    {
-        var result = await _mediator.Send(query);
-        return Ok(result);
-    }
-
-    /// <summary>
-    /// Obtiene una factura PPD por ID
-    /// </summary>
-    [HttpGet("invoices-ppd/{id}")]
-    [RequirePermission("CFDI", "View")]
-    public async Task<IActionResult> GetInvoicePPDById(int id)
-    {
-        var query = new GetInvoicePPDByIdQuery { Id = id };
-        var result = await _mediator.Send(query);
-        
-        if (result == null)
-            return NotFound(new { message = "Factura PPD no encontrada" });
-        
-        return Ok(result);
-    }
-
-    /// <summary>
-    /// Crea una factura PPD desde una factura existente
-    /// Este endpoint se llama después de timbrar una factura con método de pago PPD
-    /// </summary>
-    [HttpPost("invoices-ppd")]
-    [RequirePermission("CFDI", "Create")]
-    public async Task<IActionResult> CreateInvoicePPD([FromBody] CreateInvoicePPDCommand command)
-    {
-        var result = await _mediator.Send(command);
-        return CreatedAtAction(nameof(GetInvoicePPDById), new { id = result.Id }, result);
-    }
-
-    #endregion
-
     #region Pagos
 
     /// <summary>
@@ -74,7 +31,12 @@ public class AccountsReceivableController : ControllerBase
     public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentCommand command)
     {
         var result = await _mediator.Send(command);
-        return CreatedAtAction(nameof(GetPaymentById), new { id = result.Id }, result);
+        return Ok(new
+        {
+            message = "Pago registrado exitosamente",
+            error = 0,
+            data = result
+        });
     }
 
     /// <summary>
@@ -94,6 +56,38 @@ public class AccountsReceivableController : ControllerBase
     }
 
     /// <summary>
+    /// Obtiene listado paginado de pagos con filtros
+    /// </summary>
+    [HttpGet("payments")]
+    [RequirePermission("CFDI", "View")]
+    public async Task<IActionResult> GetPayments([FromQuery] GetPaymentsQuery query)
+    {
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Actualiza datos fiscales y bancarios de un pago antes de timbrar
+    /// No permite editar aplicaciones ni montos
+    /// </summary>
+    [HttpPut("payments/{id}")]
+    [RequirePermission("CFDI", "Edit")]
+    public async Task<IActionResult> UpdatePayment(int id, [FromBody] UpdatePaymentCommand command)
+    {
+        var userId = HttpContext.Items["UserId"] as int? ?? 0;
+        command.PaymentId = id;
+        command.UpdatedBy = userId;
+
+        var result = await _mediator.Send(command);
+        return Ok(new
+        {
+            message = "Pago actualizado exitosamente",
+            error = 0,
+            data = result
+        });
+    }
+
+    /// <summary>
     /// Genera complementos de pago SAT para un pago específico
     /// </summary>
     [HttpPost("payments/{id}/generate-complements")]
@@ -110,6 +104,39 @@ public class AccountsReceivableController : ControllerBase
         };
         
         var result = await _mediator.Send(command);
+        return Ok(result);
+    }
+
+    #endregion
+
+    #region Facturas PPD
+
+    /// <summary>
+    /// Obtiene facturas PPD (Pago en Parcialidades o Diferido) con información de cobranza
+    /// Muestra saldos pendientes, días vencidos y estado de pagos
+    /// </summary>
+    [HttpGet("invoices-ppd")]
+    [RequirePermission("CFDI", "View")]
+    public async Task<IActionResult> GetInvoicesPPD([FromQuery] GetInvoicesPPDQuery query)
+    {
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Obtiene una factura PPD por ID con información completa de cobranza
+    /// Incluye: saldos, días vencidos, historial de pagos aplicados, estado de pago
+    /// </summary>
+    [HttpGet("invoices-ppd/{id}")]
+    [RequirePermission("CFDI", "View")]
+    public async Task<IActionResult> GetInvoicePPDById(int id)
+    {
+        var query = new GetInvoicePPDByIdQuery { InvoiceId = id };
+        var result = await _mediator.Send(query);
+        
+        if (result == null)
+            return NotFound(new { message = "Factura PPD no encontrada o no es tipo PPD" });
+        
         return Ok(result);
     }
 
@@ -152,7 +179,12 @@ public class AccountsReceivableController : ControllerBase
         };
 
         var result = await _mediator.Send(command);
-        return CreatedAtAction(nameof(GetPaymentBatchById), new { id = result.Id }, result);
+        return Ok(new
+        {
+            message = "Lote de pagos creado exitosamente",
+            error = 0,
+            data = result
+        });
     }
 
     /// <summary>

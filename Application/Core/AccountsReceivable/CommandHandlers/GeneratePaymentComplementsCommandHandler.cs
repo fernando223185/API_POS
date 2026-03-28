@@ -19,7 +19,7 @@ public class GeneratePaymentComplementsCommandHandler
 {
     private readonly IPaymentRepository _paymentRepository;
     private readonly IPaymentApplicationRepository _paymentApplicationRepository;
-    private readonly IInvoicePPDRepository _invoicePPDRepository;
+    private readonly IInvoiceRepository _invoiceRepository;
     private readonly IPaymentComplementLogRepository _logRepository;
     private readonly ICompanyRepository _companyRepository;
     private readonly ISapiensService _sapiensService;
@@ -27,14 +27,14 @@ public class GeneratePaymentComplementsCommandHandler
     public GeneratePaymentComplementsCommandHandler(
         IPaymentRepository paymentRepository,
         IPaymentApplicationRepository paymentApplicationRepository,
-        IInvoicePPDRepository invoicePPDRepository,
+        IInvoiceRepository invoiceRepository,
         IPaymentComplementLogRepository logRepository,
         ICompanyRepository companyRepository,
         ISapiensService sapiensService)
     {
         _paymentRepository = paymentRepository;
         _paymentApplicationRepository = paymentApplicationRepository;
-        _invoicePPDRepository = invoicePPDRepository;
+        _invoiceRepository = invoiceRepository;
         _logRepository = logRepository;
         _companyRepository = companyRepository;
         _sapiensService = sapiensService;
@@ -54,269 +54,301 @@ public class GeneratePaymentComplementsCommandHandler
         var company = await _companyRepository.GetByIdAsync(payment.CompanyId)
             ?? throw new InvalidOperationException($"Empresa {payment.CompanyId} no encontrada.");
 
-        // 3. Cargar aplicaciones de pago pendientes de timbrar
+        // 3. Verificar que el pago no esté ya timbrado
+        if (!string.IsNullOrEmpty(payment.Uuid))
+        {
+            throw new InvalidOperationException($"El pago {payment.PaymentNumber} ya tiene un complemento timbrado (UUID: {payment.Uuid}).");
+        }
+
+        // 4. Cargar TODAS las aplicaciones del pago
         var applications = await _paymentApplicationRepository.GetByPaymentIdAsync(command.PaymentId);
-        var pending = applications
-            .Where(a => a.ComplementStatus != "Generated" && a.ComplementStatus != "Cancelled")
-            .ToList();
+        
+        if (!applications.Any())
+        {
+            throw new InvalidOperationException($"El pago {payment.PaymentNumber} no tiene facturas aplicadas.");
+        }
 
         var result = new GenerateComplementsResultDto
         {
-            TotalProcessed = pending.Count,
+            TotalProcessed = applications.Count,
             SuccessCount = 0,
             ErrorCount = 0
         };
 
-        foreach (var application in pending)
+        var startTime = DateTime.UtcNow;
+
+        try
         {
-            var startTime = DateTime.UtcNow;
-
-            // Marcar en proceso
-            application.ComplementStatus = "Generating";
-            application.RetryCount++;
-            application.LastRetryAt = DateTime.UtcNow;
-            await _paymentApplicationRepository.UpdateAsync(application);
-
-            try
+            // 5. Cargar todas las facturas relacionadas
+            var invoiceIds = applications.Select(a => a.InvoiceId).Distinct().ToList();
+            var invoices = new List<Invoice>();
+            foreach (var id in invoiceIds)
             {
-                // 4. Cargar factura PPD relacionada
-                var invoicePPD = await _invoicePPDRepository.GetByIdAsync(application.InvoicePPDId)
-                    ?? throw new InvalidOperationException(
-                        $"Factura PPD {application.InvoicePPDId} no encontrada para la aplicación {application.Id}.");
-
-                // 5. Construir CFDI tipo "P"
-                var cfdiData = BuildComplementeCFDI(payment, application, invoicePPD, company, ic);
-
-                // 6. Timbrar con Sapiens
-                var timbradoResponse = await _sapiensService.TimbrarFacturaAsync(cfdiData, "v4");
-
-                if (timbradoResponse?.data == null || string.IsNullOrEmpty(timbradoResponse.data.uuid))
-                    throw new InvalidOperationException(
-                        $"Sapiens no devolvió UUID para la aplicación {application.Id}. Estado: {timbradoResponse?.status}");
-
-                var elapsedMs = (int)(DateTime.UtcNow - startTime).TotalMilliseconds;
-
-                // 7. Actualizar aplicación → Generated
-                application.ComplementUUID = timbradoResponse.data.uuid;
-                application.ComplementStatus = "Generated";
-                application.GeneratedAt = DateTime.UtcNow;
-                application.XmlContent = timbradoResponse.data.cfdi;
-                application.ComplementError = null;
-
-                if (DateTime.TryParse(timbradoResponse.data.fechaTimbrado, out var fechaTimbrado))
-                    application.SATCertificationDate = fechaTimbrado;
-
-                application.SATSerialNumber = timbradoResponse.data.noCertificadoSAT;
-
-                await _paymentApplicationRepository.UpdateAsync(application);
-
-                // 8. Registrar log de éxito
-                await _logRepository.CreateAsync(new PaymentComplementLog
-                {
-                    PaymentApplicationId = application.Id,
-                    PaymentId = command.PaymentId,
-                    AttemptNumber = application.RetryCount,
-                    AttemptDate = startTime,
-                    Action = "Stamp",
-                    Status = "Success",
-                    ExecutionTimeMs = elapsedMs,
-                    PACResponse = timbradoResponse.data.cfdi,
-                    PACTransactionId = timbradoResponse.data.uuid,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = command.ExecutedBy
-                });
-
-                // 9. Actualizar saldo de la factura PPD
-                invoicePPD.PaidAmount += application.AmountApplied;
-                invoicePPD.BalanceAmount -= application.AmountApplied;
-                invoicePPD.TotalPartialities++;
-                invoicePPD.NextPartialityNumber++;
-                invoicePPD.LastPaymentDate = payment.PaymentDate;
-                invoicePPD.Status = invoicePPD.BalanceAmount <= 0 ? "Paid" : "PartiallyPaid";
-                invoicePPD.UpdatedAt = DateTime.UtcNow;
-                await _invoicePPDRepository.UpdateAsync(invoicePPD);
-
-                result.SuccessCount++;
+                var inv = await _invoiceRepository.GetByIdAsync(id);
+                if (inv != null) invoices.Add(inv);
             }
-            catch (Exception ex)
+
+            if (invoices.Count != invoiceIds.Count)
             {
-                var elapsedMs = (int)(DateTime.UtcNow - startTime).TotalMilliseconds;
-
-                application.ComplementStatus = "Error";
-                application.ComplementError = ex.Message;
-                await _paymentApplicationRepository.UpdateAsync(application);
-
-                await _logRepository.CreateAsync(new PaymentComplementLog
-                {
-                    PaymentApplicationId = application.Id,
-                    PaymentId = command.PaymentId,
-                    AttemptNumber = application.RetryCount,
-                    AttemptDate = startTime,
-                    Action = "Stamp",
-                    Status = "Failed",
-                    ExecutionTimeMs = elapsedMs,
-                    ErrorMessage = ex.Message,
-                    ErrorStackTrace = ex.StackTrace,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = command.ExecutedBy
-                });
-
-                result.ErrorCount++;
-                result.Errors.Add($"Aplicación {application.Id}: {ex.Message}");
+                throw new InvalidOperationException("No se encontraron todas las facturas relacionadas al pago.");
             }
-        }
 
-        // 10. Actualizar contadores del pago
-        payment.ComplementsGenerated += result.SuccessCount;
-        payment.ComplementsWithError += result.ErrorCount;
-        if (result.SuccessCount > 0 && result.ErrorCount == 0)
+            // 6. Construir CFDI tipo "P" con TODAS las aplicaciones como DoctoRelacionado
+            var cfdiData = BuildComplementoCFDI(payment, applications.ToList(), invoices, company, ic);
+
+            // 7. Timbrar con Sapiens
+            var timbradoResponse = await _sapiensService.TimbrarFacturaAsync(cfdiData, "v4");
+
+            if (timbradoResponse?.data == null || string.IsNullOrEmpty(timbradoResponse.data.uuid))
+                throw new InvalidOperationException($"Sapiens no devolvió UUID. Estado: {timbradoResponse?.status}");
+
+            var elapsedMs = (int)(DateTime.UtcNow - startTime).TotalMilliseconds;
+
+            // 8. Actualizar PAYMENT con los datos del complemento timbrado
+            payment.Uuid = timbradoResponse.data.uuid;
+            payment.XmlCfdi = timbradoResponse.data.cfdi;
+            payment.ComplementError = null;
             payment.Status = "Complemented";
-        await _paymentRepository.UpdateAsync(payment);
+            payment.ComplementsGenerated = 1;
+
+            if (DateTime.TryParse(timbradoResponse.data.fechaTimbrado, out var fechaTimbrado))
+                payment.TimbradoAt = fechaTimbrado;
+            else
+                payment.TimbradoAt = DateTime.UtcNow;
+
+            payment.NoCertificadoSat = timbradoResponse.data.noCertificadoSAT;
+            payment.SelloCfdi = timbradoResponse.data.selloCFDI;
+            payment.SelloSat = timbradoResponse.data.selloSAT;
+            payment.NoCertificadoCfdi = timbradoResponse.data.noCertificadoCFDI;
+            payment.CadenaOriginalSat = timbradoResponse.data.cadenaOriginalSAT;
+            payment.QrCode = timbradoResponse.data.qrCode;
+
+            await _paymentRepository.UpdateAsync(payment);
+
+            // 9. Actualizar saldos de TODAS las facturas
+            foreach (var app in applications)
+            {
+                var invoice = invoices.FirstOrDefault(i => i.Id == app.InvoiceId);
+                if (invoice == null) continue;
+
+                invoice.PaidAmount += app.AmountApplied;
+                invoice.BalanceAmount = (invoice.BalanceAmount ?? invoice.Total) - app.AmountApplied;
+                invoice.TotalPartialities += 1;
+                invoice.NextPartialityNumber = (invoice.NextPartialityNumber ?? 1) + 1;
+                invoice.LastPaymentDate = payment.PaymentDate;
+                invoice.PaymentStatus = invoice.BalanceAmount <= 0 ? "Paid" : "PartiallyPaid";
+                invoice.UpdatedAt = DateTime.UtcNow;
+                await _invoiceRepository.UpdateAsync(invoice);
+            }
+
+            // 10. Log de éxito
+            await _logRepository.CreateAsync(new PaymentComplementLog
+            {
+                PaymentId = command.PaymentId,
+                AttemptNumber = payment.RetryCount + 1,
+                AttemptDate = startTime,
+                Action = "Stamp",
+                Status = "Success",
+                ExecutionTimeMs = elapsedMs,
+                PACResponse = timbradoResponse.data.cfdi,
+                PACTransactionId = timbradoResponse.data.uuid,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = command.ExecutedBy
+            });
+
+            result.SuccessCount = 1;
+            result.TotalProcessed = 1;
+        }
+        catch (Exception ex)
+        {
+            var elapsedMs = (int)(DateTime.UtcNow - startTime).TotalMilliseconds;
+
+            payment.ComplementError = ex.Message;
+            payment.ComplementsWithError = 1;
+            payment.RetryCount++;
+            payment.LastRetryAt = DateTime.UtcNow;
+            await _paymentRepository.UpdateAsync(payment);
+
+            await _logRepository.CreateAsync(new PaymentComplementLog
+            {
+                PaymentId = command.PaymentId,
+                AttemptNumber = payment.RetryCount,
+                AttemptDate = startTime,
+                Action = "Stamp",
+                Status = "Failed",
+                ExecutionTimeMs = elapsedMs,
+                ErrorMessage = ex.Message,
+                ErrorStackTrace = ex.StackTrace,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = command.ExecutedBy
+            });
+
+            result.ErrorCount = 1;
+            result.Errors.Add($"Pago {payment.PaymentNumber}: {ex.Message}");
+        }
 
         return result;
     }
 
     // ─────────────────────────────────────────────────────────────
     //  Construcción del CFDI 4.0 tipo "P" (Complemento de Pago)
+    //  Genera UN complemento con TODOS los DoctoRelacionado
     // ─────────────────────────────────────────────────────────────
-    private static object BuildComplementeCFDI(
+    private static object BuildComplementoCFDI(
         Payment payment,
-        PaymentApplication application,
-        InvoicePPD invoicePPD,
+        List<PaymentApplication> applications,
+        List<Invoice> invoices,
         CompanyEntity company,
         IFormatProvider ic)
     {
-        // Importes
-        decimal baseIVA16    = Math.Round(application.AmountApplied / 1.16m, 2);
-        decimal importeIVA16 = Math.Round(application.AmountApplied - baseIVA16, 2);
+        // Calcular totales acumulados para Pago20:Totales
+        decimal totalBaseIVA16 = 0;
+        decimal totalImpuestoIVA16 = 0;
+        decimal montoTotalPagos = applications.Sum(a => a.AmountApplied);
 
-        decimal saldoAnterior  = application.PreviousBalance;
-        decimal impPagado      = application.AmountApplied;
-        decimal saldoInsoluto  = Math.Max(0, Math.Round(saldoAnterior - impPagado, 2));
+        // Construir array de DoctoRelacionado
+        var documentosRelacionados = new List<DoctoRelacionadoDto>();
 
-        // Fecha del pago en formato SAT
+        foreach (var app in applications)
+        {
+            var invoice = invoices.FirstOrDefault(i => i.Id == app.InvoiceId);
+            if (invoice == null) continue;
+
+            // Cálculo de impuestos para este documento
+            decimal baseIVA16 = Math.Round(app.AmountApplied / 1.16m, 2);
+            decimal importeIVA16 = Math.Round(app.AmountApplied - baseIVA16, 2);
+
+            totalBaseIVA16 += baseIVA16;
+            totalImpuestoIVA16 += importeIVA16;
+
+            decimal saldoAnterior = app.PreviousBalance;
+            decimal impPagado = app.AmountApplied;
+            decimal saldoInsoluto = Math.Max(0, Math.Round(saldoAnterior - impPagado, 2));
+
+            documentosRelacionados.Add(new DoctoRelacionadoDto
+            {
+                IdDocumento = invoice.Uuid,
+                Serie = invoice.Serie ?? "",
+                Folio = invoice.Folio ?? "",
+                MonedaDR = invoice.Moneda,
+                EquivalenciaDR = "1",
+                NumParcialidad = app.PartialityNumber.ToString(),
+                ImpSaldoAnt = saldoAnterior.ToString("0.00", ic),
+                ImpPagado = impPagado.ToString("0.00", ic),
+                ImpSaldoInsoluto = saldoInsoluto.ToString("0.00", ic),
+                ObjetoImpDR = "02",
+                ImpuestosDR = new ImpuestosDRDto
+                {
+                    TrasladosDR = new[]
+                    {
+                        new TrasladoDRDto
+                        {
+                            BaseDR = baseIVA16.ToString("0.000000", ic),
+                            ImpuestoDR = "002",
+                            TipoFactorDR = "Tasa",
+                            TasaOCuotaDR = "0.160000",
+                            ImporteDR = importeIVA16.ToString("0.000000", ic)
+                        }
+                    }
+                }
+            });
+        }
+
+        // Obtener datos del receptor desde la primera factura (todas deberían tener el mismo receptor)
+        var primeraFactura = invoices.First();
         string fechaPago = payment.PaymentDate.ToString("yyyy-MM-ddTHH:mm:ss", ic);
+        string folio = payment.PaymentNumber?.Replace("PAG-", "").Replace("-", "") ?? DateTime.Now.ToString("yyyyMMddHHmmss");
+
+        // Construir el complemento con [JsonProperty] para forzar "Pago20:Pagos"
+        var complemento = new ComplementoDto
+        {
+            Pago20Pagos = new Pago20PagosDto
+            {
+                Version = "2.0",
+                Totales = new TotalesDto
+                {
+                    TotalTrasladosBaseIVA16 = totalBaseIVA16.ToString("0.00", ic),
+                    TotalTrasladosImpuestoIVA16 = totalImpuestoIVA16.ToString("0.00", ic),
+                    MontoTotalPagos = montoTotalPagos.ToString("0.00", ic)
+                },
+                Pago = new[]
+                {
+                    new PagoDto
+                    {
+                        FechaPago = fechaPago,
+                        FormaDePagoP = payment.PaymentFormSAT,
+                        MonedaP = payment.Currency,
+                        TipoCambioP = "1",
+                        Monto = montoTotalPagos.ToString("0.00", ic),
+                        DoctoRelacionado = documentosRelacionados.ToArray(),
+                        ImpuestosP = new ImpuestosPDto
+                        {
+                            TrasladosP = new[]
+                            {
+                                new TrasladoPDto
+                                {
+                                    BaseP = totalBaseIVA16.ToString("0.000000", ic),
+                                    ImpuestoP = "002",
+                                    TipoFactorP = "Tasa",
+                                    TasaOCuotaP = "0.160000",
+                                    ImporteP = totalImpuestoIVA16.ToString("0.000000", ic)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
 
         return new
         {
-            Version             = "4.0",
-            TipoDeComprobante   = "P",
-            Fecha               = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss", ic),
-            Sello               = "",
-            NoCertificado       = "",
-            Certificado         = "",
-            SubTotal            = "0",
-            Moneda              = "XXX",
-            Total               = "0",
-            Exportacion         = "01",
-            LugarExpedicion     = company.FiscalZipCode,
+            Version = "4.0",
+            Serie = "CP",
+            Folio = folio,
+            TipoDeComprobante = "P",
+            Fecha = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss", ic),
+            Sello = "",
+            NoCertificado = "",
+            Certificado = "",
+            SubTotal = "0",
+            Moneda = "XXX",
+            Total = "0",
+            Exportacion = "01",
+            LugarExpedicion = company.FiscalZipCode,
 
             Emisor = new
             {
-                Rfc            = company.TaxId,
-                Nombre         = company.LegalName,
-                RegimenFiscal  = company.SatTaxRegime
+                Rfc = company.TaxId,
+                Nombre = company.LegalName,
+                RegimenFiscal = company.SatTaxRegime
             },
 
             Receptor = new
             {
-                Rfc                  = invoicePPD.CustomerRFC,
-                Nombre               = invoicePPD.CustomerName,
-                DomicilioFiscalReceptor = "00000",  // Se sobreescribe por Sapiens desde el PAC
-                RegimenFiscalReceptor = "616",       // Valor genérico para complementos de pago
-                UsoCFDI              = "CP01"        // CP01 = Pagos
+                Rfc = primeraFactura.ReceptorRfc,
+                Nombre = primeraFactura.ReceptorNombre,
+                DomicilioFiscalReceptor = primeraFactura.ReceptorDomicilioFiscal ?? "00000",
+                RegimenFiscalReceptor = primeraFactura.ReceptorRegimenFiscal ?? "616",
+                UsoCFDI = "CP01"
             },
 
             Conceptos = new[]
             {
                 new
                 {
-                    ClaveProdServ  = "84111506",
-                    ClaveUnidad    = "ACT",
-                    Cantidad       = "1",
-                    Descripcion    = "Pago",
-                    ValorUnitario  = "0",
-                    Importe        = "0",
-                    ObjetoImp      = "01"
+                    ClaveProdServ = "84111506",
+                    ClaveUnidad = "ACT",
+                    Cantidad = 1,
+                    Descripcion = "Pago",
+                    ValorUnitario = "0",
+                    Importe = "0",
+                    ObjetoImp = "01"
                 }
             },
 
             Complemento = new
             {
-                Any = new[]
-                {
-                    new Dictionary<string, object>
-                    {
-                        ["Pago20:Pagos"] = new
-                        {
-                            Version = "2.0",
-
-                            Totales = new
-                            {
-                                TotalTrasladosBaseIVA16      = baseIVA16.ToString("0.##", ic),
-                                TotalTrasladosImpuestoIVA16  = importeIVA16.ToString("0.##", ic),
-                                MontoTotalPagos              = impPagado.ToString("0.##", ic)
-                            },
-
-                            Pago = new[]
-                            {
-                                new
-                                {
-                                    FechaPago      = fechaPago,
-                                    FormaDePagoP   = payment.PaymentFormSAT,
-                                    MonedaP        = payment.Currency,
-                                    Monto          = impPagado.ToString("0.##", ic),
-
-                                    DoctoRelacionado = new[]
-                                    {
-                                        new
-                                        {
-                                            IdDocumento     = invoicePPD.FolioUUID,
-                                            Serie           = invoicePPD.Serie ?? "",
-                                            Folio           = invoicePPD.Folio ?? "",
-                                            MonedaDR        = invoicePPD.Currency,
-                                            EquivalenciaDR  = "1",
-                                            NumParcialidad  = application.PartialityNumber.ToString(),
-                                            ImpSaldoAnt     = saldoAnterior.ToString("0.##", ic),
-                                            ImpPagado       = impPagado.ToString("0.##", ic),
-                                            ImpSaldoInsoluto = saldoInsoluto.ToString("0.##", ic),
-                                            ObjetoImpDR     = "02",
-                                            ImpuestosDR = new
-                                            {
-                                                TrasladosDR = new[]
-                                                {
-                                                    new
-                                                    {
-                                                        BaseDR         = baseIVA16.ToString("0.######", ic),
-                                                        ImpuestoDR     = "002",
-                                                        TipoFactorDR   = "Tasa",
-                                                        TasaOCuotaDR   = "0.160000",
-                                                        ImporteDR      = importeIVA16.ToString("0.######", ic)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    },
-
-                                    ImpuestosP = new
-                                    {
-                                        TrasladosP = new[]
-                                        {
-                                            new
-                                            {
-                                                BaseP        = baseIVA16.ToString("0.######", ic),
-                                                ImpuestoP    = "002",
-                                                TipoFactorP  = "Tasa",
-                                                TasaOCuotaP  = "0.160000",
-                                                ImporteP     = importeIVA16.ToString("0.######", ic)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                Any = new[] { complemento }
             }
         };
     }

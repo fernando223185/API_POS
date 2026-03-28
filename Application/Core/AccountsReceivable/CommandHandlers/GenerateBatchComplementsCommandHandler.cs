@@ -3,6 +3,7 @@ using Application.Abstractions.Billing;
 using Application.Core.AccountsReceivable.Commands;
 using Application.DTOs.AccountsReceivable;
 using MediatR;
+using System.Globalization;
 using System.Text.Json;
 
 namespace Application.Core.AccountsReceivable.CommandHandlers;
@@ -162,55 +163,98 @@ public class GenerateBatchComplementsCommandHandler : IRequestHandler<GenerateBa
     /// </summary>
     private object BuildComplementoPagoJson(Domain.Entities.Payment payment)
     {
+        var ic = CultureInfo.InvariantCulture; // CRÍTICO: Usar punto decimal
+
         // Calcular totales del complemento
         var totalPagado = payment.TotalAmount;
         var totalBaseIVA16 = payment.PaymentApplications.Sum(a => a.TaxBase);
         var totalImpuestoIVA16 = payment.PaymentApplications.Sum(a => a.TaxAmount);
 
-        // Construir documentos relacionados
-        var documentosRelacionados = payment.PaymentApplications.Select(app => new
+        // Construir documentos relacionados usando DTOs tipados
+        var documentosRelacionados = payment.PaymentApplications.Select(app => new DoctoRelacionadoDto
         {
             IdDocumento = app.FolioUUID,
             Serie = app.SerieAndFolio?.Split('-')[0] ?? "",
             Folio = app.SerieAndFolio?.Split('-').Length > 1 ? app.SerieAndFolio.Split('-')[1] : app.SerieAndFolio,
             MonedaDR = app.DocumentCurrency ?? "MXN",
-            EquivalenciaDR = app.DocumentExchangeRate.ToString("0.000000"),
+            EquivalenciaDR = "1",
             NumParcialidad = app.PartialityNumber.ToString(),
-            ImpSaldoAnt = app.PreviousBalance.ToString("0.00"),
-            ImpPagado = app.AmountApplied.ToString("0.00"),
-            ImpSaldoInsoluto = app.NewBalance.ToString("0.00"),
-            ObjetoImpDR = app.TaxObject ?? "02", // 02 = Sí objeto de impuestos
-            ImpuestosDR = new
+            ImpSaldoAnt = app.PreviousBalance.ToString("0.00", ic),
+            ImpPagado = app.AmountApplied.ToString("0.00", ic),
+            ImpSaldoInsoluto = app.NewBalance.ToString("0.00", ic),
+            ObjetoImpDR = app.TaxObject ?? "02",
+            ImpuestosDR = new ImpuestosDRDto
             {
                 TrasladosDR = new[]
                 {
-                    new
+                    new TrasladoDRDto
                     {
-                        BaseDR = app.TaxBase.ToString("0.000000"),
-                        ImpuestoDR = app.TaxCode ?? "002", // 002 = IVA
+                        BaseDR = app.TaxBase.ToString("0.000000", ic),
+                        ImpuestoDR = app.TaxCode ?? "002",
                         TipoFactorDR = app.TaxFactorType ?? "Tasa",
-                        TasaOCuotaDR = app.TaxRate.ToString("0.000000"),
-                        ImporteDR = app.TaxAmount.ToString("0.000000")
+                        TasaOCuotaDR = app.TaxRate.ToString("0.000000", ic),
+                        ImporteDR = app.TaxAmount.ToString("0.000000", ic)
                     }
                 }
             }
         }).ToList();
 
-        // Generar folio del complemento (puedes usar el PaymentNumber)
-        var folio = payment.PaymentNumber?.Replace("PAG-", "") ?? DateTime.Now.ToString("yyyyMMddHHmmss");
+        // Generar folio del complemento
+        var folio = payment.PaymentNumber?.Replace("PAG-", "").Replace("-", "") ?? DateTime.Now.ToString("yyyyMMddHHmmss");
+
+        // Construir complemento con [JsonProperty] para forzar "Pago20:Pagos"
+        var complemento = new ComplementoDto
+        {
+            Pago20Pagos = new Pago20PagosDto
+            {
+                Version = "2.0",
+                Totales = new TotalesDto
+                {
+                    TotalTrasladosBaseIVA16 = totalBaseIVA16.ToString("0.00", ic),
+                    TotalTrasladosImpuestoIVA16 = totalImpuestoIVA16.ToString("0.00", ic),
+                    MontoTotalPagos = totalPagado.ToString("0.00", ic)
+                },
+                Pago = new[]
+                {
+                    new PagoDto
+                    {
+                        FechaPago = payment.PaymentDate.ToString("yyyy-MM-ddTHH:mm:ss", ic),
+                        FormaDePagoP = payment.PaymentFormSAT ?? "03",
+                        MonedaP = payment.Currency ?? "MXN",
+                        TipoCambioP = "1",
+                        Monto = totalPagado.ToString("0.00", ic),
+                        DoctoRelacionado = documentosRelacionados.ToArray(),
+                        ImpuestosP = new ImpuestosPDto
+                        {
+                            TrasladosP = new[]
+                            {
+                                new TrasladoPDto
+                                {
+                                    BaseP = totalBaseIVA16.ToString("0.000000", ic),
+                                    ImpuestoP = "002",
+                                    TipoFactorP = "Tasa",
+                                    TasaOCuotaP = "0.160000",
+                                    ImporteP = totalImpuestoIVA16.ToString("0.000000", ic)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
 
         // Construir JSON completo
         return new
         {
             Version = "4.0",
-            Serie = "CP", // Serie para complementos de pago
+            Serie = "CP",
             Folio = folio,
-            Fecha = payment.PaymentDate.ToString("yyyy-MM-ddTHH:mm:ss"),
+            Fecha = payment.PaymentDate.ToString("yyyy-MM-ddTHH:mm:ss", ic),
             SubTotal = "0",
-            Moneda = "XXX", // Moneda XXX para complementos de pago (sin moneda)
+            Moneda = "XXX",
             Total = "0",
-            TipoDeComprobante = "P", // P = Pago
-            Exportacion = "01", // 01 = No aplica
+            TipoDeComprobante = "P",
+            Exportacion = "01",
             LugarExpedicion = payment.LugarExpedicion ?? "00000",
             Emisor = new
             {
@@ -224,67 +268,24 @@ public class GenerateBatchComplementsCommandHandler : IRequestHandler<GenerateBa
                 Nombre = payment.ReceptorNombre,
                 DomicilioFiscalReceptor = payment.ReceptorDomicilioFiscal,
                 RegimenFiscalReceptor = payment.ReceptorRegimenFiscal,
-                UsoCFDI = payment.ReceptorUsoCfdi ?? "CP01" // CP01 = Pagos
+                UsoCFDI = payment.ReceptorUsoCfdi ?? "CP01"
             },
             Conceptos = new[]
             {
                 new
                 {
-                    ClaveProdServ = "84111506", // Clave SAT para servicios de facturación
+                    ClaveProdServ = "84111506",
                     Cantidad = 1,
-                    ClaveUnidad = "ACT", // Actividad
+                    ClaveUnidad = "ACT",
                     Descripcion = "Pago",
                     ValorUnitario = "0",
                     Importe = "0",
-                    ObjetoImp = "01" // 01 = No objeto de impuestos (para el concepto genérico)
+                    ObjetoImp = "01"
                 }
             },
             Complemento = new
             {
-                Any = new[]
-                {
-                    new
-                    {
-                        Pago20Pagos = new
-                        {
-                            Version = "2.0",
-                            Totales = new
-                            {
-                                TotalTrasladosBaseIVA16 = totalBaseIVA16.ToString("0.00"),
-                                TotalTrasladosImpuestoIVA16 = totalImpuestoIVA16.ToString("0.00"),
-                                MontoTotalPagos = totalPagado.ToString("0.00")
-                            },
-                            Pago = new[]
-                            {
-                                new
-                                {
-                                    FechaPago = payment.PaymentDate.ToString("yyyy-MM-ddTHH:mm:ss"),
-                                    FormaDePagoP = payment.PaymentFormSAT ?? "03", // 03 = Transferencia
-                                    MonedaP = payment.Currency ?? "MXN",
-                                    TipoCambioP = (payment.ExchangeRate).ToString("0.000000"),
-                                    Monto = totalPagado.ToString("0.00"),
-                                    NumOperacion = payment.Reference, // Número de operación bancaria (opcional)
-                                    CtaBeneficiario = payment.BankAccountDestination, // Cuenta destino (opcional, últimos 4 dígitos)
-                                    DoctoRelacionado = documentosRelacionados.ToArray(),
-                                    ImpuestosP = new
-                                    {
-                                        TrasladosP = new[]
-                                        {
-                                            new
-                                            {
-                                                BaseP = totalBaseIVA16.ToString("0.000000"),
-                                                ImpuestoP = "002", // 002 = IVA
-                                                TipoFactorP = "Tasa",
-                                                TasaOCuotaP = "0.160000",
-                                                ImporteP = totalImpuestoIVA16.ToString("0.000000")
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                Any = new[] { complemento }
             }
         };
     }
