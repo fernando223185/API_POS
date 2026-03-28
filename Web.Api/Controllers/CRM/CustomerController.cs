@@ -194,21 +194,42 @@ namespace Web.Api.Controllers.CRM
         {
             try
             {
-                // Simular obtención de cliente por ID
-                var customer = new { 
-                    id, 
-                    name = $"Cliente {id}", 
-                    code = $"CLI{id:D3}", 
-                    email = $"cliente{id}@email.com",
-                    phone = "1234567890",
-                    active = true 
+                var customer = await _mediator.Send(new GetCustomerByIdQuery { ID = id });
+
+                if (customer == null)
+                    return NotFound(new { message = $"Cliente con ID {id} no encontrado", error = 1 });
+
+                var dto = new CustomerResponseDto
+                {
+                    Id = customer.ID,
+                    Code = customer.Code,
+                    Name = customer.Name,
+                    LastName = customer.LastName,
+                    Phone = customer.Phone,
+                    Email = customer.Email,
+                    Address = customer.Address,
+                    TaxId = customer.TaxId,
+                    ZipCode = customer.ZipCode,
+                    Commentary = customer.Commentary,
+                    CountryId = customer.CountryId,
+                    StateId = customer.StateId,
+                    InteriorNumber = customer.InteriorNumber,
+                    ExteriorNumber = customer.ExteriorNumber,
+                    StatusId = customer.StatusId,
+                    CreatedAt = customer.CreatedAt ?? DateTime.UtcNow,
+                    CompanyName = customer.CompanyName,
+                    SatTaxRegime = customer.SatTaxRegime,
+                    SatCfdiUse = customer.SatCfdiUse,
+                    PriceListId = customer.PriceListId,
+                    PriceListName = customer.PriceList?.Name,
+                    DiscountPercentage = customer.DiscountPercentage,
+                    CreditLimit = customer.CreditLimit,
+                    PaymentTermsDays = customer.PaymentTermsDays,
+                    IsActive = customer.IsActive,
+                    UpdatedAt = customer.UpdatedAt
                 };
-                
-                return Ok(new { 
-                    message = "Customer retrieved successfully", 
-                    error = 0, 
-                    data = customer 
-                });
+
+                return Ok(new { message = "Customer retrieved successfully", error = 0, data = dto });
             }
             catch (Exception ex)
             {

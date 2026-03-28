@@ -14,7 +14,7 @@ public class GetInvoicesPPDQuery : IRequest<InvoicePPDPagedResultDto>
     // Filtros
     public int? CompanyId { get; set; }
     public int? CustomerId { get; set; }
-    public string? PaymentStatus { get; set; } // Pending, PartiallyPaid, Paid, Overdue
+    public string? PaymentStatus { get; set; } // Pending (sin pagar o pago parcial), Paid, Overdue, PartiallyPaid
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }
     public int? MinDaysOverdue { get; set; }

@@ -31,6 +31,8 @@ namespace Infrastructure.Repositories
                 .Include(i => i.Customer)
                 .Include(i => i.CreatedBy)
                 .Include(i => i.CancelledBy)
+                .Include(i => i.PaymentApplications)
+                    .ThenInclude(pa => pa.Payment)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(i => i.Id == id);
         }
@@ -359,7 +361,13 @@ namespace Infrastructure.Repositories
                 query = query.Where(i => i.CompanyId == companyId.Value);
 
             if (!string.IsNullOrEmpty(paymentStatus))
-                query = query.Where(i => i.PaymentStatus == paymentStatus);
+            {
+                // Pending = pendiente de pago (incluye sin abonos y abonos parciales)
+                if (paymentStatus == "Pending" || paymentStatus == "HasBalance")
+                    query = query.Where(i => i.PaymentStatus == "Pending" || i.PaymentStatus == "PartiallyPaid" || i.PaymentStatus == null);
+                else
+                    query = query.Where(i => i.PaymentStatus == paymentStatus);
+            }
 
             if (fromDate.HasValue)
                 query = query.Where(i => i.InvoiceDate >= fromDate.Value);

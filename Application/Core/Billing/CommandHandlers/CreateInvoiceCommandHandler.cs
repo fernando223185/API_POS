@@ -425,6 +425,19 @@ namespace Application.Core.Billing.CommandHandlers
             invoice.QrCode = sapienData.qrCode;
             invoice.UpdatedAt = DateTime.UtcNow;
 
+            // Inicializar campos de cuentas por cobrar para facturas PPD
+            if (invoice.MetodoPago == "PPD")
+            {
+                invoice.DueDate = (invoice.TimbradoAt ?? invoice.InvoiceDate).AddDays(30);
+                invoice.PaidAmount = 0;
+                invoice.BalanceAmount = invoice.Total;
+                invoice.NextPartialityNumber = 1;
+                invoice.TotalPartialities = 0;
+                invoice.DaysOverdue = 0;
+                invoice.LastPaymentDate = null;
+                invoice.PaymentStatus = "Pending";
+            }
+
             return invoice;
         }
 
