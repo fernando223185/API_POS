@@ -32,6 +32,7 @@ using Infrastructure;
 using Infrastructure.Services;
 using Infrastructure.Repositories;
 using Infrastructure.Persistence;
+using Infrastructure.BackgroundJobs;
 using Domain.Entities;
 using Web.Api.Configuration;
 using Web.Api.Middleware;
@@ -174,6 +175,7 @@ builder.Services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();  // ✅ NUEVO - Proveedores
 builder.Services.AddScoped<IPurchaseOrderReceivingRepository, PurchaseOrderReceivingRepository>();  // ✅ NUEVO - Recepciones
 builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();  // ✅ NUEVO - Empresas
+builder.Services.AddScoped<Application.Abstractions.Inventory.IStockTransferRepository, StockTransferRepository>();  // ✅ NUEVO - Traspasos
 
 // ✅ NUEVO: Sistema de ventas con cobranza
 builder.Services.AddScoped<Application.Abstractions.Sales.ISaleRepository, SaleRepository>();
@@ -203,6 +205,12 @@ builder.Services.AddScoped<IPurchaseDocumentService, PurchaseDocumentService>();
 builder.Services.AddScoped<IThermalTicketService, ThermalTicketService>();  // ✅ NUEVO - Tickets térmicos
 builder.Services.AddScoped<ISaleDocumentService, SaleDocumentService>();  // ✅ NUEVO - Documentos de venta
 builder.Services.AddScoped<IKardexDocumentService, KardexDocumentService>();  // ✅ NUEVO - Documentos de kardex
+
+// ✅ NUEVO: Sistema de alertas
+builder.Services.AddScoped<Application.Abstractions.Alerts.IAlertRepository, AlertRepository>();
+builder.Services.AddScoped<Application.Abstractions.Alerts.IAlertRuleConfigRepository, AlertRuleConfigRepository>();
+builder.Services.AddHostedService<InvoiceDueAlertJob>();
+builder.Services.AddHostedService<StockAlertJob>();
 
 // ✅ SERVICIO COMPLETO DE SAPIENS (AUTENTICACIÓN Y TIMBRADO CFDI)
 builder.Services.AddScoped<Application.Abstractions.Billing.ISapiensService, SapiensService>();

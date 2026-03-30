@@ -69,6 +69,14 @@ namespace Infrastructure.Persistence
         public DbSet<CustomerCreditHistory> CustomerCreditHistory { get; set; }
         public DbSet<PaymentComplementLog> PaymentComplementLogs { get; set; }
 
+        // ✅ NUEVO: Traspasos de inventario
+        public DbSet<StockTransfer> StockTransfers { get; set; }
+        public DbSet<StockTransferDetail> StockTransferDetails { get; set; }
+
+        // ✅ NUEVO: Sistema de alertas
+        public DbSet<Alert> Alerts { get; set; }
+        public DbSet<AlertRuleConfig> AlertRuleConfigs { get; set; }
+
         // ✅ NUEVO: Catálogos SAT para facturación
         public DbSet<SatUsoCfdi> SatUsoCfdi { get; set; }
         public DbSet<SatRegimenFiscal> SatRegimenFiscal { get; set; }
@@ -646,6 +654,86 @@ namespace Infrastructure.Persistence
                 entity.HasIndex(pcl => pcl.PaymentId);
                 entity.HasIndex(pcl => pcl.AttemptDate);
             });
+
+            // ✅ CONFIGURACIÓN DE ALERTAS
+            modelBuilder.Entity<Alert>(entity =>
+            {
+                // Índice compuesto para deduplicación eficiente en cada ciclo del job
+                entity.HasIndex(a => new { a.UniqueKey, a.Status });
+                entity.HasIndex(a => new { a.UserId, a.CompanyId, a.Status });
+                entity.HasIndex(a => a.CreatedAt);
+            });
+
+            // ✅ CONFIGURACIÓN DE REGLAS DE ALERTA
+            modelBuilder.Entity<AlertRuleConfig>(entity =>
+            {
+                // Único: un solo tipo de alerta por empresa
+                entity.HasIndex(r => new { r.AlertType, r.CompanyId }).IsUnique();
+
+                entity.HasOne(r => r.Company)
+                    .WithMany()
+                    .HasForeignKey(r => r.CompanyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(r => r.TargetRole)
+                    .WithMany()
+                    .HasForeignKey(r => r.TargetRoleId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // ✅ NUEVO: Traspasos de inventario
+            modelBuilder.Entity<StockTransfer>(entity =>
+            {
+                entity.HasOne(t => t.SourceWarehouse)
+                    .WithMany()
+                    .HasForeignKey(t => t.SourceWarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(t => t.DestinationWarehouse)
+                    .WithMany()
+                    .HasForeignKey(t => t.DestinationWarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(t => t.Company)
+                    .WithMany()
+                    .HasForeignKey(t => t.CompanyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(t => t.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(t => t.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(t => t.AppliedBy)
+                    .WithMany()
+                    .HasForeignKey(t => t.AppliedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(t => t.Code).IsUnique();
+                entity.HasIndex(t => t.Status);
+                entity.HasIndex(t => t.CompanyId);
+                entity.HasIndex(t => t.CreatedAt);
+            });
+
+            modelBuilder.Entity<StockTransferDetail>(entity =>
+            {
+                entity.HasOne(d => d.StockTransfer)
+                    .WithMany(t => t.Details)
+                    .HasForeignKey(d => d.StockTransferId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(d => d.Product)
+                    .WithMany()
+                    .HasForeignKey(d => d.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ✅ NUEVO: FK StockTransfer en InventoryMovement
+            modelBuilder.Entity<InventoryMovement>()
+                .HasOne(im => im.StockTransfer)
+                .WithMany()
+                .HasForeignKey(im => im.StockTransferId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

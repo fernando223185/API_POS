@@ -81,6 +81,24 @@ namespace Infrastructure.Repositories
             if (existingInvoice == null)
                 throw new InvalidOperationException($"Factura {invoice.Id} no encontrada.");
 
+            // ── Datos del receptor (editables en Borrador) ───────────────────────
+            existingInvoice.InvoiceDate = invoice.InvoiceDate;
+            existingInvoice.FormaPago = invoice.FormaPago;
+            existingInvoice.MetodoPago = invoice.MetodoPago;
+            existingInvoice.CondicionesDePago = invoice.CondicionesDePago;
+            existingInvoice.Moneda = invoice.Moneda;
+            existingInvoice.TipoCambio = invoice.TipoCambio;
+            existingInvoice.ReceptorRfc = invoice.ReceptorRfc;
+            existingInvoice.ReceptorNombre = invoice.ReceptorNombre;
+            existingInvoice.ReceptorDomicilioFiscal = invoice.ReceptorDomicilioFiscal;
+            existingInvoice.ReceptorRegimenFiscal = invoice.ReceptorRegimenFiscal;
+            existingInvoice.ReceptorUsoCfdi = invoice.ReceptorUsoCfdi;
+            existingInvoice.SubTotal = invoice.SubTotal;
+            existingInvoice.DiscountAmount = invoice.DiscountAmount;
+            existingInvoice.TaxAmount = invoice.TaxAmount;
+            existingInvoice.Total = invoice.Total;
+            existingInvoice.Notes = invoice.Notes;
+
             // ── Estado y timbrado ────────────────────────────────────────────────
             existingInvoice.Status = invoice.Status;
             existingInvoice.Uuid = invoice.Uuid;

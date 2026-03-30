@@ -16,7 +16,7 @@ namespace Domain.Entities
         public int Id { get; set; }
 
         /// <summary>
-        /// Código único del movimiento (generado automáticamente)
+        /// Cï¿½digo ï¿½nico del movimiento (generado automï¿½ticamente)
         /// Formato: MOV-001, MOV-002, etc.
         /// </summary>
         [Required]
@@ -31,7 +31,7 @@ namespace Domain.Entities
         public string MovementType { get; set; } = string.Empty;
 
         /// <summary>
-        /// Subtipo: PURCHASE (Compra), SALE (Venta), RETURN (Devolución), etc.
+        /// Subtipo: PURCHASE (Compra), SALE (Venta), RETURN (Devoluciï¿½n), etc.
         /// </summary>
         [MaxLength(50)]
         public string? MovementSubType { get; set; }
@@ -43,7 +43,7 @@ namespace Domain.Entities
         public int ProductId { get; set; }
 
         /// <summary>
-        /// Almacén
+        /// Almacï¿½n
         /// </summary>
         [Required]
         public int WarehouseId { get; set; }
@@ -61,7 +61,7 @@ namespace Domain.Entities
         public decimal StockBefore { get; set; }
 
         /// <summary>
-        /// Stock después del movimiento
+        /// Stock despuï¿½s del movimiento
         /// </summary>
         [Column(TypeName = "decimal(18,4)")]
         public decimal StockAfter { get; set; }
@@ -95,20 +95,25 @@ namespace Domain.Entities
         public string? ReferenceDocumentType { get; set; }
 
         /// <summary>
-        /// Código del documento de referencia
+        /// Cï¿½digo del documento de referencia
         /// </summary>
         [MaxLength(50)]
         public string? ReferenceDocumentCode { get; set; }
 
         /// <summary>
-        /// ID de recepción (si aplica)
+        /// ID de recepciï¿½n (si aplica)
         /// </summary>
         public int? PurchaseOrderReceivingId { get; set; }
 
         /// <summary>
-        /// ? NUEVO: ID de venta (si aplica)
+        /// ID de venta (si aplica)
         /// </summary>
         public int? SaleId { get; set; }
+
+        /// <summary>
+        /// ID de traspaso directo (si aplica)
+        /// </summary>
+        public int? StockTransferId { get; set; }
 
         /// <summary>
         /// Lote o serie
@@ -117,7 +122,7 @@ namespace Domain.Entities
         public string? LotNumber { get; set; }
 
         /// <summary>
-        /// Ubicación física
+        /// Ubicaciï¿½n fï¿½sica
         /// </summary>
         [MaxLength(100)]
         public string? StorageLocation { get; set; }
@@ -142,10 +147,13 @@ namespace Domain.Entities
         public virtual PurchaseOrderReceiving? PurchaseOrderReceiving { get; set; }
 
         /// <summary>
-        /// ? NUEVO: Relación con venta
+        /// ? NUEVO: Relaciï¿½n con venta
         /// </summary>
         [ForeignKey(nameof(SaleId))]
         public virtual Sale? Sale { get; set; }
+
+        [ForeignKey(nameof(StockTransferId))]
+        public virtual StockTransfer? StockTransfer { get; set; }
 
         [ForeignKey(nameof(CreatedByUserId))]
         public virtual User? CreatedBy { get; set; }
