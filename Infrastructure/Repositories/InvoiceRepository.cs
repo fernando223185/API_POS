@@ -81,13 +81,36 @@ namespace Infrastructure.Repositories
             if (existingInvoice == null)
                 throw new InvalidOperationException($"Factura {invoice.Id} no encontrada.");
 
-            // Actualizar solo campos que cambian con pagos
+            // ── Estado y timbrado ────────────────────────────────────────────────
+            existingInvoice.Status = invoice.Status;
+            existingInvoice.Uuid = invoice.Uuid;
+            existingInvoice.TimbradoAt = invoice.TimbradoAt;
+            existingInvoice.XmlCfdi = invoice.XmlCfdi;
+            existingInvoice.CadenaOriginalSat = invoice.CadenaOriginalSat;
+            existingInvoice.SelloCfdi = invoice.SelloCfdi;
+            existingInvoice.SelloSat = invoice.SelloSat;
+            existingInvoice.NoCertificadoCfdi = invoice.NoCertificadoCfdi;
+            existingInvoice.NoCertificadoSat = invoice.NoCertificadoSat;
+            existingInvoice.QrCode = invoice.QrCode;
+
+            // ── Campos de pagos / CxC ────────────────────────────────────────────
             existingInvoice.PaidAmount = invoice.PaidAmount;
             existingInvoice.BalanceAmount = invoice.BalanceAmount;
             existingInvoice.TotalPartialities = invoice.TotalPartialities;
             existingInvoice.NextPartialityNumber = invoice.NextPartialityNumber;
             existingInvoice.LastPaymentDate = invoice.LastPaymentDate;
             existingInvoice.PaymentStatus = invoice.PaymentStatus;
+            existingInvoice.DueDate = invoice.DueDate;
+
+            // ── Cancelación ──────────────────────────────────────────────────────
+            existingInvoice.CancelledAt = invoice.CancelledAt;
+            existingInvoice.CancellationReason = invoice.CancellationReason;
+            existingInvoice.CancelledByUserId = invoice.CancelledByUserId;
+            existingInvoice.CancellationMotivo = invoice.CancellationMotivo;
+            existingInvoice.CancellationFolioSustitucion = invoice.CancellationFolioSustitucion;
+            existingInvoice.CancellationAcuse = invoice.CancellationAcuse;
+            existingInvoice.CancellationSatCode = invoice.CancellationSatCode;
+
             existingInvoice.UpdatedAt = invoice.UpdatedAt;
 
             await _context.SaveChangesAsync();

@@ -448,30 +448,6 @@ namespace Web.Api.Controllers.Billing
             }
         }
 
-        [HttpPost("invoices/{id}/cancel")]
-        [RequirePermission("CFDI", "Delete")]
-        public async Task<IActionResult> CancelInvoice(int id, [FromBody] dynamic cancelData)
-        {
-            try
-            {
-                var userName = HttpContext.Items["UserName"] as string ?? "Unknown";
-
-                return Ok(new
-                {
-                    message = "Invoice cancelled successfully",
-                    error = 0,
-                    invoiceId = id,
-                    cancelledBy = userName,
-                    cancelledAt = DateTime.UtcNow,
-                    reason = "Cliente solicit� cancelaci�n"
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "An error occurred", error = 2, details = ex.Message });
-            }
-        }
-
         [HttpGet("reports/summary")]
         [RequirePermission("CFDI", "View")]
         public async Task<IActionResult> GetBillingSummary([FromQuery] int year = 2025, [FromQuery] int month = 1)
@@ -670,5 +646,42 @@ namespace Web.Api.Controllers.Billing
                 return StatusCode(500, new { message = "Error al generar PDF", error = 2, details = ex.Message });
             }
         }
-    }
+        /// <summary>
+        /// Cancela una factura timbrada ante el SAT vía Sapiens
+        /// </summary>
+        /// <param name="id">ID de la factura a cancelar</param>
+        /// <param name="request">Motivo SAT (01/02/03/04) y folio sustituto si aplica</param>
+        [HttpPost("invoices/{id}/cancel")]
+        [RequirePermission("CFDI", "Delete")]
+        public async Task<IActionResult> CancelInvoice(int id, [FromBody] CancelInvoiceRequestDto request)
+        {
+            try
+            {
+                var userId = HttpContext.Items["UserId"] as int? ?? 0;
+
+                var command = new Application.Core.Billing.Commands.CancelInvoiceCommand
+                {
+                    InvoiceId = id,
+                    Motivo = request.Motivo,
+                    FolioSustitucion = request.FolioSustitucion,
+                    Reason = request.Reason,
+                    UserId = userId
+                };
+
+                var result = await _mediator.Send(command);
+
+                if (!result.Success)
+                    return BadRequest(new { message = result.Message, error = 1 });
+
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al cancelar la factura", error = 2, details = ex.Message });
+            }
+        }    }
 }

@@ -227,6 +227,21 @@ public class Payment
     [MaxLength(500)]
     public string? CancellationReason { get; set; }
 
+    /// <summary>Motivo SAT: 01=Con sustitución, 02=Sin sustitución, 03=No se realizó, 04=Global</summary>
+    [MaxLength(2)]
+    public string? CancellationMotivo { get; set; }
+
+    /// <summary>UUID del CFDI sustituto. Solo cuando CancellationMotivo = "01"</summary>
+    [MaxLength(36)]
+    public string? CancellationFolioSustitucion { get; set; }
+
+    /// <summary>XML de acuse devuelto por el SAT</summary>
+    public string? CancellationAcuse { get; set; }
+
+    /// <summary>Código SAT de la cancelación: 201=Cancelado, 202=En proceso, 204=Ya cancelado, etc.</summary>
+    [MaxLength(10)]
+    public string? CancellationSatCode { get; set; }
+
     // Navegación
     [ForeignKey(nameof(CustomerId))]
     public virtual Customer? Customer { get; set; }

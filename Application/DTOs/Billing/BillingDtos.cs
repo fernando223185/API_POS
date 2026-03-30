@@ -769,4 +769,32 @@ namespace Application.DTOs.Billing
         public int CancelledInvoices { get; set; }
         public decimal AverageInvoiceAmount { get; set; }
     }
+
+    /// <summary>
+    /// Request para cancelar una factura
+    /// </summary>
+    public class CancelInvoiceRequestDto
+    {
+        /// <summary>Motivo SAT: 01=Con sustitución, 02=Sin sustitución, 03=No se realizó, 04=Global</summary>
+        public string Motivo { get; set; } = string.Empty;
+        /// <summary>UUID del CFDI sustituto. Solo cuando Motivo = "01"</summary>
+        public string? FolioSustitucion { get; set; }
+        /// <summary>Razón interna (texto libre para el contador)</summary>
+        public string? Reason { get; set; }
+    }
+
+    /// <summary>
+    /// Resultado de la cancelación de una factura
+    /// </summary>
+    public class CancelInvoiceResultDto
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string? StatusSat { get; set; }
+        public string? StatusCancelation { get; set; }
+        public string? IsCancelable { get; set; }
+        public string? Uuid { get; set; }
+        /// <summary>El CFDI necesita aceptación del receptor (motivos 01 y 03 con monto > $1,000)</summary>
+        public bool RequiresReceiverAcceptance { get; set; }
+    }
 }

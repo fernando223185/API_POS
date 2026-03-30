@@ -42,5 +42,23 @@ namespace Application.Abstractions.Billing
         /// <param name="version">Versión de la respuesta (v1, v2, v3, v4). Por defecto: v4</param>
         /// <returns>Resultado del timbrado con UUID, QR, XML, etc.</returns>
         Task<SapiensTimbradoResponseDto> TimbrarFacturaAsync(object cfdiData, string version = "v4");
+
+        /// <summary>
+        /// Cancela un CFDI ante el SAT vía Sapiens
+        /// Endpoint: POST /cfdi33/cancel/{rfc}/{uuid}/{rfcReceptor}/{total}/{motivo}/{folioSustitucion}
+        /// </summary>
+        /// <param name="rfcEmisor">RFC del emisor del CFDI</param>
+        /// <param name="uuid">UUID del CFDI a cancelar</param>
+        /// <param name="rfcReceptor">RFC del receptor</param>
+        /// <param name="total">Total del CFDI</param>
+        /// <param name="motivo">Motivo SAT: 01/02/03/04</param>
+        /// <param name="folioSustitucion">UUID del CFDI sustituto (solo motivo 01)</param>
+        Task<SapiensCancelacionResponseDto> CancelInvoiceAsync(
+            string rfcEmisor,
+            string uuid,
+            string rfcReceptor,
+            decimal total,
+            string motivo,
+            string? folioSustitucion = null);
     }
 }

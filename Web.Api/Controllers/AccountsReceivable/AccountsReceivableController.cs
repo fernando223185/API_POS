@@ -450,5 +450,42 @@ public class AccountsReceivableController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Cancela el complemento de pago (CFDI tipo P) ante el SAT vía Sapiens
+    /// </summary>
+    [HttpPost("payments/{id}/cancel")]
+    [RequirePermission("CFDI", "Delete")]
+    public async Task<IActionResult> CancelPaymentComplement(int id, [FromBody] Application.DTOs.Billing.CancelInvoiceRequestDto request)
+    {
+        try
+        {
+            var userId = HttpContext.Items["UserId"] as int? ?? 0;
+
+            var command = new Application.Core.AccountsReceivable.Commands.CancelPaymentComplementCommand
+            {
+                PaymentId = id,
+                Motivo = request.Motivo,
+                FolioSustitucion = request.FolioSustitucion,
+                Reason = request.Reason,
+                UserId = userId
+            };
+
+            var result = await _mediator.Send(command);
+
+            if (!result.Success)
+                return BadRequest(new { message = result.Message, error = 1 });
+
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message, error = 1 });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error al cancelar el complemento de pago", error = 2, details = ex.Message });
+        }
+    }
+
     #endregion
 }

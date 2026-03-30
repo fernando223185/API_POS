@@ -224,7 +224,7 @@ namespace Domain.Entities
         public DateTime? CancelledAt { get; set; }
 
         /// <summary>
-        /// Motivo de cancelación
+        /// Motivo de cancelación (texto libre interno)
         /// </summary>
         [MaxLength(500)]
         public string? CancellationReason { get; set; }
@@ -233,6 +233,29 @@ namespace Domain.Entities
 
         [ForeignKey("CancelledByUserId")]
         public User? CancelledBy { get; set; }
+
+        /// <summary>
+        /// Motivo SAT: 01=Con sustitución, 02=Sin sustitución, 03=No se realizó, 04=Global
+        /// </summary>
+        [MaxLength(2)]
+        public string? CancellationMotivo { get; set; }
+
+        /// <summary>
+        /// UUID del CFDI que sustituye a este (solo cuando Motivo = "01")
+        /// </summary>
+        [MaxLength(36)]
+        public string? CancellationFolioSustitucion { get; set; }
+
+        /// <summary>
+        /// XML del acuse de cancelación devuelto por el SAT/PAC
+        /// </summary>
+        public string? CancellationAcuse { get; set; }
+
+        /// <summary>
+        /// Código SAT de la cancelación: 201=Cancelado, 202=En proceso, 204=Ya cancelado, 205=No cancelable, etc.
+        /// </summary>
+        [MaxLength(10)]
+        public string? CancellationSatCode { get; set; }
 
         // ========================================
         // DETALLES DE CONCEPTOS

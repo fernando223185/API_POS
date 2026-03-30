@@ -189,5 +189,74 @@ namespace Infrastructure.Services
                 throw;
             }
         }
-    }
+
+        // ========================================
+        // Cancelación CFDI
+        // ========================================
+
+        /// <summary>
+        /// Cancela un CFDI ante el SAT vía Sapiens
+        /// Endpoint: POST /cfdi33/cancel/{rfc}/{uuid}/{rfcReceptor}/{total}/{motivo}/{folioSustitucion}
+        /// </summary>
+        public async Task<SapiensCancelacionResponseDto> CancelInvoiceAsync(
+            string rfcEmisor,
+            string uuid,
+            string rfcReceptor,
+            decimal total,
+            string motivo,
+            string? folioSustitucion = null)
+        {
+            try
+            {
+                var tokenDto = await GetValidTokenAsync();
+
+                var baseUrl = _configuration["Sapiens:BaseUrl"];
+                if (string.IsNullOrEmpty(baseUrl))
+                {
+                    var useProd = bool.Parse(_configuration["Sapiens:UseProdEnvironment"] ?? "false");
+                    baseUrl = useProd ? PROD_URL : TEST_URL;
+                }
+
+                // Formatear total con punto decimal, sin separador de miles
+                var totalStr = total.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+                // Construir URL — folioSustitucion es opcional (vacío si no aplica)
+                var folio = string.IsNullOrWhiteSpace(folioSustitucion) ? string.Empty : $"/{folioSustitucion}";
+                var url = $"{baseUrl}/cfdi33/cancel/{rfcEmisor}/{uuid}/{rfcReceptor}/{totalStr}/{motivo}{folio}";
+
+                _logger.LogInformation("🗑️ Cancelando CFDI. UUID: {UUID}, Motivo: {Motivo}, URL: {Url}",
+                    uuid, motivo, url);
+
+                var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Headers.Add("Authorization", $"Bearer {tokenDto.Token}");
+
+                var response = await _httpClient.SendAsync(request);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation("📥 Respuesta cancelación SW: {Response}", responseContent);
+
+                var cancelResponse = JsonConvert.DeserializeObject<SapiensCancelacionResponseDto>(responseContent);
+
+                if (cancelResponse == null)
+                    throw new InvalidOperationException("Respuesta de cancelación inválida de Sapiens");
+
+                if (cancelResponse.status != "success")
+                {
+                    _logger.LogError("Cancelación fallida. Status: {Status}, Message: {Message}",
+                        cancelResponse.status, cancelResponse.message);
+                    throw new InvalidOperationException(
+                        $"Cancelación fallida: {cancelResponse.message} - {cancelResponse.messageDetail}");
+                }
+
+                _logger.LogInformation("✅ CFDI cancelado correctamente. UUID: {UUID}, StatusSAT: {StatusSat}",
+                    uuid, cancelResponse.data?.statusSat);
+
+                return cancelResponse;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cancelar CFDI {UUID}", uuid);
+                throw;
+            }
+        }    }
 }

@@ -136,4 +136,43 @@ namespace Application.DTOs.Billing
         public string? messageDetail { get; set; }
         public string status { get; set; } = string.Empty;
     }
+
+    // ========================================
+    // DTOs para Cancelación CFDI
+    // ========================================
+
+    /// <summary>
+    /// Response del servicio de cancelación de Sapiens
+    /// </summary>
+    public class SapiensCancelacionResponseDto
+    {
+        public string status { get; set; } = string.Empty;
+        public SapiensCancelacionDataDto? data { get; set; }
+        public string? message { get; set; }
+        public string? messageDetail { get; set; }
+    }
+
+    /// <summary>
+    /// Datos de la cancelación devueltos por el SAT vía Sapiens
+    /// </summary>
+    public class SapiensCancelacionDataDto
+    {
+        /// <summary>XML del acuse de cancelación firmado por el SAT</summary>
+        public string? acuse { get; set; }
+
+        /// <summary>Diccionario UUID -> código de estatus SAT</summary>
+        public Dictionary<string, string>? uuid { get; set; }
+
+        /// <summary>Estado de la cancelación: "Cancelado", "En proceso", etc.</summary>
+        public string? statusSat { get; set; }
+
+        /// <summary>Código de estatus SAT con descripción completa</summary>
+        public string? statusCodeSat { get; set; }
+
+        /// <summary>Si el CFDI es cancelable: "Cancelable sin aceptación", "Cancelable con aceptación", "No cancelable"</summary>
+        public string? isCancelable { get; set; }
+
+        /// <summary>Estado de la cancelación: "Solicitud recibida", "Plazo vencido", "Cancelado", "Rechazado"</summary>
+        public string? statusCancelation { get; set; }
+    }
 }
