@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(POSDbContext))]
-    [Migration("20260331173347_FixUTF8Collation")]
+    [Migration("20260331175533_FixUTF8Collation")]
     partial class FixUTF8Collation
     {
         /// <inheritdoc />
