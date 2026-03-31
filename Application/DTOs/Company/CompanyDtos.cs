@@ -7,8 +7,8 @@ namespace Application.DTOs.Company
     /// </summary>
     public class CreateCompanyDto
     {
-        [Required(ErrorMessage = "La raz�n social es requerida")]
-        [StringLength(300, ErrorMessage = "La raz�n social no puede exceder 300 caracteres")]
+        [Required(ErrorMessage = "La razón social es requerida")]
+        [StringLength(300, ErrorMessage = "La razón social no puede exceder 300 caracteres")]
         public string LegalName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El nombre comercial es requerido")]
@@ -17,24 +17,24 @@ namespace Application.DTOs.Company
 
         [Required(ErrorMessage = "El RFC es requerido")]
         [StringLength(13, MinimumLength = 12, ErrorMessage = "El RFC debe tener entre 12 y 13 caracteres")]
-        [RegularExpression(@"^[A-Z�&]{3,4}\d{6}[A-V1-9][A-Z0-9][0-9A]$", ErrorMessage = "RFC inv�lido")]
+        [RegularExpression(@"^[A-ZÑ&]{3,4}\d{6}[A-V1-9][A-Z0-9][0-9A]$", ErrorMessage = "RFC inválido")]
         public string TaxId { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El r�gimen fiscal es requerido")]
         [StringLength(10)]
         public string SatTaxRegime { get; set; } = "601";
 
-        [Required(ErrorMessage = "El c�digo postal fiscal es requerido")]
+        [Required(ErrorMessage = "El código postal fiscal es requerido")]
         [StringLength(10)]
-        [RegularExpression(@"^\d{5}$", ErrorMessage = "C�digo postal inv�lido")]
+        [RegularExpression(@"^\d{5}$", ErrorMessage = "Código postal inválido")]
         public string FiscalZipCode { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "La direcci�n fiscal es requerida")]
         [StringLength(500)]
         public string FiscalAddress { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El tel�fono es requerido")]
-        [Phone(ErrorMessage = "Tel�fono inv�lido")]
+        [Required(ErrorMessage = "El teléfono es requerido")]
+        [Phone(ErrorMessage = "Teléfono inválido")]
         [StringLength(20)]
         public string Phone { get; set; } = string.Empty;
 
