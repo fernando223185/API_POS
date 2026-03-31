@@ -1,7 +1,7 @@
 -- Script SQL para migrar estructura de productos completa
 -- Ejecutar este script para actualizar la base de datos
 
--- 1. Crear tabla de categorías de productos
+-- 1. Crear tabla de categorï¿½as de productos
 CREATE TABLE ProductCategories (
     Id int IDENTITY(1,1) PRIMARY KEY,
     Name nvarchar(100) NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE ProductCategories (
     CreatedAt datetime2 NOT NULL DEFAULT GETUTCDATE()
 );
 
--- 2. Crear tabla de subcategorías de productos
+-- 2. Crear tabla de subcategorï¿½as de productos
 CREATE TABLE ProductSubcategories (
     Id int IDENTITY(1,1) PRIMARY KEY,
     Name nvarchar(100) NOT NULL,
@@ -50,7 +50,7 @@ CREATE TABLE Suppliers (
     City nvarchar(100) NULL,
     State nvarchar(50) NULL,
     ZipCode nvarchar(10) NULL,
-    Country nvarchar(50) NULL DEFAULT 'México',
+    Country nvarchar(50) NULL DEFAULT 'Mï¿½xico',
     PaymentTermsDays int NOT NULL DEFAULT 30,
     CreditLimit decimal(18,2) NOT NULL DEFAULT 0,
     DefaultDiscountPercentage decimal(5,4) NOT NULL DEFAULT 0,
@@ -114,7 +114,7 @@ CREATE TABLE ProductPrices (
     FOREIGN KEY (CreatedByUserId) REFERENCES Users(Id)
 );
 
--- 8. Crear tabla de relación productos-proveedores
+-- 8. Crear tabla de relaciï¿½n productos-proveedores
 CREATE TABLE ProductSuppliers (
     Id int IDENTITY(1,1) PRIMARY KEY,
     ProductId int NOT NULL,
@@ -130,7 +130,7 @@ CREATE TABLE ProductSuppliers (
     FOREIGN KEY (SupplierId) REFERENCES Suppliers(Id)
 );
 
--- 9. Crear tabla de imágenes de productos
+-- 9. Crear tabla de imï¿½genes de productos
 CREATE TABLE ProductImages (
     Id int IDENTITY(1,1) PRIMARY KEY,
     ProductId int NOT NULL,
@@ -161,25 +161,25 @@ ALTER TABLE Customer ADD UpdatedAt datetime2 NULL;
 -- Agregar foreign key
 ALTER TABLE Customer ADD FOREIGN KEY (PriceListId) REFERENCES PriceLists(Id);
 
--- 11. Insertar datos básicos
+-- 11. Insertar datos bï¿½sicos
 
--- Categorías por defecto
+-- Categorï¿½as por defecto
 INSERT INTO ProductCategories (Name, Code, Description) VALUES 
-('General', 'GEN', 'Categoría general para productos'),
-('Electrónicos', 'ELEC', 'Productos electrónicos'),
+('General', 'GEN', 'Categorï¿½a general para productos'),
+('Electrï¿½nicos', 'ELEC', 'Productos electrï¿½nicos'),
 ('Ropa', 'ROPA', 'Prendas de vestir'),
-('Hogar', 'HOGAR', 'Artículos para el hogar'),
-('Alimentación', 'ALIM', 'Productos alimenticios');
+('Hogar', 'HOGAR', 'ArtÃ­culos para el hogar'),
+('AlimentaciÃ³n', 'ALIM', 'Productos alimenticios');
 
 -- Listas de precios por defecto
 INSERT INTO PriceLists (Name, Code, Description, IsDefault) VALUES 
-('Público General', 'PUB', 'Precios para público en general', 1),
+('PÃºblico General', 'PUB', 'Precios para pÃºblico en general', 1),
 ('Mayoreo', 'MAY', 'Precios para ventas al mayoreo', 0),
 ('VIP', 'VIP', 'Precios especiales para clientes VIP', 0),
 ('Distribuidor', 'DIST', 'Precios para distribuidores', 0);
 
 -- Proveedor ejemplo
 INSERT INTO Suppliers (Name, Code, ContactPerson, Email, Phone) VALUES 
-('Proveedor General', 'PROV001', 'Juan Pérez', 'contacto@proveedor.com', '555-1234');
+('Proveedor General', 'PROV001', 'Juan Pï¿½rez', 'contacto@proveedor.com', '555-1234');
 
-PRINT 'Migración de productos completada exitosamente';
+PRINT 'Migraciï¿½n de productos completada exitosamente';

@@ -62,7 +62,7 @@ namespace Application.Core.Billing.QueryHandlers
                     Code = s.Code,
                     SaleDate = s.SaleDate,
                     CustomerId = s.CustomerId,
-                    CustomerName = s.CustomerName ?? "P�blico General",
+                    CustomerName = s.CustomerName ?? "Público General",
                     CustomerRfc = s.Customer?.TaxId, // CORREGIDO: TaxId es el RFC
                     CustomerEmail = s.Customer?.Email,
                     WarehouseId = s.WarehouseId,
