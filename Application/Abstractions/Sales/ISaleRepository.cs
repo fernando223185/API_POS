@@ -3,7 +3,7 @@ using Domain.Entities;
 namespace Application.Abstractions.Sales
 {
     /// <summary>
-    /// Repositorio para gestión de ventas
+    /// Repositorio para gestiï¿½n de ventas
     /// </summary>
     public interface ISaleRepository
     {
@@ -18,7 +18,7 @@ namespace Application.Abstractions.Sales
         Task<Sale?> GetByIdAsync(int id);
 
         /// <summary>
-        /// Obtener venta por código
+        /// Obtener venta por cï¿½digo
         /// </summary>
         Task<Sale?> GetByCodeAsync(string code);
 
@@ -59,13 +59,13 @@ namespace Application.Abstractions.Sales
         );
 
         /// <summary>
-        /// Obtener venta completa para facturación
+        /// Obtener venta completa para facturaciï¿½n
         /// Incluye todas las relaciones necesarias: Company, Branch, Customer, Details, Payments, Product (para claves SAT)
         /// </summary>
         Task<Sale?> GetSaleForInvoicingAsync(int saleId);
 
         /// <summary>
-        /// Obtener estadísticas de ventas
+        /// Obtener estadï¿½sticas de ventas
         /// </summary>
         Task<(int Total, int Completed, int Cancelled, int Draft, decimal TotalRevenue, decimal TotalCost)> GetStatisticsAsync(
             DateTime? fromDate = null,
@@ -74,8 +74,18 @@ namespace Application.Abstractions.Sales
         );
 
         /// <summary>
-        /// Verificar si existe una venta con el código
+        /// Verificar si existe una venta con el cï¿½digo
         /// </summary>
         Task<bool> ExistsByCodeAsync(string code);
+
+        /// <summary>
+        /// Vincular un invoice a una venta (actualiza InvoiceId en la venta)
+        /// </summary>
+        Task SetInvoiceIdAsync(int saleId, int invoiceId);
+
+        /// <summary>
+        /// Vincular un invoice a mÃºltiples ventas de una sola vez
+        /// </summary>
+        Task SetInvoiceIdBulkAsync(IEnumerable<int> saleIds, int invoiceId);
     }
 }

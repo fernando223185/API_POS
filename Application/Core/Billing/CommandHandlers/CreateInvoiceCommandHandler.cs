@@ -1,4 +1,5 @@
 using Application.Abstractions.Billing;
+using Application.Abstractions.Config;
 using Application.Abstractions.Sales;
 using Application.Core.Billing.Commands;
 using Application.DTOs.Billing;
@@ -7,23 +8,22 @@ using MediatR;
 
 namespace Application.Core.Billing.CommandHandlers
 {
-    /// <summary>
-    /// Handler para crear una factura (borrador o timbrada)
-    /// Puede crear desde una venta existente o manualmente
-    /// </summary>
     public class CreateInvoiceCommandHandler : IRequestHandler<CreateInvoiceCommand, InvoiceResponseDto>
     {
         private readonly IInvoiceRepository _invoiceRepository;
         private readonly ISaleRepository _saleRepository;
+        private readonly ICompanyRepository _companyRepository;
         private readonly ISapiensService _sapiensService;
 
         public CreateInvoiceCommandHandler(
             IInvoiceRepository invoiceRepository,
             ISaleRepository saleRepository,
+            ICompanyRepository companyRepository,
             ISapiensService sapiensService)
         {
             _invoiceRepository = invoiceRepository;
             _saleRepository = saleRepository;
+            _companyRepository = companyRepository;
             _sapiensService = sapiensService;
         }
 
@@ -33,356 +33,138 @@ namespace Application.Core.Billing.CommandHandlers
         {
             try
             {
-                var request = command.Request;
-                Console.WriteLine($"📄 Iniciando creación de factura");
+                var req = command.Request;
 
-                Invoice invoice;
+                // Validaciones básicas
+                if (req.Receptor == null)
+                    return Error("Debe proporcionar los datos del receptor");
 
-                // ========================================
-                // CASO 1: Crear factura desde una venta
-                // ========================================
-                if (request.SaleId.HasValue)
+                if (req.Items == null || req.Items.Count == 0)
+                    return Error("Debe proporcionar al menos un concepto (items)");
+
+                // Cargar empresa emisora
+                var company = await _companyRepository.GetByIdAsync(req.CompanyId);
+                if (company == null)
+                    return Error($"Empresa con ID {req.CompanyId} no encontrada");
+
+                // Serie y folio
+                var serie = req.Serie ?? company.InvoiceSeries ?? "A";
+                var folio = await _invoiceRepository.GetNextFolioAsync(company.Id, serie);
+
+                // Construir Invoice
+                var invoice = new Invoice
                 {
-                    Console.WriteLine($"   📦 Creando factura desde venta ID: {request.SaleId}");
-                    invoice = await CreateInvoiceFromSaleAsync(request, command.UserId);
-                }
-                // ========================================
-                // CASO 2: Crear factura manualmente
-                // ========================================
-                else
-                {
-                    Console.WriteLine($"   ✍️ Creando factura manual");
-                    invoice = await CreateManualInvoiceAsync(request, command.UserId);
-                }
+                    // Solo se guarda la primera venta en SaleId para compatibilidad con el modelo
+                    SaleId = req.SaleIds?.FirstOrDefault() > 0 ? req.SaleIds.First() : null,
 
-                // Guardar factura en BD
-                Console.WriteLine($"   💾 Guardando factura en BD...");
-                var savedInvoice = await _invoiceRepository.CreateAsync(invoice);
-                Console.WriteLine($"   ✓ Factura guardada con ID: {savedInvoice.Id}");
+                    Serie = serie,
+                    Folio = folio,
+                    InvoiceDate = req.InvoiceDate ?? DateTime.UtcNow,
+                    FormaPago = req.FormaPago,
+                    MetodoPago = req.MetodoPago,
+                    CondicionesDePago = req.CondicionesDePago,
+                    TipoDeComprobante = "I",
+                    LugarExpedicion = company.FiscalZipCode ?? string.Empty,
 
-                // ========================================
-                // CASO: Timbrar inmediatamente
-                // ========================================
-                if (request.TimbrarInmediatamente)
-                {
-                    Console.WriteLine($"   🎫 Timbrando factura inmediatamente...");
-                    savedInvoice = await TimbrarInvoiceAsync(savedInvoice, request.Version);
-                }
+                    CompanyId = company.Id,
+                    EmisorRfc = company.TaxId ?? string.Empty,
+                    EmisorNombre = company.LegalName ?? string.Empty,
+                    EmisorRegimenFiscal = company.SatTaxRegime,
 
-                // Recargar con relaciones completas
-                var invoiceWithRelations = await _invoiceRepository.GetByIdAsync(savedInvoice.Id);
+                    CustomerId = req.Receptor.CustomerId,
+                    ReceptorRfc = req.Receptor.Rfc,
+                    ReceptorNombre = req.Receptor.Nombre,
+                    ReceptorDomicilioFiscal = req.Receptor.DomicilioFiscal,
+                    ReceptorRegimenFiscal = req.Receptor.RegimenFiscal,
+                    ReceptorUsoCfdi = req.Receptor.UsoCfdi,
 
+                    SubTotal = req.Subtotal,
+                    DiscountAmount = req.TotalDiscount,
+                    TaxAmount = req.TotalTax,
+                    Total = req.Total,
+                    Moneda = req.Currency,
+                    TipoCambio = req.ExchangeRate,
+
+                    Status = "Borrador",
+                    Notes = req.Notes,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedByUserId = command.UserId,
+
+                    Details = new List<InvoiceDetail>()
+                };
+
+                BuildDetailsFromItems(req.Items, invoice);
+
+                // Guardar
+                var saved = await _invoiceRepository.CreateAsync(invoice);
+
+                // Vincular todas las ventas al nuevo invoice
+                if (req.SaleIds?.Any() == true)
+                    await _saleRepository.SetInvoiceIdBulkAsync(req.SaleIds, saved.Id);
+
+                // Timbrar inmediatamente si se solicitó
+                if (req.TimbrarInmediatamente)
+                    saved = await TimbrarInvoiceAsync(saved, req.Version);
+
+                var invoiceWithRelations = await _invoiceRepository.GetByIdAsync(saved.Id);
                 if (invoiceWithRelations == null)
-                {
-                    return new InvoiceResponseDto
-                    {
-                        Message = "Error al recargar la factura creada",
-                        Error = 1
-                    };
-                }
-
-                // Mapear a DTO
-                var invoiceDto = MapToDto(invoiceWithRelations);
+                    return Error("Error al recargar la factura creada");
 
                 return new InvoiceResponseDto
                 {
-                    Message = savedInvoice.Status == "Timbrada" 
-                        ? $"Factura {savedInvoice.Serie}-{savedInvoice.Folio} timbrada exitosamente con UUID: {savedInvoice.Uuid}" 
-                        : $"Factura {savedInvoice.Serie}-{savedInvoice.Folio} guardada como borrador",
+                    Message = saved.Status == "Timbrada"
+                        ? $"Factura {saved.Serie}-{saved.Folio} timbrada exitosamente con UUID: {saved.Uuid}"
+                        : $"Factura {saved.Serie}-{saved.Folio} guardada como borrador",
                     Error = 0,
-                    Data = invoiceDto
+                    Data = MapToDto(invoiceWithRelations)
                 };
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error al crear factura: {ex.Message}");
-                return new InvoiceResponseDto
-                {
-                    Message = $"Error al crear factura: {ex.Message}",
-                    Error = 1
-                };
+                return Error($"Error al crear factura: {ex.Message}");
             }
         }
 
+        private static InvoiceResponseDto Error(string message) =>
+            new() { Message = message, Error = 1 };
+
         /// <summary>
-        /// Crea una factura desde una venta existente
+        /// Convierte la lista de items (formato simplificado de UpdateInvoiceItemDto) a InvoiceDetails
         /// </summary>
-        private async Task<Invoice> CreateInvoiceFromSaleAsync(
-            CreateInvoiceRequestDto request,
-            int userId)
+        private static void BuildDetailsFromItems(List<UpdateInvoiceItemDto> items, Invoice invoice)
         {
-            // Cargar venta completa con relaciones
-            var sale = await _saleRepository.GetSaleForInvoicingAsync(request.SaleId!.Value);
-
-            if (sale == null)
+            foreach (var item in items)
             {
-                throw new Exception($"Venta con ID {request.SaleId} no encontrada");
-            }
+                decimal taxRateNorm = item.TaxRate > 1 ? item.TaxRate / 100m : item.TaxRate;
+                bool tieneIva = taxRateNorm > 0 || item.TaxAmount > 0;
+                decimal tasaOCuota = tieneIva ? (taxRateNorm > 0 ? Math.Round(taxRateNorm, 6) : 0.160000m) : 0m;
+                decimal taxImporte = item.TaxAmount > 0
+                    ? Math.Round(item.TaxAmount, 2)
+                    : Math.Round(item.Amount * tasaOCuota, 2);
 
-            // Validaciones
-            if (sale.Status != "Completed")
-            {
-                throw new Exception($"La venta debe estar completada. Estado actual: {sale.Status}");
-            }
-
-            if (!sale.IsPaid)
-            {
-                throw new Exception("La venta debe estar pagada para facturar");
-            }
-
-            if (sale.Company == null)
-            {
-                throw new Exception("La venta no tiene empresa emisora asignada");
-            }
-
-            if (sale.Customer == null)
-            {
-                throw new Exception("La venta no tiene cliente asignado");
-            }
-
-            Console.WriteLine($"   ✓ Venta validada");
-            Console.WriteLine($"      Empresa: {sale.Company.LegalName}");
-            Console.WriteLine($"      Cliente: {sale.Customer.Name}");
-            Console.WriteLine($"      Total: ${sale.Total:N2}");
-
-            // Determinar Serie y Folio
-            var serie = request.Serie ?? sale.Company.InvoiceSeries ?? "A";
-            var folio = await _invoiceRepository.GetNextFolioAsync(sale.Company.Id, serie);
-
-            // Crear Invoice
-            var invoice = new Invoice
-            {
-                // Referencia
-                SaleId = sale.Id,
-
-                // Comprobante
-                Serie = serie,
-                Folio = folio,
-                InvoiceDate = request.InvoiceDate ?? DateTime.UtcNow,
-                FormaPago = request.FormaPago,
-                MetodoPago = request.MetodoPago,
-                CondicionesDePago = request.CondicionesDePago,
-                TipoDeComprobante = request.TipoDeComprobante,
-                LugarExpedicion = sale.Company.FiscalZipCode ?? string.Empty,
-
-                // Emisor
-                CompanyId = sale.Company.Id,
-                EmisorRfc = sale.Company.TaxId ?? string.Empty,
-                EmisorNombre = sale.Company.LegalName ?? string.Empty,
-                EmisorRegimenFiscal = sale.Company.SatTaxRegime,
-
-                // Receptor (priorizar datos de request.Receptor si están presentes)
-                CustomerId = request.Receptor?.CustomerId ?? sale.Customer.ID,
-                ReceptorRfc = request.Receptor?.Rfc ?? sale.Customer.TaxId ?? "XAXX010101000",
-                ReceptorNombre = request.Receptor?.Nombre ?? sale.Customer.Name ?? string.Empty,
-                ReceptorDomicilioFiscal = request.Receptor?.DomicilioFiscal ?? sale.Customer.ZipCode,
-                ReceptorRegimenFiscal = request.Receptor?.RegimenFiscal ?? sale.Customer.SatTaxRegime,
-                ReceptorUsoCfdi = request.Receptor?.UsoCfdi ?? request.UsoCfdi ?? sale.Customer.SatCfdiUse ?? "G03",
-
-                // Montos
-                SubTotal = sale.SubTotal,
-                DiscountAmount = sale.DiscountAmount,
-                TaxAmount = sale.TaxAmount,
-                Total = sale.Total,
-                Moneda = "MXN",
-                TipoCambio = 1.0m,
-
-                // Status
-                Status = "Borrador",
-
-                // Audit
-                Notes = request.Notes,
-                CreatedAt = DateTime.UtcNow,
-                CreatedByUserId = userId,
-
-                // Details
-                Details = new List<InvoiceDetail>()
-            };
-
-            // Crear InvoiceDetails desde SaleDetails
-            foreach (var saleDetail in sale.Details ?? new List<Domain.Entities.SaleDetail>())
-            {
-                var invoiceDetail = new InvoiceDetail
+                invoice.Details.Add(new InvoiceDetail
                 {
-                    ProductId = saleDetail.ProductId,
-                    ClaveProdServ = saleDetail.Product?.SatCode ?? "01010101",
-                    NoIdentificacion = saleDetail.ProductCode,
-                    Cantidad = saleDetail.Quantity,
-                    ClaveUnidad = saleDetail.Product?.SatUnit ?? "H87",
-                    Unidad = saleDetail.Product?.Unit,
-                    Descripcion = saleDetail.ProductName ?? string.Empty,
-                    ValorUnitario = saleDetail.UnitPrice,
-                    Importe = saleDetail.Quantity * saleDetail.UnitPrice,
-                    Descuento = saleDetail.DiscountAmount,
-                    ObjetoImp = "02", // Sí objeto de impuesto
-
-                    // Traslados (IVA)
-                    TieneTraslados = saleDetail.TaxAmount > 0,
-                    TrasladoBase = saleDetail.TaxAmount > 0 ? (saleDetail.Quantity * saleDetail.UnitPrice - saleDetail.DiscountAmount) : null,
-                    TrasladoImpuesto = saleDetail.TaxAmount > 0 ? "002" : null, // 002 = IVA
-                    TrasladoTipoFactor = saleDetail.TaxAmount > 0 ? "Tasa" : null,
-                    TrasladoTasaOCuota = saleDetail.TaxAmount > 0 ? 0.160000m : null,
-                    TrasladoImporte = saleDetail.TaxAmount,
-
-                    // Retenciones (ninguna en este caso)
+                    ProductId = item.ProductId,
+                    ClaveProdServ = !string.IsNullOrWhiteSpace(item.ClaveProdServ) ? item.ClaveProdServ : "01010101",
+                    NoIdentificacion = item.ProductCode,
+                    Cantidad = item.Quantity,
+                    ClaveUnidad = item.Unit ?? "H87",
+                    Unidad = (item.Unit) switch { "H87" => "Pieza", "KGM" => "Kilogramo", "LTR" => "Litro", "MTR" => "Metro", "E48" => "Unidad de servicio", _ => item.Unit },
+                    Descripcion = item.Description ?? string.Empty,
+                    ValorUnitario = item.UnitPrice,
+                    Importe = item.Amount,
+                    Descuento = item.Discount,
+                    ObjetoImp = tieneIva ? "02" : "01",
+                    TieneTraslados = tieneIva,
+                    TrasladoBase = tieneIva ? item.Amount : null,
+                    TrasladoImpuesto = tieneIva ? "002" : null,
+                    TrasladoTipoFactor = tieneIva ? "Tasa" : null,
+                    TrasladoTasaOCuota = tieneIva ? tasaOCuota : null,
+                    TrasladoImporte = tieneIva ? taxImporte : null,
                     TieneRetenciones = false,
-
-                    SaleDetailId = saleDetail.Id,
                     CreatedAt = DateTime.UtcNow
-                };
-
-                invoice.Details.Add(invoiceDetail);
+                });
             }
-
-            Console.WriteLine($"   ✓ Factura construida con {invoice.Details.Count} conceptos");
-
-            return invoice;
-        }
-
-        /// <summary>
-        /// Crea una factura manual (sin venta origen)
-        /// </summary>
-        private async Task<Invoice> CreateManualInvoiceAsync(
-            CreateInvoiceRequestDto request,
-            int userId)
-        {
-            if (request.Receptor == null)
-            {
-                throw new Exception("Debe proporcionar datos del receptor para factura manual");
-            }
-
-            if (request.Details == null || !request.Details.Any())
-            {
-                throw new Exception("Debe proporcionar al menos un concepto para factura manual");
-            }
-
-            // TODO: Obtener CompanyId del usuario
-            int companyId = 1; // Por ahora hardcoded, debe obtenerse del contexto del usuario
-
-            // Determinar Serie y Folio
-            var serie = request.Serie ?? "A";
-            var folio = await _invoiceRepository.GetNextFolioAsync(companyId, serie);
-
-            // Calcular montos
-            decimal subTotal = 0;
-            decimal descuentoTotal = 0;
-            decimal impuestosTotal = 0;
-
-            foreach (var detail in request.Details)
-            {
-                var importe = detail.Cantidad * detail.ValorUnitario;
-                subTotal += importe;
-                descuentoTotal += detail.Descuento;
-
-                if (detail.Impuestos?.Traslados != null)
-                {
-                    foreach (var traslado in detail.Impuestos.Traslados)
-                    {
-                        impuestosTotal += traslado.Base * traslado.TasaOCuota;
-                    }
-                }
-            }
-
-            var total = subTotal - descuentoTotal + impuestosTotal;
-
-            // Crear Invoice
-            var invoice = new Invoice
-            {
-                // Sin referencia a venta
-                SaleId = null,
-
-                // Comprobante
-                Serie = serie,
-                Folio = folio,
-                InvoiceDate = request.InvoiceDate ?? DateTime.UtcNow,
-                FormaPago = request.FormaPago,
-                MetodoPago = request.MetodoPago,
-                CondicionesDePago = request.CondicionesDePago,
-                TipoDeComprobante = request.TipoDeComprobante,
-                LugarExpedicion = "00000", // TODO: Obtener del Company
-
-                // Emisor (TODO: cargar desde Company)
-                CompanyId = companyId,
-                EmisorRfc = "EKU9003173C9", // TODO: Obtener del Company
-                EmisorNombre = "ESCUELA KEMPER URGATE", // TODO: Obtener del Company
-                EmisorRegimenFiscal = "601", // TODO: Obtener del Company
-
-                // Receptor
-                CustomerId = request.Receptor.CustomerId,
-                ReceptorRfc = request.Receptor.Rfc,
-                ReceptorNombre = request.Receptor.Nombre,
-                ReceptorDomicilioFiscal = request.Receptor.DomicilioFiscal,
-                ReceptorRegimenFiscal = request.Receptor.RegimenFiscal,
-                ReceptorUsoCfdi = request.Receptor.UsoCfdi,
-
-                // Montos
-                SubTotal = subTotal,
-                DiscountAmount = descuentoTotal,
-                TaxAmount = impuestosTotal,
-                Total = total,
-                Moneda = "MXN",
-                TipoCambio = 1.0m,
-
-                // Status
-                Status = "Borrador",
-
-                // Audit
-                Notes = request.Notes,
-                CreatedAt = DateTime.UtcNow,
-                CreatedByUserId = userId,
-
-                // Details
-                Details = new List<InvoiceDetail>()
-            };
-
-            // Crear InvoiceDetails desde request
-            foreach (var detailDto in request.Details)
-            {
-                var importe = detailDto.Cantidad * detailDto.ValorUnitario;
-
-                var invoiceDetail = new InvoiceDetail
-                {
-                    ProductId = detailDto.ProductId,
-                    ClaveProdServ = detailDto.ClaveProdServ,
-                    NoIdentificacion = detailDto.NoIdentificacion,
-                    Cantidad = detailDto.Cantidad,
-                    ClaveUnidad = detailDto.ClaveUnidad,
-                    Unidad = detailDto.Unidad,
-                    Descripcion = detailDto.Descripcion,
-                    ValorUnitario = detailDto.ValorUnitario,
-                    Importe = importe,
-                    Descuento = detailDto.Descuento,
-                    ObjetoImp = detailDto.ObjetoImp,
-
-                    // Traslados
-                    TieneTraslados = detailDto.Impuestos?.Traslados?.Any() ?? false,
-                    TrasladoBase = detailDto.Impuestos?.Traslados?.FirstOrDefault()?.Base,
-                    TrasladoImpuesto = detailDto.Impuestos?.Traslados?.FirstOrDefault()?.Impuesto,
-                    TrasladoTipoFactor = detailDto.Impuestos?.Traslados?.FirstOrDefault()?.TipoFactor,
-                    TrasladoTasaOCuota = detailDto.Impuestos?.Traslados?.FirstOrDefault()?.TasaOCuota,
-                    TrasladoImporte = detailDto.Impuestos?.Traslados?.FirstOrDefault() != null
-                        ? detailDto.Impuestos.Traslados.First().Base * detailDto.Impuestos.Traslados.First().TasaOCuota
-                        : null,
-
-                    // Retenciones
-                    TieneRetenciones = detailDto.Impuestos?.Retenciones?.Any() ?? false,
-                    RetencionBase = detailDto.Impuestos?.Retenciones?.FirstOrDefault()?.Base,
-                    RetencionImpuesto = detailDto.Impuestos?.Retenciones?.FirstOrDefault()?.Impuesto,
-                    RetencionTipoFactor = detailDto.Impuestos?.Retenciones?.FirstOrDefault()?.TipoFactor,
-                    RetencionTasaOCuota = detailDto.Impuestos?.Retenciones?.FirstOrDefault()?.TasaOCuota,
-                    RetencionImporte = detailDto.Impuestos?.Retenciones?.FirstOrDefault() != null
-                        ? detailDto.Impuestos.Retenciones.First().Base * detailDto.Impuestos.Retenciones.First().TasaOCuota
-                        : null,
-
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                invoice.Details.Add(invoiceDetail);
-            }
-
-            Console.WriteLine($"   ✓ Factura manual construida con {invoice.Details.Count} conceptos");
-
-            return invoice;
         }
 
         /// <summary>

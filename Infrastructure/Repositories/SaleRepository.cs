@@ -57,6 +57,31 @@ namespace Infrastructure.Repositories
             return sale;
         }
 
+        public async Task SetInvoiceIdAsync(int saleId, int invoiceId)
+        {
+            var sale = await _context.SalesNew.FindAsync(saleId);
+            if (sale != null)
+            {
+                sale.InvoiceId = invoiceId;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task SetInvoiceIdBulkAsync(IEnumerable<int> saleIds, int invoiceId)
+        {
+            var ids = saleIds.ToList();
+            if (!ids.Any()) return;
+
+            var sales = await _context.SalesNew
+                .Where(s => ids.Contains(s.Id))
+                .ToListAsync();
+
+            foreach (var sale in sales)
+                sale.InvoiceId = invoiceId;
+
+            await _context.SaveChangesAsync();
+        }
+
         public async Task<(IEnumerable<Sale> Sales, int TotalCount)> GetPagedAsync(
             int page,
             int pageSize,
@@ -207,7 +232,7 @@ namespace Infrastructure.Repositories
             // Obtener total
             var totalCount = await query.CountAsync();
 
-            // Ordenar y paginar (más recientes primero)
+            // Ordenar y paginar (mï¿½s recientes primero)
             var sales = await query
                 .OrderByDescending(s => s.SaleDate)
                 .Skip((page - 1) * pageSize)
@@ -221,16 +246,16 @@ namespace Infrastructure.Repositories
         public async Task<Sale?> GetSaleForInvoicingAsync(int saleId)
         {
             return await _context.SalesNew
-                // Relación con empresa (CRÍTICO para facturación)
+                // Relaciï¿½n con empresa (CRï¿½TICO para facturaciï¿½n)
                 .Include(s => s.Company)
                 
-                // Relación con sucursal
+                // Relaciï¿½n con sucursal
                 .Include(s => s.Branch)
                 
-                // Relación con cliente (CRÍTICO para facturación)
+                // Relaciï¿½n con cliente (CRï¿½TICO para facturaciï¿½n)
                 .Include(s => s.Customer)
                 
-                // Relación con almacén y su sucursal
+                // Relaciï¿½n con almacï¿½n y su sucursal
                 .Include(s => s.Warehouse)
                     .ThenInclude(w => w.Branch)
                         .ThenInclude(b => b!.Company)
@@ -242,7 +267,7 @@ namespace Infrastructure.Repositories
                 // Pagos de la venta
                 .Include(s => s.Payments)
                 
-                // Usuario que creó la venta
+                // Usuario que creï¿½ la venta
                 .Include(s => s.User)
                 
                 // Lista de precios aplicada

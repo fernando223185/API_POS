@@ -363,75 +363,48 @@ namespace Application.DTOs.Billing
     // ========================================
 
     /// <summary>
-    /// Request para crear una factura (borrador o timbrada)
+    /// Request para crear una factura (borrador o timbrada).
+    /// El frontend envía toda la información ya calculada. El backend solo persiste y vincula.
     /// </summary>
     public class CreateInvoiceRequestDto
     {
-        /// <summary>
-        /// ID de la venta origen (opcional, puede ser factura manual)
-        /// </summary>
-        public int? SaleId { get; set; }
+        // ── Empresa emisora ──────────────────────────────────────────────────────
+        /// <summary>ID de la empresa emisora (requerido)</summary>
+        public int CompanyId { get; set; }
 
+        // ── Ventas origen (opcional) ─────────────────────────────────────────────
         /// <summary>
-        /// Serie del comprobante (ej: "A", "F", "FCO")
+        /// IDs de ventas a vincular al invoice creado.
+        /// El frontend decide si agrupa varias ventas en un solo CFDI o genera uno por venta.
+        /// Puede ser null/vacío para facturas independientes.
         /// </summary>
+        public List<int>? SaleIds { get; set; }
+
+        // ── Datos del comprobante ────────────────────────────────────────────────
         public string? Serie { get; set; }
-
-        /// <summary>
-        /// Fecha de emisión del comprobante. Si no se envía, se usa la fecha actual.
-        /// </summary>
         public DateTime? InvoiceDate { get; set; }
-
-        /// <summary>
-        /// Forma de pago SAT (01, 02, 03, etc.)
-        /// </summary>
         public string FormaPago { get; set; } = "01";
-
-        /// <summary>
-        /// Método de pago SAT (PUE o PPD)
-        /// </summary>
         public string MetodoPago { get; set; } = "PUE";
-
-        /// <summary>
-        /// Uso del CFDI (P01, G03, etc.)
-        /// </summary>
-        public string? UsoCfdi { get; set; }
-
-        /// <summary>
-        /// Condiciones de pago
-        /// </summary>
         public string? CondicionesDePago { get; set; }
-
-        /// <summary>
-        /// Tipo de comprobante (I=Ingreso, E=Egreso, T=Traslado, N=Nómina, P=Pago)
-        /// </summary>
-        public string TipoDeComprobante { get; set; } = "I";
-
-        /// <summary>
-        /// Notas adicionales
-        /// </summary>
+        public string Currency { get; set; } = "MXN";
+        public decimal ExchangeRate { get; set; } = 1m;
         public string? Notes { get; set; }
 
-        /// <summary>
-        /// Si es true, se timbra inmediatamente después de guardar el borrador
-        /// Si es false, solo se guarda como borrador
-        /// </summary>
+        // ── Timbrado ─────────────────────────────────────────────────────────────
         public bool TimbrarInmediatamente { get; set; } = false;
-
-        /// <summary>
-        /// Versión de respuesta de Sapiens (v1, v2, v3, v4)
-        /// </summary>
         public string Version { get; set; } = "v4";
 
-        /// <summary>
-        /// Conceptos/productos (solo si es factura manual, no desde venta)
-        /// </summary>
-        public List<InvoiceDetailInputDto>? Details { get; set; }
+        // ── Receptor (requerido) ─────────────────────────────────────────────────
+        public ReceptorInputDto Receptor { get; set; } = null!;
 
-        /// <summary>
-        /// Datos del cliente receptor (solo si es factura manual)
-        /// </summary>
-        public ReceptorInputDto? Receptor { get; set; }
+        // ── Montos (calculados por el frontend) ──────────────────────────────────
+        public decimal Subtotal { get; set; }
+        public decimal TotalDiscount { get; set; }
+        public decimal TotalTax { get; set; }
+        public decimal Total { get; set; }
+
+        // ── Conceptos (requerido) ────────────────────────────────────────────────
+        public List<UpdateInvoiceItemDto> Items { get; set; } = new();
     }
 
     /// <summary>
