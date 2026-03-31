@@ -81,7 +81,7 @@ namespace Application.DTOs.Users
     /// </summary>
     public class CreateUserDto
     {
-        [Required(ErrorMessage = "El c�digo es requerido")]
+        [Required(ErrorMessage = "El código es requerido")]
         [StringLength(100)]
         public string Code { get; set; } = string.Empty;
 
@@ -94,7 +94,7 @@ namespace Application.DTOs.Users
         public string Password { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El email es requerido")]
-        [EmailAddress(ErrorMessage = "Email inv�lido")]
+        [EmailAddress(ErrorMessage = "Email inválido")]
         [StringLength(255)]
         public string Email { get; set; } = string.Empty;
 
