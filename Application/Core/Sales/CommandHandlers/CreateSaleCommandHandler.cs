@@ -59,7 +59,7 @@ namespace Application.Core.Sales.CommandHandlers
             var warehouse = await _warehouseRepository.GetByIdAsync(request.SaleData.WarehouseId);
             if (warehouse == null)
             {
-                throw new KeyNotFoundException($"Almac�n con ID {request.SaleData.WarehouseId} no encontrado");
+                throw new KeyNotFoundException($"Almacén con ID {request.SaleData.WarehouseId} no encontrado");
             }
 
             // 4. Obtener cliente si existe
@@ -93,7 +93,7 @@ namespace Application.Core.Sales.CommandHandlers
 
                 if (!product.IsActive)
                 {
-                    throw new InvalidOperationException($"El producto '{product.name}' est� inactivo");
+                    throw new InvalidOperationException($"El producto '{product.name}' está inactivo");
                 }
 
                 // Calcular montos del detalle

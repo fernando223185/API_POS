@@ -240,7 +240,7 @@ namespace Web.Api.Controllers.Sales
 
                 return Ok(new
                 {
-                    message = "Estad�sticas obtenidas exitosamente",
+                    message = "Estadísticas obtenidas exitosamente",
                     error = 0,
                     data = result
                 });
@@ -250,7 +250,7 @@ namespace Web.Api.Controllers.Sales
                 Console.WriteLine($"? Error getting statistics: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener estad�sticas",
+                    message = "Error al obtener estadísticas",
                     error = 2,
                     details = ex.Message
                 });
@@ -368,7 +368,7 @@ namespace Web.Api.Controllers.Sales
 
                 return Ok(new
                 {
-                    message = "Ticket t�rmico generado exitosamente",
+                    message = "Ticket térmico generado exitosamente",
                     error = 0,
                     data = new
                     {

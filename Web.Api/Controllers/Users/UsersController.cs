@@ -206,7 +206,7 @@ namespace Web.Api.Controllers.Users
 
                 return Ok(new
                 {
-                    message = "Estad�sticas obtenidas exitosamente",
+                    message = "Estadísticas obtenidas exitosamente",
                     error = 0,
                     data = new
                     {

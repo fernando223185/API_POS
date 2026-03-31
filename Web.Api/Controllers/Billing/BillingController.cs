@@ -112,7 +112,7 @@ namespace Web.Api.Controllers.Billing
             {
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener venta para facturaci�n",
+                    message = "Error al obtener venta para facturación",
                     error = 2,
                     details = ex.Message
                 });

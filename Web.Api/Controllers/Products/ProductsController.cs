@@ -285,7 +285,7 @@ namespace Web.Api.Controllers.Products
                 Console.WriteLine($"? Error creating basic product: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al crear producto b�sico",
+                    message = "Error al crear producto básico",
                     error = 2,
                     details = ex.Message
                 });
@@ -308,7 +308,7 @@ namespace Web.Api.Controllers.Products
                 if (string.IsNullOrWhiteSpace(term))
                 {
                     return BadRequest(new { 
-                        message = "T�rmino de b�squeda requerido", 
+                        message = "Término de búsqueda requerido", 
                         error = 1 
                     });
                 }
@@ -322,7 +322,7 @@ namespace Web.Api.Controllers.Products
             {
                 Console.WriteLine($"? Error searching products: {ex.Message}");
                 return StatusCode(500, new { 
-                    message = "Error en b�squeda de productos", 
+                    message = "Error en búsqueda de productos", 
                     error = 2, 
                     details = ex.Message 
                 });
@@ -351,7 +351,7 @@ namespace Web.Api.Controllers.Products
 
                 return Ok(new
                 {
-                    message = "Estad�sticas obtenidas exitosamente",
+                    message = "Estadísticas obtenidas exitosamente",
                     error = 0,
                     data = result.Statistics
                 });
@@ -361,7 +361,7 @@ namespace Web.Api.Controllers.Products
                 Console.WriteLine($"? Error getting product stats: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener estad�sticas",
+                    message = "Error al obtener estadísticas",
                     error = 2,
                     details = ex.Message
                 });
@@ -738,7 +738,7 @@ namespace Web.Api.Controllers.Products
                 {
                     return BadRequest(new
                     {
-                        message = "Formato de archivo no v�lido. Solo se permiten: JPG, JPEG, PNG, GIF, WebP",
+                        message = "Formato de archivo no válido. Solo se permiten: JPG, JPEG, PNG, GIF, WebP",
                         error = 1,
                         allowedFormats = allowedExtensions
                     });
@@ -749,7 +749,7 @@ namespace Web.Api.Controllers.Products
                 {
                     return BadRequest(new
                     {
-                        message = "El archivo es demasiado grande. Tama�o m�ximo: 5MB",
+                        message = "El archivo es demasiado grande. Tamaño máximo: 5MB",
                         error = 1,
                         fileSize = file.Length,
                         maxSize = 5 * 1024 * 1024
@@ -887,7 +887,7 @@ namespace Web.Api.Controllers.Products
 
                 return Ok(new ProductImagesResponseDto
                 {
-                    Message = "Im�genes obtenidas exitosamente",
+                    Message = "Imágenes obtenidas exitosamente",
                     Error = 0,
                     Data = imageDtos,
                     TotalImages = imageDtos.Count

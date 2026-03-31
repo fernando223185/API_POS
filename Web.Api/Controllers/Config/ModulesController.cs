@@ -42,7 +42,7 @@ namespace Web.Api.Controllers.Config
                 Console.WriteLine($"? Error al obtener m�dulos: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener m�dulos",
+                    message = "Error al obtener módulos",
                     error = 2,
                     details = ex.Message
                 });
@@ -65,14 +65,14 @@ namespace Web.Api.Controllers.Config
                 {
                     return NotFound(new
                     {
-                        message = "M�dulo no encontrado",
+                        message = "Módulo no encontrado",
                         error = 1
                     });
                 }
 
                 return Ok(new
                 {
-                    message = "M�dulo obtenido exitosamente",
+                    message = "Módulo obtenido exitosamente",
                     error = 0,
                     data = module
                 });
@@ -82,7 +82,7 @@ namespace Web.Api.Controllers.Config
                 Console.WriteLine($"? Error al obtener m�dulo: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener m�dulo",
+                    message = "Error al obtener módulo",
                     error = 2,
                     details = ex.Message
                 });
@@ -107,7 +107,7 @@ namespace Web.Api.Controllers.Config
                 {
                     return BadRequest(new
                     {
-                        message = "Datos de entrada inv�lidos",
+                        message = "Datos de entrada inválidos",
                         error = 1,
                         errors = ModelState.SelectMany(x => x.Value.Errors.Select(e => e.ErrorMessage))
                     });
@@ -124,7 +124,7 @@ namespace Web.Api.Controllers.Config
                 Console.WriteLine($"? Error al crear m�dulo: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al crear m�dulo",
+                    message = "Error al crear módulo",
                     error = 2,
                     details = ex.Message
                 });
@@ -167,7 +167,7 @@ namespace Web.Api.Controllers.Config
                 Console.WriteLine($"? Error al actualizar m�dulo: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al actualizar m�dulo",
+                    message = "Error al actualizar módulo",
                     error = 2,
                     details = ex.Message
                 });
@@ -199,7 +199,7 @@ namespace Web.Api.Controllers.Config
                 Console.WriteLine($"? Error al eliminar m�dulo: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al eliminar m�dulo",
+                    message = "Error al eliminar módulo",
                     error = 2,
                     details = ex.Message
                 });
@@ -234,7 +234,7 @@ namespace Web.Api.Controllers.Config
                 Console.WriteLine($"? Error al obtener subm�dulos: {ex.Message}");
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener subm�dulos",
+                    message = "Error al obtener submódulos",
                     error = 2,
                     details = ex.Message
                 });
@@ -257,7 +257,7 @@ namespace Web.Api.Controllers.Config
                 {
                     return NotFound(new
                     {
-                        message = "Subm�dulo no encontrado",
+                        message = "Submódulo no encontrado",
                         error = 1
                     });
                 }

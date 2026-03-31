@@ -42,7 +42,7 @@ namespace Web.Api.Controllers.Products
 
                 return Ok(new
                 {
-                    message = "Categor�as obtenidas exitosamente",
+                    message = "Categorías obtenidas exitosamente",
                     error = 0,
                     data = categories,
                     totalCategories = categories.Count
@@ -52,7 +52,7 @@ namespace Web.Api.Controllers.Products
             {
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener categor�as",
+                    message = "Error al obtener categorías",
                     error = 2,
                     details = ex.Message
                 });
@@ -93,14 +93,14 @@ namespace Web.Api.Controllers.Products
                 {
                     return NotFound(new
                     {
-                        message = "Categor�a no encontrada",
+                        message = "Categoría no encontrada",
                         error = 1
                     });
                 }
 
                 return Ok(new
                 {
-                    message = "Categor�a obtenida exitosamente",
+                    message = "Categoría obtenida exitosamente",
                     error = 0,
                     data = category
                 });
@@ -109,7 +109,7 @@ namespace Web.Api.Controllers.Products
             {
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener categor�a",
+                    message = "Error al obtener categoría",
                     error = 2,
                     details = ex.Message
                 });
@@ -138,7 +138,7 @@ namespace Web.Api.Controllers.Products
 
                 return Ok(new
                 {
-                    message = "Categor�as para dropdown obtenidas exitosamente",
+                    message = "Categorías para dropdown obtenidas exitosamente",
                     error = 0,
                     data = categories
                 });
@@ -147,7 +147,7 @@ namespace Web.Api.Controllers.Products
             {
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener categor�as para dropdown",
+                    message = "Error al obtener categorías para dropdown",
                     error = 2,
                     details = ex.Message
                 });
@@ -190,7 +190,7 @@ namespace Web.Api.Controllers.Products
 
                 return Ok(new
                 {
-                    message = "Estad�sticas de categor�as obtenidas exitosamente",
+                    message = "Estadísticas de categorías obtenidas exitosamente",
                     error = 0,
                     data = new
                     {
@@ -203,7 +203,7 @@ namespace Web.Api.Controllers.Products
             {
                 return StatusCode(500, new
                 {
-                    message = "Error al obtener estad�sticas",
+                    message = "Error al obtener estadísticas",
                     error = 2,
                     details = ex.Message
                 });
