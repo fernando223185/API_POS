@@ -59,7 +59,7 @@ namespace Application.Core.Sales.CommandHandlers
             var warehouse = await _warehouseRepository.GetByIdAsync(request.SaleData.WarehouseId);
             if (warehouse == null)
             {
-                throw new KeyNotFoundException($"Almacén con ID {request.SaleData.WarehouseId} no encontrado");
+                throw new KeyNotFoundException($"Almacï¿½n con ID {request.SaleData.WarehouseId} no encontrado");
             }
 
             // 4. Obtener cliente si existe
@@ -73,7 +73,7 @@ namespace Application.Core.Sales.CommandHandlers
                 }
             }
 
-            // 5. Generar código automático
+            // 5. Generar cï¿½digo automï¿½tico
             var code = await _codeGenerator.GenerateNextCodeAsync("VTA", "Sales");
 
             // 6. Calcular totales
@@ -93,7 +93,7 @@ namespace Application.Core.Sales.CommandHandlers
 
                 if (!product.IsActive)
                 {
-                    throw new InvalidOperationException($"El producto '{product.name}' está inactivo");
+                    throw new InvalidOperationException($"El producto '{product.name}' estï¿½ inactivo");
                 }
 
                 // Calcular montos del detalle
@@ -133,7 +133,7 @@ namespace Application.Core.Sales.CommandHandlers
                 totalDiscount += lineDiscount;
             }
 
-            // 7. Aplicar descuento global (sobre el subtotal después de descuentos individuales)
+            // 7. Aplicar descuento global (sobre el subtotal despuï¿½s de descuentos individuales)
             var globalDiscountAmount = subTotal * (request.SaleData.DiscountPercentage / 100);
             var finalSubTotal = subTotal - globalDiscountAmount;
             var finalTotalDiscount = totalDiscount + globalDiscountAmount;
@@ -159,16 +159,16 @@ namespace Application.Core.Sales.CommandHandlers
 
             var finalTotal = finalSubTotal + totalTax;
 
-            // 9. ? CREAR VENTA CON BRANCHID Y COMPANYID AUTOMÁTICOS
+            // 9. ? CREAR VENTA CON BRANCHID Y COMPANYID AUTOMï¿½TICOS
             var sale = new Sale
             {
                 Code = code,
                 SaleDate = DateTime.UtcNow,
                 CustomerId = request.SaleData.CustomerId,
-                CustomerName = customer != null ? $"{customer.Name} {customer.LastName}" : "Público General",
+                CustomerName = customer != null ? $"{customer.Name} {customer.LastName}" : "PÃºblico General",
                 WarehouseId = request.SaleData.WarehouseId,
-                BranchId = warehouse.BranchId,                      // ? ASIGNADO AUTOMÁTICAMENTE
-                CompanyId = warehouse.Branch?.CompanyId,            // ? ASIGNADO AUTOMÁTICAMENTE
+                BranchId = warehouse.BranchId,                      // ? ASIGNADO AUTOMï¿½TICAMENTE
+                CompanyId = warehouse.Branch?.CompanyId,            // ? ASIGNADO AUTOMï¿½TICAMENTE
                 UserId = request.UserId,
                 PriceListId = request.SaleData.PriceListId,
                 SubTotal = subTotal, // Subtotal antes de descuento global
