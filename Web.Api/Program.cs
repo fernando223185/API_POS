@@ -180,6 +180,9 @@ builder.Services.AddScoped<Application.Abstractions.Inventory.IStockTransferRepo
 // ✅ NUEVO: Sistema de ventas con cobranza
 builder.Services.AddScoped<Application.Abstractions.Sales.ISaleRepository, SaleRepository>();
 
+// ✅ NUEVO: Sistema de turnos de cajero (corte de caja)
+builder.Services.AddScoped<Application.Abstractions.CashierShifts.ICashierShiftRepository, CashierShiftRepository>();
+
 // ✅ NUEVO: Sistema de facturación CFDI
 builder.Services.AddScoped<Application.Abstractions.Billing.IInvoiceRepository, InvoiceRepository>();
 

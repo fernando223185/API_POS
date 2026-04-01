@@ -54,6 +54,9 @@ namespace Infrastructure.Persistence
         public DbSet<SaleDetail> SaleDetails { get; set; }
         public DbSet<SalePayment> SalePayments { get; set; }
 
+        // ✅ NUEVO: Sistema de turnos de cajero (corte de caja)
+        public DbSet<CashierShift> CashierShifts { get; set; }
+
         // ✅ NUEVO: Gestión de empresas
         public DbSet<Company> Companies { get; set; }
 
