@@ -394,6 +394,13 @@ namespace Application.DTOs.Billing
         public bool TimbrarInmediatamente { get; set; } = false;
         public string Version { get; set; } = "v4";
 
+        // ── Emisor (opcional, sobreescribe datos de la empresa) ──────────────────
+        /// <summary>
+        /// Si se envía, estos datos reemplazan RFC/Nombre/RegimenFiscal/LugarExpedicion
+        /// de la empresa. Útil cuando el usuario quiere facturar con datos distintos.
+        /// </summary>
+        public EmisorInputDto? Emisor { get; set; }
+
         // ── Receptor (requerido) ─────────────────────────────────────────────────
         public ReceptorInputDto Receptor { get; set; } = null!;
 
@@ -459,6 +466,19 @@ namespace Application.DTOs.Billing
     }
 
     /// <summary>
+    /// Datos del emisor para factura (override opcional).
+    /// Si no se envía, se usan los datos fiscales de la empresa en BD.
+    /// </summary>
+    public class EmisorInputDto
+    {
+        public string Rfc { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string? RegimenFiscal { get; set; }
+        /// <summary>Código postal del lugar de expedición</summary>
+        public string? LugarExpedicion { get; set; }
+    }
+
+    /// <summary>
     /// Datos del receptor para factura manual
     /// </summary>
     public class ReceptorInputDto
@@ -521,7 +541,7 @@ namespace Application.DTOs.Billing
 
     public class UpdateInvoiceItemDto
     {
-        public int? Id { get; set; }               // ID del detalle existente (null = nuevo)
+        public int? Id { get; set; }               // ID del detalle existente (0 o null = nuevo ítem)
         public int? ProductId { get; set; }
         public string? ProductCode { get; set; }
         public string? ClaveProdServ { get; set; } // Clave SAT del producto/servicio

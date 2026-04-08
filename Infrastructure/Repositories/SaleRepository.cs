@@ -201,11 +201,12 @@ namespace Infrastructure.Repositories
                 .Include(s => s.Details)
                 .AsQueryable();
 
-            // Filtro principal: Ventas completadas, pagadas y sin UUID (no timbradas)
+            // Filtro principal: Ventas completadas, pagadas, sin UUID y sin InvoiceId asignado
             query = query.Where(s => 
                 s.Status == "Completed" && 
                 s.IsPaid == true && 
-                string.IsNullOrEmpty(s.InvoiceUuid));
+                string.IsNullOrEmpty(s.InvoiceUuid) &&
+                s.InvoiceId == null);
 
             // Filtro por RequiresInvoice
             if (onlyRequiresInvoice.HasValue)

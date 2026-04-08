@@ -64,12 +64,12 @@ namespace Application.Core.Billing.CommandHandlers
                     MetodoPago = req.MetodoPago,
                     CondicionesDePago = req.CondicionesDePago,
                     TipoDeComprobante = "I",
-                    LugarExpedicion = company.FiscalZipCode ?? string.Empty,
+                    LugarExpedicion = req.Emisor?.LugarExpedicion ?? company.FiscalZipCode ?? string.Empty,
 
                     CompanyId = company.Id,
-                    EmisorRfc = company.TaxId ?? string.Empty,
-                    EmisorNombre = company.LegalName ?? string.Empty,
-                    EmisorRegimenFiscal = company.SatTaxRegime,
+                    EmisorRfc = req.Emisor?.Rfc ?? company.TaxId ?? string.Empty,
+                    EmisorNombre = req.Emisor?.Nombre ?? company.LegalName ?? string.Empty,
+                    EmisorRegimenFiscal = req.Emisor?.RegimenFiscal ?? company.SatTaxRegime,
 
                     CustomerId = req.Receptor.CustomerId,
                     ReceptorRfc = req.Receptor.Rfc,
@@ -144,7 +144,7 @@ namespace Application.Core.Billing.CommandHandlers
 
                 invoice.Details.Add(new InvoiceDetail
                 {
-                    ProductId = item.ProductId,
+                    ProductId = (item.ProductId.HasValue && item.ProductId.Value > 0) ? item.ProductId : null,
                     ClaveProdServ = !string.IsNullOrWhiteSpace(item.ClaveProdServ) ? item.ClaveProdServ : "01010101",
                     NoIdentificacion = item.ProductCode,
                     Cantidad = item.Quantity,

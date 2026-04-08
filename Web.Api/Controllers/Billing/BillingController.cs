@@ -1,5 +1,6 @@
 using Application.Core.Billing.Commands;
 using Application.Core.Billing.Queries;
+using Application.Core.Company.Queries;
 using Application.DTOs.Billing;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -471,19 +472,12 @@ namespace Web.Api.Controllers.Billing
         {
             try
             {
+                var result = await _mediator.Send(new GetAllActiveCompaniesQuery());
                 return Ok(new
                 {
                     message = "Companies retrieved successfully",
                     error = 0,
-                    data = new[] {
-                        new {
-                            id = 1,
-                            rfc = "AAA010101AAA",
-                            businessName = "Mi Empresa SA de CV",
-                            isActive = true,
-                            certificateExpiry = DateTime.UtcNow.AddMonths(6)
-                        }
-                    }
+                    data = result
                 });
             }
             catch (Exception ex)

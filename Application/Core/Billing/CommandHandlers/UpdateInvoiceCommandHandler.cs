@@ -106,10 +106,10 @@ namespace Application.Core.Billing.CommandHandlers
             {
                 var details = req.Items.Select(item =>
                 {
-                    // Buscar detalle existente: primero por Id, luego por código, luego por descripción
-                    var existing = existingDetails.FirstOrDefault(d => d.Id == (item.Id ?? -1))
-                        ?? existingDetails.FirstOrDefault(d => d.NoIdentificacion == item.ProductCode && item.ProductCode != null)
-                        ?? existingDetails.FirstOrDefault(d => d.Descripcion == item.Description && item.Description != null);
+                    // id > 0 = detalle existente, id = 0 o null = nuevo ítem
+                    var existing = (item.Id.HasValue && item.Id.Value > 0)
+                        ? existingDetails.FirstOrDefault(d => d.Id == item.Id.Value)
+                        : null;
 
                     // TaxRate puede venir como 16 (porcentaje) o 0.16 (decimal)
                     decimal taxRateNorm = item.TaxRate > 1 ? item.TaxRate / 100m : item.TaxRate;
@@ -129,7 +129,7 @@ namespace Application.Core.Billing.CommandHandlers
                     return new InvoiceDetail
                     {
                         InvoiceId = updated.Id,
-                        ProductId = item.ProductId ?? existing?.ProductId,
+                        ProductId = (item.ProductId.HasValue && item.ProductId.Value > 0) ? item.ProductId : existing?.ProductId,
                         NoIdentificacion = item.ProductCode ?? existing?.NoIdentificacion,
                         ClaveProdServ = claveProdServ,
                         Cantidad = item.Quantity,

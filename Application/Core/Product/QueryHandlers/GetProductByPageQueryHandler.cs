@@ -92,6 +92,11 @@ namespace Application.Core.Product.QueryHandlers
                     IsService = p.IsService,
                     CreatedAt = p.CreatedAt,
                     UpdatedAt = p.UpdatedAt,
+                    SatCode = p.SatCode ?? "01010101",
+                    SatUnit = p.SatUnit,
+                    SatTaxType = p.SatTaxType,
+                    Barcode = p.barcode,
+                    Unit = p.Unit,
                     
                     // Imagen
                     ImageUrl = primaryImages.ContainsKey(p.ID) && primaryImages[p.ID] != null 
