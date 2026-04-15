@@ -16,17 +16,20 @@ public class GenerateBatchComplementsCommandHandler : IRequestHandler<GenerateBa
     private readonly IPaymentBatchRepository _batchRepository;
     private readonly IPaymentRepository _paymentRepository;
     private readonly IPaymentComplementLogRepository _logRepository;
+    private readonly IInvoiceRepository _invoiceRepository;
     private readonly ISapiensService _sapiensService;
 
     public GenerateBatchComplementsCommandHandler(
         IPaymentBatchRepository batchRepository,
         IPaymentRepository paymentRepository,
         IPaymentComplementLogRepository logRepository,
+        IInvoiceRepository invoiceRepository,
         ISapiensService sapiensService)
     {
         _batchRepository = batchRepository;
         _paymentRepository = paymentRepository;
         _logRepository = logRepository;
+        _invoiceRepository = invoiceRepository;
         _sapiensService = sapiensService;
     }
 
@@ -103,6 +106,25 @@ public class GenerateBatchComplementsCommandHandler : IRequestHandler<GenerateBa
                 payment.CompletedAt = DateTime.UtcNow;
 
                 await _paymentRepository.UpdateAsync(payment);
+
+                // ✅ ACTUALIZAR SALDOS DE LAS FACTURAS
+                foreach (var app in payment.PaymentApplications)
+                {
+                    var invoice = await _invoiceRepository.GetByIdAsync(app.InvoiceId);
+                    if (invoice == null) continue;
+
+                    invoice.PaidAmount += app.AmountApplied;
+                    invoice.BalanceAmount = (invoice.BalanceAmount ?? invoice.Total) - app.AmountApplied;
+                    invoice.TotalPartialities += 1;
+                    invoice.NextPartialityNumber = (invoice.NextPartialityNumber ?? 1) + 1;
+                    invoice.LastPaymentDate = payment.PaymentDate;
+                    invoice.PaymentStatus = invoice.BalanceAmount <= 0 ? "Paid" : "PartiallyPaid";
+                    invoice.UpdatedAt = DateTime.UtcNow;
+                    
+                    await _invoiceRepository.UpdateAsync(invoice);
+                    
+                    Console.WriteLine($"✅ Factura {invoice.Serie}-{invoice.Folio} - Saldo actualizado: {invoice.BalanceAmount:C2}");
+                }
 
                 totalSuccess++;
             }

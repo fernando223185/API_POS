@@ -45,8 +45,18 @@ jobs:
             "SecretKey": "${{ secrets.AWS_SECRET_KEY }}",
             "Region": "${{ secrets.AWS_REGION }}",
             "S3": {
-              "BucketName": "${{ secrets.AWS_S3_BUCKET }}"
+              "BucketName": "${{ secrets.AWS_S3_BUCKET }}",
+              "CertificatesBucketName": "${{ secrets.AWS_S3_CERTIFICATES_BUCKET }}"
             }
+          },
+          "Sapiens": {
+            "User": "${{ secrets.SAPIENS_USER }}",
+            "Password": "${{ secrets.SAPIENS_PASSWORD }}",
+            "BaseUrl": "${{ secrets.SAPIENS_BASE_URL }}",
+            "UseProdEnvironment": true
+          },
+          "Certificate": {
+            "EncryptionKey": "${{ secrets.CERTIFICATE_ENCRYPTION_KEY }}"
           },
           "Logging": {
             "LogLevel": {

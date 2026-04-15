@@ -209,6 +209,9 @@ builder.Services.AddScoped<IThermalTicketService, ThermalTicketService>();  // �
 builder.Services.AddScoped<ISaleDocumentService, SaleDocumentService>();  // ✅ NUEVO - Documentos de venta
 builder.Services.AddScoped<IKardexDocumentService, KardexDocumentService>();  // ✅ NUEVO - Documentos de kardex
 
+// ✅ Dashboard dinámico por rol
+builder.Services.AddScoped<Application.Abstractions.Dashboard.IDashboardRepository, DashboardRepository>();
+
 // ✅ NUEVO: Sistema de alertas
 builder.Services.AddScoped<Application.Abstractions.Alerts.IAlertRepository, AlertRepository>();
 builder.Services.AddScoped<Application.Abstractions.Alerts.IAlertRuleConfigRepository, AlertRuleConfigRepository>();
