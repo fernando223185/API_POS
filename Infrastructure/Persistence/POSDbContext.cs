@@ -80,6 +80,13 @@ namespace Infrastructure.Persistence
         public DbSet<Alert> Alerts { get; set; }
         public DbSet<AlertRuleConfig> AlertRuleConfigs { get; set; }
 
+        // ✅ NUEVO: Cotizaciones
+        public DbSet<Quotation> Quotations { get; set; }
+        public DbSet<QuotationDetail> QuotationDetails { get; set; }
+
+        // ✅ NUEVO: Plantillas de reportes personalizables
+        public DbSet<ReportTemplate> ReportTemplates { get; set; }
+
         // ✅ NUEVO: Catálogos SAT para facturación
         public DbSet<SatUsoCfdi> SatUsoCfdi { get; set; }
         public DbSet<SatRegimenFiscal> SatRegimenFiscal { get; set; }
@@ -737,6 +744,96 @@ namespace Infrastructure.Persistence
                 .WithMany()
                 .HasForeignKey(im => im.StockTransferId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // ✅ NUEVO: Configuración de Cotizaciones
+            modelBuilder.Entity<Quotation>(entity =>
+            {
+                entity.HasKey(q => q.Id);
+                entity.ToTable("Quotations");
+                entity.HasIndex(q => q.Code).IsUnique();
+                entity.HasIndex(q => q.Status);
+                entity.HasIndex(q => q.QuotationDate);
+
+                entity.HasOne(q => q.Customer)
+                    .WithMany()
+                    .HasForeignKey(q => q.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(q => q.Warehouse)
+                    .WithMany()
+                    .HasForeignKey(q => q.WarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(q => q.User)
+                    .WithMany()
+                    .HasForeignKey(q => q.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(q => q.Branch)
+                    .WithMany()
+                    .HasForeignKey(q => q.BranchId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(q => q.Company)
+                    .WithMany()
+                    .HasForeignKey(q => q.CompanyId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(q => q.PriceList)
+                    .WithMany()
+                    .HasForeignKey(q => q.PriceListId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(q => q.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(q => q.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(q => q.Sale)
+                    .WithMany()
+                    .HasForeignKey(q => q.SaleId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<QuotationDetail>(entity =>
+            {
+                entity.HasKey(qd => qd.Id);
+                entity.ToTable("QuotationDetails");
+
+                entity.HasOne(qd => qd.Quotation)
+                    .WithMany(q => q.Details)
+                    .HasForeignKey(qd => qd.QuotationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(qd => qd.Product)
+                    .WithMany()
+                    .HasForeignKey(qd => qd.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ✅ NUEVO: Plantillas de reportes personalizables
+            modelBuilder.Entity<ReportTemplate>(entity =>
+            {
+                entity.HasKey(rt => rt.Id);
+                entity.ToTable("ReportTemplates");
+
+                entity.HasOne(rt => rt.Company)
+                    .WithMany()
+                    .HasForeignKey(rt => rt.CompanyId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(rt => rt.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(rt => rt.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(rt => rt.ReportType);
+                entity.HasIndex(rt => new { rt.ReportType, rt.IsDefault });
+                entity.HasIndex(rt => rt.IsActive);
+
+                entity.Property(rt => rt.SectionsJson)
+                    .HasColumnType("nvarchar(max)");
+            });
         }
     }
 }

@@ -22,94 +22,9 @@ namespace Application.Core.Sales.QueryHandlers
             var sale = await _saleRepository.GetByIdAsync(request.SaleId);
 
             if (sale == null)
-            {
                 throw new KeyNotFoundException($"Venta con ID {request.SaleId} no encontrada");
-            }
 
-            var totalCost = sale.Details.Sum(d => d.TotalCost ?? 0);
-            var grossProfit = sale.Total - totalCost;
-            var profitMargin = sale.Total > 0 ? (grossProfit / sale.Total) * 100 : 0;
-
-            return new SaleResponseDto
-            {
-                Id = sale.Id,
-                Code = sale.Code,
-                SaleDate = sale.SaleDate,
-                CustomerId = sale.CustomerId,
-                CustomerName = sale.CustomerName,
-                WarehouseId = sale.WarehouseId,
-                WarehouseName = sale.Warehouse.Name,
-                BranchId = sale.BranchId,                           // ? NUEVO
-                BranchName = sale.Branch?.Name ?? sale.Warehouse.Branch?.Name,  // ? ACTUALIZADO
-                CompanyId = sale.CompanyId,                         // ? NUEVO
-                CompanyName = sale.Company?.LegalName ?? sale.Warehouse.Branch?.Company?.LegalName,  // ? NUEVO
-                UserId = sale.UserId,
-                UserName = sale.User.Name,
-                PriceListId = sale.PriceListId,
-                PriceListName = sale.PriceList?.Name,
-                SubTotal = sale.SubTotal,
-                DiscountAmount = sale.DiscountAmount,
-                DiscountPercentage = sale.DiscountPercentage,
-                TaxAmount = sale.TaxAmount,
-                Total = sale.Total,
-                AmountPaid = sale.AmountPaid,
-                ChangeAmount = sale.ChangeAmount,
-                IsPaid = sale.IsPaid,
-                Status = sale.Status,
-                IsPostedToInventory = sale.IsPostedToInventory,
-                PostedToInventoryDate = sale.PostedToInventoryDate,
-                RequiresInvoice = sale.RequiresInvoice,
-                InvoiceUuid = sale.InvoiceUuid,
-                Notes = sale.Notes,
-                CreatedAt = sale.CreatedAt,
-                CreatedByName = sale.CreatedBy?.Name,
-                CancelledAt = sale.CancelledAt,
-                CancellationReason = sale.CancellationReason,
-                Details = sale.Details.Select(d => new SaleDetailResponseDto
-                {
-                    Id = d.Id,
-                    ProductId = d.ProductId,
-                    ProductCode = d.ProductCode,
-                    ProductName = d.ProductName,
-                    Quantity = d.Quantity,
-                    UnitPrice = d.UnitPrice,
-                    DiscountPercentage = d.DiscountPercentage,
-                    DiscountAmount = d.DiscountAmount,
-                    TaxPercentage = d.TaxPercentage,
-                    TaxAmount = d.TaxAmount,
-                    SubTotal = d.SubTotal,
-                    Total = d.Total,
-                    UnitCost = d.UnitCost,
-                    TotalCost = d.TotalCost,
-                    LineProfit = d.Total - (d.TotalCost ?? 0),
-                    Notes = d.Notes,
-                    SerialNumber = d.SerialNumber,
-                    LotNumber = d.LotNumber
-                }).ToList(),
-                Payments = sale.Payments.Select(p => new SalePaymentResponseDto
-                {
-                    Id = p.Id,
-                    PaymentMethod = p.PaymentMethod,
-                    Amount = p.Amount,
-                    PaymentDate = p.PaymentDate,
-                    CardNumber = p.CardNumber,
-                    CardType = p.CardType,
-                    AuthorizationCode = p.AuthorizationCode,
-                    TransactionReference = p.TransactionReference,
-                    TerminalId = p.TerminalId,
-                    BankName = p.BankName,
-                    TransferReference = p.TransferReference,
-                    CheckNumber = p.CheckNumber,
-                    CheckBank = p.CheckBank,
-                    Status = p.Status,
-                    Notes = p.Notes
-                }).ToList(),
-                TotalItems = sale.Details.Count,
-                TotalQuantity = sale.Details.Sum(d => d.Quantity),
-                TotalCost = totalCost,
-                GrossProfit = grossProfit,
-                ProfitMarginPercentage = profitMargin
-            };
+            return SaleMapper.ToResponseDto(sale);
         }
     }
 
@@ -142,7 +57,7 @@ namespace Application.Core.Sales.QueryHandlers
 
             var salesList = sales.ToList();
 
-            // Obtener estadísticas
+            // Obtener estadï¿½sticas
             var (total, completed, cancelled, draft, totalRevenue, totalCost) = 
                 await _saleRepository.GetStatisticsAsync(
                     request.FromDate,
@@ -171,6 +86,10 @@ namespace Application.Core.Sales.QueryHandlers
                     Status = s.Status,
                     IsPaid = s.IsPaid,
                     RequiresInvoice = s.RequiresInvoice,
+                    SaleType = s.SaleType,
+                    DeliveryAddress = s.DeliveryAddress,
+                    ScheduledDeliveryDate = s.ScheduledDeliveryDate,
+                    DeliveredAt = s.DeliveredAt,
                     TotalItems = s.Details.Count,
                     UserName = s.User.Name
                 }).ToList(),
@@ -195,7 +114,7 @@ namespace Application.Core.Sales.QueryHandlers
     }
 
     /// <summary>
-    /// Handler para obtener estadísticas de ventas
+    /// Handler para obtener estadï¿½sticas de ventas
     /// </summary>
     public class GetSalesStatisticsQueryHandler : IRequestHandler<GetSalesStatisticsQuery, SalesStatisticsDto>
     {

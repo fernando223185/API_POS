@@ -211,6 +211,33 @@ namespace Domain.Entities
         public string? InvoiceXml { get; set; }
 
         // ========================================
+        // VENTA FORÁNEA / EN CAMPO
+        // ========================================
+
+        /// <summary>
+        /// Tipo de venta: POS | Field
+        /// </summary>
+        [Required]
+        [MaxLength(20)]
+        public string SaleType { get; set; } = "POS";
+
+        /// <summary>
+        /// Dirección de entrega (solo aplica para ventas foráneas)
+        /// </summary>
+        [MaxLength(500)]
+        public string? DeliveryAddress { get; set; }
+
+        /// <summary>
+        /// Fecha programada de entrega (solo aplica para ventas foráneas)
+        /// </summary>
+        public DateTime? ScheduledDeliveryDate { get; set; }
+
+        /// <summary>
+        /// Fecha y hora en que se confirmó la entrega
+        /// </summary>
+        public DateTime? DeliveredAt { get; set; }
+
+        // ========================================
         // METADATOS
         // ========================================
 

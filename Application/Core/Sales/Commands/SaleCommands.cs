@@ -21,6 +21,23 @@ namespace Application.Core.Sales.Commands
     ) : IRequest<ProcessSalePaymentsResponseDto>;
 
     /// <summary>
+    /// Command para crear una venta Delivery
+    /// </summary>
+    public record CreateSaleDeliveryCommand(
+        CreateSaleDeliveryRequestDto SaleData,
+        int UserId
+    ) : IRequest<SaleResponseDto>;
+
+    /// <summary>
+    /// Command para confirmar la entrega de una venta Delivery y registrar el pago
+    /// </summary>
+    public record ConfirmDeliveryCommand(
+        int SaleId,
+        ConfirmDeliveryRequestDto DeliveryData,
+        int UserId
+    ) : IRequest<SaleResponseDto>;
+
+    /// <summary>
     /// Command para cancelar una venta
     /// </summary>
     public record CancelSaleCommand(

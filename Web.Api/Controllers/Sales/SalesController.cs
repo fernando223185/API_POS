@@ -308,6 +308,74 @@ namespace Web.Api.Controllers.Sales
             }
         }
 
+        // ========================================
+        // DELIVERY ENDPOINTS
+        // ========================================
+
+        /// <summary>
+        /// Crear una venta de tipo Delivery (entrega a domicilio / foránea).
+        /// El pago se registra al confirmar la entrega.
+        /// </summary>
+        [HttpPost("delivery")]
+        public async Task<IActionResult> CreateDeliverySale([FromBody] CreateSaleDeliveryRequestDto request)
+        {
+            try
+            {
+                var userId = HttpContext.Items["UserId"] as int? ?? 0;
+                if (userId == 0)
+                    return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
+
+                var command = new CreateSaleDeliveryCommand(request, userId);
+                var result = await _mediator.Send(command);
+
+                return Ok(new { message = "Venta Delivery creada exitosamente", error = 0, data = result });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al crear venta Delivery", error = 2, details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Confirmar la entrega de una venta Delivery.
+        /// Registra el pago, descuenta inventario y cierra la venta.
+        /// </summary>
+        [HttpPut("{id}/deliver")]
+        public async Task<IActionResult> ConfirmDelivery(int id, [FromBody] ConfirmDeliveryRequestDto request)
+        {
+            try
+            {
+                var userId = HttpContext.Items["UserId"] as int? ?? 0;
+                if (userId == 0)
+                    return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
+
+                var command = new ConfirmDeliveryCommand(id, request, userId);
+                var result = await _mediator.Send(command);
+
+                return Ok(new { message = "Entrega confirmada exitosamente", error = 0, data = result });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al confirmar entrega", error = 2, details = ex.Message });
+            }
+        }
+
         /// <summary>
         /// Obtener pagos de una venta
         /// </summary>

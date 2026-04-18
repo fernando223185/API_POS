@@ -13,7 +13,7 @@ namespace Application.DTOs.Sales
     {
         public int? CustomerId { get; set; }
 
-        [Required(ErrorMessage = "El almacén es requerido")]
+        [Required(ErrorMessage = "El almacï¿½n es requerido")]
         public int WarehouseId { get; set; }
 
         public int? PriceListId { get; set; }
@@ -22,7 +22,14 @@ namespace Application.DTOs.Sales
         public decimal DiscountPercentage { get; set; }
 
         public bool RequiresInvoice { get; set; }
+        /// <summary>POS | Field</summary>
+        [MaxLength(20)]
+        public string SaleType { get; set; } = "POS";
 
+        [MaxLength(500)]
+        public string? DeliveryAddress { get; set; }
+
+        public DateTime? ScheduledDeliveryDate { get; set; }
         [MaxLength(1000)]
         public string? Notes { get; set; }
 
@@ -75,7 +82,7 @@ namespace Application.DTOs.Sales
     /// </summary>
     public class CreateSalePaymentDto
     {
-        [Required(ErrorMessage = "El método de pago es requerido")]
+        [Required(ErrorMessage = "El mï¿½todo de pago es requerido")]
         [MaxLength(50)]
         public string PaymentMethod { get; set; } = string.Empty;
 
@@ -122,9 +129,58 @@ namespace Application.DTOs.Sales
     /// </summary>
     public class CancelSaleRequestDto
     {
-        [Required(ErrorMessage = "La razón de cancelación es requerida")]
+        [Required(ErrorMessage = "La razï¿½n de cancelaciï¿½n es requerida")]
         [MaxLength(500)]
         public string Reason { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// DTO para crear una venta de tipo Delivery
+    /// </summary>
+    public class CreateSaleDeliveryRequestDto
+    {
+        public int? CustomerId { get; set; }
+
+        [Required(ErrorMessage = "El almacÃ©n es requerido")]
+        public int WarehouseId { get; set; }
+
+        public int? PriceListId { get; set; }
+
+        [Range(0, 100, ErrorMessage = "El descuento debe estar entre 0 y 100")]
+        public decimal DiscountPercentage { get; set; }
+
+        public bool RequiresInvoice { get; set; }
+
+        [MaxLength(500)]
+        public string? DeliveryAddress { get; set; }
+
+        public DateTime? ScheduledDeliveryDate { get; set; }
+
+        [MaxLength(1000)]
+        public string? Notes { get; set; }
+
+        [Required(ErrorMessage = "Debe agregar al menos un producto")]
+        [MinLength(1, ErrorMessage = "Debe agregar al menos un producto")]
+        public List<CreateSaleDetailDto> Details { get; set; } = new();
+    }
+
+    /// <summary>
+    /// DTO para confirmar la entrega y registrar el pago
+    /// </summary>
+    public class ConfirmDeliveryRequestDto
+    {
+        /// <summary>
+        /// DirecciÃ³n real donde se entregÃ³ (opcional, puede diferir de la planeada)
+        /// </summary>
+        [MaxLength(500)]
+        public string? DeliveryAddress { get; set; }
+
+        [Required(ErrorMessage = "Debe agregar al menos una forma de pago")]
+        [MinLength(1)]
+        public List<CreateSalePaymentDto> Payments { get; set; } = new();
+
+        [MaxLength(1000)]
+        public string? Notes { get; set; }
     }
 
     // ========================================
@@ -144,7 +200,7 @@ namespace Application.DTOs.Sales
         public int? CustomerId { get; set; }
         public string? CustomerName { get; set; }
 
-        // Ubicación
+        // Ubicaciï¿½n
         public int WarehouseId { get; set; }
         public string WarehouseName { get; set; } = string.Empty;
         public int? BranchId { get; set; }                        // ? NUEVO
@@ -177,9 +233,15 @@ namespace Application.DTOs.Sales
         public bool IsPostedToInventory { get; set; }
         public DateTime? PostedToInventoryDate { get; set; }
 
-        // Facturación
+        // Facturaciï¿½n
         public bool RequiresInvoice { get; set; }
         public string? InvoiceUuid { get; set; }
+
+        // Venta forÃ¡nea
+        public string SaleType { get; set; } = "POS";
+        public string? DeliveryAddress { get; set; }
+        public DateTime? ScheduledDeliveryDate { get; set; }
+        public DateTime? DeliveredAt { get; set; }
 
         // Metadatos
         public string? Notes { get; set; }
@@ -272,6 +334,10 @@ namespace Application.DTOs.Sales
         public string Status { get; set; } = string.Empty;
         public bool IsPaid { get; set; }
         public bool RequiresInvoice { get; set; }
+        public string SaleType { get; set; } = "POS";
+        public string? DeliveryAddress { get; set; }
+        public DateTime? ScheduledDeliveryDate { get; set; }
+        public DateTime? DeliveredAt { get; set; }
         public int TotalItems { get; set; }
         public string UserName { get; set; } = string.Empty;
     }
@@ -331,7 +397,7 @@ namespace Application.DTOs.Sales
     }
 
     /// <summary>
-    /// Estadísticas de ventas
+    /// Estadï¿½sticas de ventas
     /// </summary>
     public class SalesStatisticsDto
     {

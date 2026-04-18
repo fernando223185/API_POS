@@ -215,6 +215,13 @@ builder.Services.AddScoped<Application.Abstractions.Dashboard.IDashboardReposito
 // ✅ NUEVO: Sistema de alertas
 builder.Services.AddScoped<Application.Abstractions.Alerts.IAlertRepository, AlertRepository>();
 builder.Services.AddScoped<Application.Abstractions.Alerts.IAlertRuleConfigRepository, AlertRuleConfigRepository>();
+
+// ✅ NUEVO: Cotizaciones
+builder.Services.AddScoped<Application.Abstractions.Quotations.IQuotationRepository, QuotationRepository>();
+
+// ✅ NUEVO: Plantillas de reportes personalizables
+builder.Services.AddScoped<Application.Abstractions.Reports.IReportTemplateRepository, ReportTemplateRepository>();
+
 builder.Services.AddHostedService<InvoiceDueAlertJob>();
 builder.Services.AddHostedService<StockAlertJob>();
 
