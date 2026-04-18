@@ -1,8 +1,10 @@
+using Application.Abstractions.Billing;
 using Application.Abstractions.CashierShifts;
 using Application.Abstractions.Purchasing;
 using Application.Abstractions.Quotations;
 using Application.Abstractions.Reports;
 using Application.Abstractions.Sales;
+using Application.Core.Billing.Documents;
 using Application.Core.Reports.Engine;
 using Application.Core.Reports.Queries;
 using Application.DTOs.Reports;
@@ -79,6 +81,61 @@ namespace Application.Core.Reports.QueryHandlers
     }
 
     // ─────────────────────────────────────────────
+    // GET ALL TEMPLATES (todos los tipos)
+    // ─────────────────────────────────────────────
+
+    public class GetAllReportTemplatesQueryHandler : IRequestHandler<GetAllReportTemplatesQuery, List<ReportTemplateSummaryDto>>
+    {
+        private readonly IReportTemplateRepository _repo;
+
+        public GetAllReportTemplatesQueryHandler(IReportTemplateRepository repo)
+            => _repo = repo;
+
+        public async Task<List<ReportTemplateSummaryDto>> Handle(GetAllReportTemplatesQuery request, CancellationToken cancellationToken)
+        {
+            var list = await _repo.GetAllAsync(request.CompanyId);
+            return list.Select(t => new ReportTemplateSummaryDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                ReportType = t.ReportType,
+                Description = t.Description,
+                IsDefault = t.IsDefault,
+                CreatedAt = t.CreatedAt,
+            }).ToList();
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // GET PREVIEW DATA (schema + mock data)
+    // ─────────────────────────────────────────────
+
+    public class GetReportPreviewDataQueryHandler : IRequestHandler<GetReportPreviewDataQuery, ReportPreviewDataDto>
+    {
+        private readonly IReportTemplateRepository _repo;
+
+        public GetReportPreviewDataQueryHandler(IReportTemplateRepository repo)
+            => _repo = repo;
+
+        public async Task<ReportPreviewDataDto> Handle(GetReportPreviewDataQuery request, CancellationToken cancellationToken)
+        {
+            var template = await _repo.GetByIdAsync(request.TemplateId)
+                ?? throw new KeyNotFoundException($"Plantilla {request.TemplateId} no encontrada");
+
+            var sections = GetReportTemplateByIdQueryHandler.DeserializeSections(template.SectionsJson);
+
+            return new ReportPreviewDataDto
+            {
+                TemplateName  = template.Name,
+                ReportType    = template.ReportType,
+                Sections      = sections,
+                MockDataRow   = ReportMockDataProvider.GetMockDataRow(template.ReportType),
+                MockTableRows = ReportMockDataProvider.GetMockTableRows(template.ReportType),
+            };
+        }
+    }
+
+    // ─────────────────────────────────────────────
     // GET FIELD CATALOG
     // ─────────────────────────────────────────────
 
@@ -86,6 +143,70 @@ namespace Application.Core.Reports.QueryHandlers
     {
         public Task<ReportFieldCatalogDto> Handle(GetReportFieldCatalogQuery request, CancellationToken cancellationToken)
             => Task.FromResult(ReportFieldCatalog.GetCatalog(request.ReportType));
+    }
+
+    // ─────────────────────────────────────────────
+    // GET PDF PREVIEW (real PDF with mock data)
+    // ─────────────────────────────────────────────
+
+    public class GetReportTemplatePdfPreviewQueryHandler : IRequestHandler<GetReportTemplatePdfPreviewQuery, byte[]>
+    {
+        private readonly IReportTemplateRepository _repo;
+
+        public GetReportTemplatePdfPreviewQueryHandler(IReportTemplateRepository repo)
+            => _repo = repo;
+
+        public async Task<byte[]> Handle(GetReportTemplatePdfPreviewQuery request, CancellationToken cancellationToken)
+        {
+            var template = await _repo.GetByIdAsync(request.TemplateId)
+                ?? throw new KeyNotFoundException($"Plantilla {request.TemplateId} no encontrada");
+
+            // Las facturas usan su propio motor PDF (layout CFDI fijo), no el motor genérico de plantillas
+            if (template.ReportType == "Invoice")
+                return InvoicePdfDocument.Generate(ReportMockDataProvider.GetMockInvoice());
+
+            var sections  = GetReportTemplateByIdQueryHandler.DeserializeSections(template.SectionsJson);
+            var dataRow   = ReportMockDataProvider.GetMockDataRow(template.ReportType)
+                                .ToDictionary(k => k.Key, v => (object?)v.Value);
+            var tableRows = ReportMockDataProvider.GetMockTableRows(template.ReportType)
+                                .Select(r => r.ToDictionary(k => k.Key, v => (object?)v.Value))
+                                .ToList();
+
+            var title = $"{template.Name} — VISTA PREVIA ({DateTime.Now:dd/MM/yyyy})";
+            return ReportPdfEngine.Generate(sections, new() { dataRow }, tableRows, title);
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // GET TEMPLATE HTML PREVIEW
+    // ─────────────────────────────────────────────
+
+    public class GetReportTemplateHtmlPreviewQueryHandler : IRequestHandler<GetReportTemplateHtmlPreviewQuery, string>
+    {
+        private readonly IReportTemplateRepository _repo;
+
+        public GetReportTemplateHtmlPreviewQueryHandler(IReportTemplateRepository repo)
+            => _repo = repo;
+
+        public async Task<string> Handle(GetReportTemplateHtmlPreviewQuery request, CancellationToken cancellationToken)
+        {
+            var template = await _repo.GetByIdAsync(request.TemplateId)
+                ?? throw new KeyNotFoundException($"Plantilla {request.TemplateId} no encontrada");
+
+            // Las facturas usan el motor HTML de CFDI (layout fijo oficial)
+            if (template.ReportType == "Invoice")
+                return InvoiceHtmlDocument.GenerateHtml(ReportMockDataProvider.GetMockInvoice());
+
+            var sections  = GetReportTemplateByIdQueryHandler.DeserializeSections(template.SectionsJson);
+            var dataRow   = ReportMockDataProvider.GetMockDataRow(template.ReportType)
+                                .ToDictionary(k => k.Key, v => (object?)v.Value);
+            var tableRows = ReportMockDataProvider.GetMockTableRows(template.ReportType)
+                                .Select(r => r.ToDictionary(k => k.Key, v => (object?)v.Value))
+                                .ToList();
+
+            var title = $"{template.Name} — VISTA PREVIA ({DateTime.Now:dd/MM/yyyy})";
+            return ReportHtmlEngine.Generate(sections, new() { dataRow }, tableRows, title);
+        }
     }
 
     // ─────────────────────────────────────────────
@@ -99,19 +220,22 @@ namespace Application.Core.Reports.QueryHandlers
         private readonly IQuotationRepository _quotationRepo;
         private readonly IPurchaseOrderRepository _purchaseRepo;
         private readonly ICashierShiftRepository _shiftRepo;
+        private readonly IInvoiceRepository _invoiceRepo;
 
         public GenerateReportPdfQueryHandler(
             IReportTemplateRepository templateRepo,
             ISaleRepository saleRepo,
             IQuotationRepository quotationRepo,
             IPurchaseOrderRepository purchaseRepo,
-            ICashierShiftRepository shiftRepo)
+            ICashierShiftRepository shiftRepo,
+            IInvoiceRepository invoiceRepo)
         {
             _templateRepo = templateRepo;
             _saleRepo = saleRepo;
             _quotationRepo = quotationRepo;
             _purchaseRepo = purchaseRepo;
             _shiftRepo = shiftRepo;
+            _invoiceRepo = invoiceRepo;
         }
 
         public async Task<byte[]> Handle(GenerateReportPdfQuery request, CancellationToken cancellationToken)
@@ -137,6 +261,7 @@ namespace Application.Core.Reports.QueryHandlers
                 "Quotation"           => await GenerateQuotationsReportAsync(sections, data, reportTitle),
                 "Purchase"            => await GeneratePurchaseReportAsync(sections, data, reportTitle),
                 "CashierShift"        => await GenerateCashierShiftReportAsync(sections, data, reportTitle),
+                "Invoice"             => await GenerateInvoiceReportAsync(sections, data, reportTitle),
                 _                     => throw new ArgumentException($"Tipo de reporte no soportado: {data.ReportType}")
             };
         }
@@ -225,6 +350,19 @@ namespace Application.Core.Reports.QueryHandlers
             var tableRows = ReportDataProvider.FromCashierShiftSales(sales);
 
             return ReportPdfEngine.Generate(sections, new() { dataRow }, tableRows, title);
+        }
+
+        private async Task<byte[]> GenerateInvoiceReportAsync(
+            List<ReportSectionDefinition> sections, GenerateReportDto data, string title)
+        {
+            if (!data.DocumentIds.Any())
+                throw new InvalidOperationException("Debe especificar el ID de la factura");
+
+            // Las facturas usan InvoicePdfDocument para respetar el layout CFDI 4.0 oficial
+            var inv = await _invoiceRepo.GetByIdAsync(data.DocumentIds[0])
+                ?? throw new KeyNotFoundException($"Factura {data.DocumentIds[0]} no encontrada");
+
+            return InvoicePdfDocument.Generate(inv);
         }
     }
 }

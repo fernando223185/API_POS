@@ -38,6 +38,17 @@ namespace Infrastructure.Repositories
                 .AsNoTracking()
                 .ToListAsync();
 
+        public async Task<List<ReportTemplate>> GetAllAsync(int? companyId)
+            => await _context.ReportTemplates
+                .Where(t =>
+                    t.IsActive &&
+                    (companyId == null || t.CompanyId == null || t.CompanyId == companyId))
+                .OrderBy(t => t.ReportType)
+                .ThenByDescending(t => t.IsDefault)
+                .ThenBy(t => t.Name)
+                .AsNoTracking()
+                .ToListAsync();
+
         public async Task<ReportTemplate> CreateAsync(ReportTemplate template)
         {
             _context.ReportTemplates.Add(template);

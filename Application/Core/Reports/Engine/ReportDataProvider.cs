@@ -196,5 +196,58 @@ namespace Application.Core.Reports.Engine
             "Expired"   => "Vencida",
             _           => status
         };
+
+        // ─────────────────────────────────────────────
+        // FACTURA CFDI
+        // ─────────────────────────────────────────────
+
+        public static Dictionary<string, object?> FromInvoice(Invoice inv) => new()
+        {
+            ["invoiceFolio"]            = inv.Folio,
+            ["invoiceSerie"]            = inv.Serie,
+            ["invoiceDate"]             = inv.InvoiceDate,
+            ["invoiceStatus"]           = inv.Status,
+            ["uuid"]                    = inv.Uuid ?? "",
+            ["timbradoAt"]              = inv.TimbradoAt,
+            ["tipoDeComprobante"]       = inv.TipoDeComprobante,
+            ["metodoPago"]              = inv.MetodoPago,
+            ["formaPago"]               = inv.FormaPago,
+            ["condicionesDePago"]       = inv.CondicionesDePago ?? "",
+            ["moneda"]                  = inv.Moneda,
+            ["lugarExpedicion"]         = inv.LugarExpedicion,
+            // Emisor
+            ["emisorRfc"]               = inv.EmisorRfc,
+            ["emisorNombre"]            = inv.EmisorNombre,
+            ["emisorRegimenFiscal"]     = inv.EmisorRegimenFiscal,
+            // Receptor
+            ["receptorRfc"]             = inv.ReceptorRfc,
+            ["receptorNombre"]          = inv.ReceptorNombre,
+            ["receptorDomicilioFiscal"] = inv.ReceptorDomicilioFiscal,
+            ["receptorRegimenFiscal"]   = inv.ReceptorRegimenFiscal ?? "",
+            ["receptorUsoCfdi"]         = inv.ReceptorUsoCfdi,
+            // Venta origen
+            ["saleCode"]                = inv.Sale?.Code ?? "",
+            // Totales
+            ["subTotal"]                = inv.SubTotal,
+            ["discountAmount"]          = inv.DiscountAmount,
+            ["taxAmount"]               = inv.TaxAmount,
+            ["total"]                   = inv.Total,
+        };
+
+        public static List<Dictionary<string, object?>> FromInvoiceDetails(Invoice inv) =>
+            inv.Details.Select(d => new Dictionary<string, object?>
+            {
+                ["claveProdServ"]    = d.ClaveProdServ,
+                ["noIdentificacion"] = d.NoIdentificacion ?? "",
+                ["descripcion"]      = d.Descripcion,
+                ["cantidad"]         = d.Cantidad,
+                ["claveUnidad"]      = d.ClaveUnidad,
+                ["unidad"]           = d.Unidad ?? "",
+                ["valorUnitario"]    = d.ValorUnitario,
+                ["descuento"]        = d.Descuento,
+                ["importe"]          = d.Importe,
+                ["trasladoTasa"]     = d.TieneTraslados ? (d.TrasladoTasaOCuota ?? 0m) : 0m,
+                ["trasladoImporte"]  = d.TieneTraslados ? (d.TrasladoImporte ?? 0m) : 0m,
+            }).ToList();
     }
 }

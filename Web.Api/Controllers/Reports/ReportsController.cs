@@ -43,15 +43,19 @@ namespace Web.Api.Controllers.Reports
         // ─────────────────────────────────────────────
 
         /// <summary>
-        /// Lista las plantillas disponibles para un tipo de reporte.
+        /// Lista las plantillas guardadas. Si se indica type, filtra por tipo de reporte.
+        /// GET /api/reports/templates
         /// GET /api/reports/templates?type=Sales&companyId=1
         /// </summary>
         [HttpGet("templates")]
-        public async Task<IActionResult> GetTemplates([FromQuery] string type, [FromQuery] int? companyId = null)
+        public async Task<IActionResult> GetTemplates([FromQuery] string? type = null, [FromQuery] int? companyId = null)
         {
             try
             {
-                var result = await _mediator.Send(new GetReportTemplatesByTypeQuery(type, companyId));
+                List<Application.DTOs.Reports.ReportTemplateSummaryDto> result = string.IsNullOrWhiteSpace(type)
+                    ? await _mediator.Send(new GetAllReportTemplatesQuery(companyId))
+                    : await _mediator.Send(new GetReportTemplatesByTypeQuery(type, companyId));
+
                 return Ok(new { data = result, total = result.Count, error = 0 });
             }
             catch (Exception ex)
@@ -73,6 +77,75 @@ namespace Web.Api.Controllers.Reports
                 if (result is null)
                     return NotFound(new { message = $"Plantilla {id} no encontrada", error = 1 });
                 return Ok(new { data = result, error = 0 });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+        }
+
+        /// <summary>
+        /// Devuelve el esquema de secciones de la plantilla junto con datos de ejemplo,
+        /// para renderizar el preview en el frontend sin consultar documentos reales.
+        /// GET /api/reports/templates/{id}/preview-data
+        /// </summary>
+        [HttpGet("templates/{id:int}/preview-data")]
+        public async Task<IActionResult> GetPreviewData(int id)
+        {
+            try
+            {
+                var result = await _mediator.Send(new GetReportPreviewDataQuery(id));
+                return Ok(new { data = result, error = 0 });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+        }
+
+        /// <summary>
+        /// Genera un HTML de vista previa usando datos de ejemplo (mock).
+        /// El layout es idéntico al PDF — misma estructura visual, lista para WebView.
+        /// GET /api/reports/templates/{id}/preview-html
+        /// </summary>
+        [HttpGet("templates/{id:int}/preview-html")]
+        public async Task<IActionResult> GetPreviewHtml(int id)
+        {
+            try
+            {
+                var html = await _mediator.Send(new GetReportTemplateHtmlPreviewQuery(id));
+                return Content(html, "text/html; charset=utf-8");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+        }
+
+        /// <summary>
+        /// Genera un PDF de vista previa usando datos de ejemplo (mock).
+        /// El resultado es idéntico al PDF real — misma plantilla, mismo motor QuestPDF.
+        /// GET /api/reports/templates/{id}/preview-pdf
+        /// </summary>
+        [HttpGet("templates/{id:int}/preview-pdf")]
+        public async Task<IActionResult> GetPreviewPdf(int id)
+        {
+            try
+            {
+                var pdf = await _mediator.Send(new GetReportTemplatePdfPreviewQuery(id));
+                return File(pdf, "application/pdf", $"preview_{id}.pdf");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
             }
             catch (Exception ex)
             {

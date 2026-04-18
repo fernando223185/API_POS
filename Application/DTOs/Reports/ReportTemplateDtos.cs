@@ -212,4 +212,38 @@ namespace Application.DTOs.Reports
         public int? WarehouseId { get; set; }
         public int? CompanyId { get; set; }
     }
+
+    // ─────────────────────────────────────────────
+    // DTO PARA PREVIEW EN FRONTEND
+    // ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Devuelve el esquema exacto de secciones de la plantilla junto con
+    /// datos de ejemplo por tipo, para que el frontend renderice un preview
+    /// idéntico al PDF generado por QuestPDF sin necesidad de conocer la
+    /// estructura interna de cada tipo de reporte.
+    /// </summary>
+    public class ReportPreviewDataDto
+    {
+        /// <summary>Secciones con su configuración completa (mismo objeto que usa QuestPDF)</summary>
+        public List<ReportSectionDefinition> Sections { get; set; } = new();
+
+        /// <summary>
+        /// Valores de ejemplo para campos de tipo Header/Summary/Footer.
+        /// Clave = field key (ej. "saleCode"), Valor = dato de ejemplo formateado como string.
+        /// </summary>
+        public Dictionary<string, string> MockDataRow { get; set; } = new();
+
+        /// <summary>
+        /// Filas de ejemplo para secciones de tipo Table (2-3 filas).
+        /// Cada fila: clave = field key, valor = dato de ejemplo.
+        /// </summary>
+        public List<Dictionary<string, string>> MockTableRows { get; set; } = new();
+
+        /// <summary>Nombre de la plantilla</summary>
+        public string TemplateName { get; set; } = string.Empty;
+
+        /// <summary>Tipo de reporte: Sales | Delivery | Quotation | Purchase | Inventory | CashierShift</summary>
+        public string ReportType { get; set; } = string.Empty;
+    }
 }

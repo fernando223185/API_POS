@@ -32,6 +32,7 @@ namespace Application.Core.Reports.Engine
                 "Purchase"            => GetPurchaseCatalog(),
                 "Inventory"           => GetInventoryCatalog(),
                 "CashierShift"        => GetCashierShiftCatalog(),
+                "Invoice"             => GetInvoiceCatalog(),
                 _                     => throw new ArgumentException($"Tipo de reporte desconocido: {reportType}")
             };
         }
@@ -212,6 +213,60 @@ namespace Application.Core.Reports.Engine
                 F("transferTotal",     "Total transferencia",     FieldFormat.Currency,   HeaderSummaryFooter),
                 F("totalSales",        "Total ventas",            FieldFormat.Currency,   HeaderSummaryFooter),
                 F("salesCount",        "Número de ventas",        FieldFormat.Number,     HeaderSummaryFooter),
+            }
+        };
+
+        // ─────────────────────────────────────────────
+        // FACTURA CFDI
+        // ─────────────────────────────────────────────
+        private static ReportFieldCatalogDto GetInvoiceCatalog() => new()
+        {
+            ReportType = "Invoice",
+            AvailableSectionTypes = new() { SectionType.Header, SectionType.Table, SectionType.Summary, SectionType.Footer },
+            Fields = new()
+            {
+                // Comprobante
+                F("invoiceFolio",       "Folio",                    FieldFormat.Text,       HeaderSummaryFooter),
+                F("invoiceSerie",       "Serie",                    FieldFormat.Text,       HeaderSummaryFooter),
+                F("invoiceDate",        "Fecha del comprobante",    FieldFormat.DateTime,   HeaderSummaryFooter),
+                F("invoiceStatus",      "Estado",                   FieldFormat.Text,       HeaderSummaryFooter),
+                F("uuid",               "UUID / Folio Fiscal",      FieldFormat.Text,       HeaderSummaryFooter),
+                F("timbradoAt",         "Fecha timbrado",           FieldFormat.DateTime,   HeaderSummaryFooter),
+                F("tipoDeComprobante",  "Tipo comprobante",         FieldFormat.Text,       HeaderSummaryFooter),
+                F("metodoPago",         "Método de pago (SAT)",     FieldFormat.Text,       HeaderSummaryFooter),
+                F("formaPago",          "Forma de pago (SAT)",      FieldFormat.Text,       HeaderSummaryFooter),
+                F("condicionesDePago",  "Condiciones de pago",      FieldFormat.Text,       HeaderSummaryFooter),
+                F("moneda",             "Moneda",                   FieldFormat.Text,       HeaderSummaryFooter),
+                F("lugarExpedicion",    "Lugar de expedición (CP)", FieldFormat.Text,       HeaderSummaryFooter),
+                // Emisor
+                F("emisorRfc",          "RFC emisor",               FieldFormat.Text,       HeaderSummaryFooter),
+                F("emisorNombre",       "Razón social emisor",      FieldFormat.Text,       HeaderSummaryFooter),
+                F("emisorRegimenFiscal","Régimen fiscal emisor",    FieldFormat.Text,       HeaderSummaryFooter),
+                // Receptor
+                F("receptorRfc",        "RFC receptor",             FieldFormat.Text,       HeaderSummaryFooter),
+                F("receptorNombre",     "Razón social receptor",    FieldFormat.Text,       HeaderSummaryFooter),
+                F("receptorDomicilioFiscal","CP domicilio fiscal",  FieldFormat.Text,       HeaderSummaryFooter),
+                F("receptorRegimenFiscal",  "Régimen fiscal receptor", FieldFormat.Text,    HeaderSummaryFooter),
+                F("receptorUsoCfdi",    "Uso CFDI",                 FieldFormat.Text,       HeaderSummaryFooter),
+                // Venta origen
+                F("saleCode",           "N° de venta origen",       FieldFormat.Text,       HeaderSummaryFooter),
+                // Conceptos (tabla)
+                F("claveProdServ",      "Clave SAT prod/serv",      FieldFormat.Text,       TableOnly),
+                F("noIdentificacion",   "N° identificación",        FieldFormat.Text,       TableOnly),
+                F("descripcion",        "Descripción",              FieldFormat.Text,       TableOnly),
+                F("cantidad",           "Cantidad",                 FieldFormat.Number,     TableOnly),
+                F("claveUnidad",        "Clave unidad",             FieldFormat.Text,       TableOnly),
+                F("unidad",             "Unidad",                   FieldFormat.Text,       TableOnly),
+                F("valorUnitario",      "Valor unitario",           FieldFormat.Currency,   TableOnly),
+                F("descuento",          "Descuento",                FieldFormat.Currency,   TableOnly),
+                F("importe",            "Importe",                  FieldFormat.Currency,   TableOnly),
+                F("trasladoTasa",       "Tasa IVA",                 FieldFormat.Percentage, TableOnly),
+                F("trasladoImporte",    "IVA $",                    FieldFormat.Currency,   TableOnly),
+                // Totales
+                F("subTotal",           "Subtotal",                 FieldFormat.Currency,   HeaderSummaryFooter),
+                F("discountAmount",     "Descuento total",          FieldFormat.Currency,   HeaderSummaryFooter),
+                F("taxAmount",          "Impuestos trasladados",    FieldFormat.Currency,   HeaderSummaryFooter),
+                F("total",              "Total",                    FieldFormat.Currency,   HeaderSummaryFooter),
             }
         };
 

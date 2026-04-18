@@ -7,6 +7,7 @@ namespace Application.Abstractions.Reports
         Task<ReportTemplate?> GetByIdAsync(int id);
         Task<ReportTemplate?> GetDefaultByTypeAsync(string reportType, int? companyId);
         Task<List<ReportTemplate>> GetByTypeAsync(string reportType, int? companyId);
+        Task<List<ReportTemplate>> GetAllAsync(int? companyId);
         Task<ReportTemplate> CreateAsync(ReportTemplate template);
         Task<ReportTemplate> UpdateAsync(ReportTemplate template);
         Task DeleteAsync(int id);

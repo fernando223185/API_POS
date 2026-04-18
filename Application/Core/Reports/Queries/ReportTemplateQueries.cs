@@ -10,6 +10,14 @@ namespace Application.Core.Reports.Queries
         int? CompanyId
     ) : IRequest<List<ReportTemplateSummaryDto>>;
 
+    public record GetAllReportTemplatesQuery(int? CompanyId) : IRequest<List<ReportTemplateSummaryDto>>;
+
+    public record GetReportPreviewDataQuery(int TemplateId) : IRequest<ReportPreviewDataDto>;
+
+    public record GetReportTemplatePdfPreviewQuery(int TemplateId) : IRequest<byte[]>;
+
+    public record GetReportTemplateHtmlPreviewQuery(int TemplateId) : IRequest<string>;
+
     public record GetReportFieldCatalogQuery(string ReportType) : IRequest<ReportFieldCatalogDto>;
 
     public record GenerateReportPdfQuery(
