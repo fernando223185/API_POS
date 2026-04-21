@@ -46,8 +46,9 @@ namespace Infrastructure.Services
         /// <summary>
         /// Subir una imagen a S3
         /// </summary>
-        public async Task<string> UploadImageAsync(Stream fileStream, string fileName, string contentType, string? folder = null)
+        public async Task<string> UploadImageAsync(Stream fileStream, string fileName, string contentType, string? folder = null, string? bucketName = null)
         {
+            var targetBucket = bucketName ?? _bucketName;
             try
             {
                 // Generar key �nico con timestamp
@@ -68,7 +69,7 @@ namespace Infrastructure.Services
                 {
                     InputStream = fileStream,
                     Key = key,
-                    BucketName = _bucketName,
+                    BucketName = targetBucket,
                     ContentType = contentType
                     // ? REMOVIDO: CannedACL = S3CannedACL.PublicRead
                     // Ahora se usa Bucket Policy en lugar de ACL
@@ -78,7 +79,7 @@ namespace Infrastructure.Services
                 var transferUtility = new TransferUtility(_s3Client);
                 await transferUtility.UploadAsync(uploadRequest);
 
-                Console.WriteLine($"? Upload successful: {key}");
+                Console.WriteLine($"? Upload successful to [{targetBucket}]: {key}");
 
                 return key;
             }
@@ -99,15 +100,16 @@ namespace Infrastructure.Services
         /// <summary>
         /// Eliminar una imagen de S3
         /// </summary>
-        public async Task<bool> DeleteImageAsync(string key)
+        public async Task<bool> DeleteImageAsync(string key, string? bucketName = null)
         {
+            var targetBucket = bucketName ?? _bucketName;
             try
             {
                 Console.WriteLine($"??? Deleting from S3: {key}");
 
                 var deleteRequest = new DeleteObjectRequest
                 {
-                    BucketName = _bucketName,
+                    BucketName = targetBucket,
                     Key = key
                 };
 
@@ -131,10 +133,11 @@ namespace Infrastructure.Services
         /// <summary>
         /// Obtener URL p�blica de una imagen
         /// </summary>
-        public string GetPublicUrl(string key)
+        public string GetPublicUrl(string key, string? bucketName = null)
         {
+            var targetBucket = bucketName ?? _bucketName;
             // URL p�blica est�ndar de S3
-            return $"https://{_bucketName}.s3.{_region}.amazonaws.com/{key}";
+            return $"https://{targetBucket}.s3.{_region}.amazonaws.com/{key}";
         }
 
         /// <summary>

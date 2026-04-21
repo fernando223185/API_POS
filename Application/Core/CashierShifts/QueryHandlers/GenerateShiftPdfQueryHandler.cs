@@ -5,7 +5,7 @@ using MediatR;
 namespace Application.Core.CashierShifts.QueryHandlers
 {
     /// <summary>
-    /// Handler para generar el PDF del corte de caja
+    /// Handler para generar el PDF del corte de caja usando el layout legacy por defecto.
     /// </summary>
     public class GenerateShiftPdfQueryHandler : IRequestHandler<GenerateShiftPdfQuery, byte[]>
     {
@@ -18,13 +18,8 @@ namespace Application.Core.CashierShifts.QueryHandlers
 
         public async Task<byte[]> Handle(GenerateShiftPdfQuery query, CancellationToken cancellationToken)
         {
-            // 1. Obtener el reporte completo del turno
             var report = await _mediator.Send(new GetShiftReportQuery(query.ShiftId), cancellationToken);
-
-            // 2. Generar el PDF usando el documento
-            var pdfBytes = CashierShiftPdfDocument.Generate(report);
-
-            return pdfBytes;
+            return CashierShiftPdfDocument.Generate(report);
         }
     }
 }

@@ -2,6 +2,9 @@ using Application.DTOs.Reports;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using System.IO;
+using System.Net.Http;
+using System.Text.Json;
 
 namespace Application.Core.Reports.Engine
 {
@@ -16,6 +19,7 @@ namespace Application.Core.Reports.Engine
         private static readonly string LightGray = "#f5f5f5";
         private static readonly string BorderColor = "#cccccc";
         private static readonly string HeaderBg = "#1a3c6e";
+        private sealed record ThemePalette(string Primary, string Surface, string Border, string TextOnPrimary);
 
         /// <summary>
         /// Genera un PDF en base a una plantilla y un conjunto de datos.
@@ -27,6 +31,21 @@ namespace Application.Core.Reports.Engine
         ///   Para reportes de un solo documento → lista con un elemento.
         ///   Para reportes de múltiples → cada elemento es un documento.
         /// </param>
+        /// <summary>
+        /// Overload que acepta SectionsJson (string) en lugar de la lista deserializada.
+        /// Conveniente para servicios que no tienen acceso al query handler.
+        /// </summary>
+        public static byte[] Generate(
+            string sectionsJson,
+            List<Dictionary<string, object?>> dataRows,
+            List<Dictionary<string, object?>> tableRows,
+            string reportTitle = "Reporte")
+        {
+            var sections = JsonSerializer.Deserialize<List<ReportSectionDefinition>>(sectionsJson,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+            return Generate(sections, dataRows, tableRows, reportTitle);
+        }
+
         /// <param name="tableRows">
         ///   Filas de detalle para la sección Table. Cada fila es Dictionary[string, object?].
         /// </param>
@@ -38,6 +57,7 @@ namespace Application.Core.Reports.Engine
             string reportTitle = "Reporte")
         {
             var orderedSections = sections.OrderBy(s => s.Order).ToList();
+            var palette = ResolvePagePalette(orderedSections);
 
             return Document.Create(container =>
             {
@@ -47,8 +67,12 @@ namespace Application.Core.Reports.Engine
                     page.Margin(30);
                     page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
 
-                    page.Header().Element(c => RenderPageHeader(c, reportTitle));
-                    page.Footer().Element(RenderPageFooter);
+                    var headerRow = dataRows.FirstOrDefault() ?? new Dictionary<string, object?>();
+                    if (IsInvoiceDocument(headerRow))
+                        page.Header().ShowOnce().Element(c => RenderPageHeader(c, reportTitle, palette, headerRow));
+                    else
+                        page.Header().Element(c => RenderPageHeader(c, reportTitle, palette, headerRow));
+                    page.Footer().Element(c => RenderPageFooter(c, palette));
 
                     page.Content().Column(col =>
                     {
@@ -58,15 +82,16 @@ namespace Application.Core.Reports.Engine
                             foreach (var (dataRow, idx) in dataRows.Select((r, i) => (r, i)))
                             {
                                 if (idx > 0)
-                                    col.Item().PaddingTop(20).LineHorizontal(1).LineColor(BorderColor);
+                                    col.Item().PaddingTop(20).LineHorizontal(1).LineColor(palette.Border);
 
-                                RenderDocument(col, orderedSections, dataRow, tableRows, isSingleDoc: false);
+                                RenderDocument(col, orderedSections, dataRow, tableRows, palette, isSingleDoc: false);
                             }
                         }
                         else
                         {
                             var dataRow = dataRows.FirstOrDefault() ?? new();
-                            RenderDocument(col, orderedSections, dataRow, tableRows, isSingleDoc: true);
+                            RenderDocument(col, orderedSections, dataRow, tableRows, palette, isSingleDoc: true);
+                            RenderTrailingQr(col, dataRow);
                         }
                     });
                 });
@@ -77,24 +102,30 @@ namespace Application.Core.Reports.Engine
         // Cabecera y pie de página del PDF
         // ─────────────────────────────────────────────
 
-        private static void RenderPageHeader(IContainer container, string reportTitle)
+        private static void RenderPageHeader(IContainer container, string reportTitle, ThemePalette palette, Dictionary<string, object?> data)
         {
+            if (IsInvoiceDocument(data))
+            {
+                RenderInvoiceHeader(container, reportTitle, data);
+                return;
+            }
+
             container
-                .BorderBottom(2).BorderColor(PrimaryColor)
+                .BorderBottom(2).BorderColor(palette.Primary)
                 .PaddingBottom(4)
                 .Row(row =>
                 {
                     row.RelativeItem().Text(reportTitle)
-                        .Bold().FontSize(14).FontColor(PrimaryColor);
+                        .Bold().FontSize(14).FontColor(palette.Primary);
                     row.ConstantItem(120).Text($"Generado: {DateTime.Now:dd/MM/yyyy HH:mm}")
                         .FontSize(7).FontColor(Colors.Grey.Medium).AlignRight();
                 });
         }
 
-        private static void RenderPageFooter(IContainer container)
+        private static void RenderPageFooter(IContainer container, ThemePalette palette)
         {
             container
-                .BorderTop(1).BorderColor(BorderColor)
+                .BorderTop(1).BorderColor(palette.Border)
                 .PaddingTop(4)
                 .Row(row =>
                 {
@@ -119,6 +150,7 @@ namespace Application.Core.Reports.Engine
             List<ReportSectionDefinition> sections,
             Dictionary<string, object?> dataRow,
             List<Dictionary<string, object?>> tableRows,
+            ThemePalette palette,
             bool isSingleDoc)
         {
             foreach (var section in sections)
@@ -130,11 +162,14 @@ namespace Application.Core.Reports.Engine
                     case SectionType.Header:
                     case SectionType.Summary:
                     case SectionType.Footer:
-                        col.Item().Element(c => RenderKeyValueSection(c, section, dataRow));
+                        if (ShouldKeepSectionTogether(section))
+                            col.Item().ShowEntire().Element(c => RenderKeyValueSection(c, section, dataRow, palette));
+                        else
+                            col.Item().Element(c => RenderKeyValueSection(c, section, dataRow, palette));
                         break;
 
                     case SectionType.Table:
-                        col.Item().Element(c => RenderTableSection(c, section, tableRows));
+                        col.Item().Element(c => RenderTableSection(c, section, tableRows, palette));
                         break;
                 }
             }
@@ -147,33 +182,42 @@ namespace Application.Core.Reports.Engine
         private static void RenderKeyValueSection(
             IContainer container,
             ReportSectionDefinition section,
-            Dictionary<string, object?> data)
+            Dictionary<string, object?> data,
+            ThemePalette palette)
         {
-            container.Column(col =>
+            var sectionTitleBg = section.TitleBackground ?? palette.Primary;
+            var sectionTitleColor = section.TitleColor ?? palette.TextOnPrimary;
+            var sectionBodyBg = section.BodyBackground ?? palette.Surface;
+            var sectionBorder = section.BorderColor ?? palette.Border;
+
+            container.Border(1).BorderColor(sectionBorder).Background(sectionBodyBg).Column(col =>
             {
                 if (section.ShowTitle)
                 {
                     col.Item()
-                        .Background(PrimaryColor)
-                        .Padding(4)
+                        .Background(sectionTitleBg)
+                        .PaddingHorizontal(12).PaddingVertical(9)
                         .Text(section.Title)
-                        .FontSize(9).Bold().FontColor(Colors.White);
+                        .FontSize(9).Bold().FontColor(sectionTitleColor);
                 }
 
-                col.Item().Background(LightGray).Padding(6).Column(inner =>
+                col.Item().Padding(16).Column(inner =>
                 {
                     // Renderizar en grid de 2 columnas (pares Inline)
-                    var fields = section.Fields;
+                    var fields = section.Fields.Where(f => !IsTrailingQrField(f) && !IsImageField(f)).ToList();
+                    var imageFields = section.Fields.Where(f => IsImageField(f) && !IsTrailingQrField(f)).ToList();
                     int i = 0;
                     while (i < fields.Count)
                     {
                         var f = fields[i];
-                        if (f.Inline && i + 1 < fields.Count)
+                        
+                        // Si este campo NO es inline pero el siguiente SÍ es inline → emparejarlos
+                        if (!f.Inline && i + 1 < fields.Count && fields[i + 1].Inline)
                         {
-                            // Dos campos en la misma fila
                             var f2 = fields[i + 1];
                             inner.Item().Row(row =>
                             {
+                                row.Spacing(24);
                                 row.RelativeItem().Element(c => RenderField(c, f, data));
                                 row.RelativeItem().Element(c => RenderField(c, f2, data));
                             });
@@ -184,6 +228,11 @@ namespace Application.Core.Reports.Engine
                             inner.Item().Element(c => RenderField(c, f, data));
                             i++;
                         }
+                    }
+
+                    foreach (var imageField in imageFields)
+                    {
+                        inner.Item().PaddingTop(14).AlignRight().Element(c => RenderField(c, imageField, data));
                     }
                 });
             });
@@ -198,17 +247,74 @@ namespace Application.Core.Reports.Engine
             var displayValue = FormatValue(rawValue, field.Format);
             var label = field.Label;
 
-            container.PaddingVertical(2).Row(row =>
+            if (IsImageField(field))
             {
-                row.ConstantItem(120)
+                if (string.IsNullOrWhiteSpace(displayValue))
+                    return;
+
+                container.PaddingVertical(6).Column(col =>
+                {
+                    col.Item().Text(label)
+                        .FontSize(field.FontSize).Bold().FontColor(Colors.Grey.Darken2);
+
+                    try
+                    {
+                        var qrBytes = Convert.FromBase64String(displayValue);
+                        col.Item()
+                            .PaddingTop(6)
+                            .Border(1).BorderColor("#dbe4f0")
+                            .Background("#f8fbff")
+                            .Padding(8)
+                            .Width(120)
+                            .Column(qr =>
+                            {
+                                qr.Item().Width(100).Height(100).AlignCenter().Image(qrBytes);
+                                qr.Item().PaddingTop(6).AlignCenter().Text("Escanea para validar CFDI").FontSize(7).FontColor(Colors.Grey.Darken2);
+                            });
+                    }
+                    catch
+                    {
+                    }
+                });
+                return;
+            }
+
+            var isLongValue = displayValue.Length > 70
+                || field.Field.Contains("sello", StringComparison.OrdinalIgnoreCase)
+                || field.Field.Contains("cadena", StringComparison.OrdinalIgnoreCase);
+
+            if (isLongValue)
+            {
+                container.PaddingVertical(6).Column(col =>
+                {
+                    col.Item().Text($"{label}:")
+                        .FontSize(field.FontSize).Bold().FontColor(Colors.Grey.Darken2);
+
+                    var block = col.Item()
+                        .PaddingTop(4)
+                        .Background(Colors.White)
+                        .Border(1).BorderColor("#e5e7eb")
+                        .Padding(8);
+
+                    if (field.Bold)
+                        block.Text(displayValue).FontSize(field.FontSize).Bold();
+                    else
+                        block.Text(displayValue).FontSize(field.FontSize);
+                });
+                return;
+            }
+
+            container.PaddingVertical(6).Row(row =>
+            {
+                row.ConstantItem(160)
                     .Text($"{label}:")
-                    .FontSize(field.FontSize).FontColor(Colors.Grey.Darken2);
+                    .FontSize(field.FontSize).Bold().FontColor("#5b6472");
 
                 var valueContainer = row.RelativeItem();
                 if (field.Bold)
-                    valueContainer.Text(displayValue).FontSize(field.FontSize).Bold();
+                    valueContainer.Text(displayValue).FontSize(field.FontSize).Bold().FontColor("#17345f");
                 else
-                    valueContainer.Text(displayValue).FontSize(field.FontSize);
+                    valueContainer.Text(displayValue).FontSize(field.FontSize).FontColor("#1f2937");
             });
         }
 
@@ -219,30 +325,43 @@ namespace Application.Core.Reports.Engine
         private static void RenderTableSection(
             IContainer container,
             ReportSectionDefinition section,
-            List<Dictionary<string, object?>> rows)
+            List<Dictionary<string, object?>> rows,
+            ThemePalette palette)
         {
             if (!section.Columns.Any()) return;
 
-            container.Column(col =>
+            var sectionTitleBg = section.TitleBackground ?? palette.Primary;
+            var sectionTitleColor = section.TitleColor ?? palette.TextOnPrimary;
+            var sectionBodyBg = section.BodyBackground ?? palette.Surface;
+            var sectionBorder = section.BorderColor ?? palette.Border;
+            var normalizedWidths = NormalizeTableColumnWidths(section.Columns);
+            var isDenseTable = section.Columns.Count >= 8;
+            var headerHorizontalPadding = isDenseTable ? 6 : 10;
+            var cellHorizontalPadding = isDenseTable ? 6 : 10;
+            var tableFontSize = isDenseTable ? 8f : 9f;
+            var headerFontSize = isDenseTable ? 8.5f : 9.5f;
+
+            container.Border(1).BorderColor(sectionBorder).Background(sectionBodyBg).Column(col =>
             {
                 if (section.ShowTitle)
                 {
                     col.Item()
-                        .Background(PrimaryColor)
-                        .Padding(4)
+                        .Background(sectionTitleBg)
+                        .PaddingHorizontal(14).PaddingVertical(10)
                         .Text(section.Title)
-                        .FontSize(9).Bold().FontColor(Colors.White);
+                        .FontSize(10).Bold().FontColor(sectionTitleColor);
                 }
 
-                col.Item().Table(table =>
+                col.Item().Padding(12).Table(table =>
                 {
                     // Definir columnas
                     table.ColumnsDefinition(cols =>
                     {
-                        foreach (var c in section.Columns)
+                        for (var index = 0; index < section.Columns.Count; index++)
                         {
+                            var c = section.Columns[index];
                             if (c.Width > 0)
-                                cols.ConstantColumn(c.Width);
+                                cols.ConstantColumn(normalizedWidths[index]);
                             else
                                 cols.RelativeColumn();
                         }
@@ -254,10 +373,10 @@ namespace Application.Core.Reports.Engine
                         foreach (var c in section.Columns)
                         {
                             h.Cell()
-                                .Background(HeaderBg)
-                                .PaddingHorizontal(4).PaddingVertical(5)
+                                .Background(sectionTitleBg)
+                                .PaddingHorizontal(headerHorizontalPadding).PaddingVertical(10)
                                 .Text(c.Label)
-                                .FontSize(8).Bold().FontColor(Colors.White);
+                                .FontSize(headerFontSize).Bold().FontColor(sectionTitleColor);
                         }
                     });
 
@@ -265,7 +384,7 @@ namespace Application.Core.Reports.Engine
                     bool zebra = false;
                     foreach (var row in rows)
                     {
-                        string bg = zebra ? Colors.White : LightGray;
+                        string bg = zebra ? Colors.White : sectionBodyBg;
                         zebra = !zebra;
 
                         foreach (var col2 in section.Columns)
@@ -275,13 +394,13 @@ namespace Application.Core.Reports.Engine
 
                             var cell = table.Cell()
                                 .Background(bg)
-                                .BorderBottom(1).BorderColor(BorderColor)
-                                .PaddingHorizontal(4).PaddingVertical(3);
+                                .BorderBottom(1).BorderColor(sectionBorder)
+                                .PaddingHorizontal(cellHorizontalPadding).PaddingVertical(10);
 
                             if (col2.Bold)
-                                cell.Text(display).FontSize(8).Bold();
+                                cell.Text(display).FontSize(tableFontSize).Bold();
                             else
-                                cell.Text(display).FontSize(8);
+                                cell.Text(display).FontSize(tableFontSize);
                         }
                     }
                 });
@@ -311,6 +430,25 @@ namespace Application.Core.Reports.Engine
             };
         }
 
+        private static List<float> NormalizeTableColumnWidths(List<ReportTableColumn> columns)
+        {
+            const float estimatedContentWidth = 515f;
+            const float minimumRelativeWidth = 84f;
+
+            var relativeCount = columns.Count(c => c.Width <= 0);
+            var fixedTotal = columns.Where(c => c.Width > 0).Sum(c => c.Width);
+            var maxFixedWidth = Math.Max(estimatedContentWidth - (relativeCount * minimumRelativeWidth), estimatedContentWidth * 0.45f);
+
+            if (fixedTotal <= 0 || fixedTotal <= maxFixedWidth)
+                return columns.Select(c => (float)c.Width).ToList();
+
+            var scale = maxFixedWidth / fixedTotal;
+
+            return columns
+                .Select(c => c.Width > 0 ? Math.Max(24f, c.Width * scale) : 0f)
+                .ToList();
+        }
+
         private static void ApplyAlign(TextSpanDescriptor text, string align)
         {
             // TextSpanDescriptor en QuestPDF no tiene métodos de alineación directos.
@@ -319,5 +457,181 @@ namespace Application.Core.Reports.Engine
             // Este método existe como extensión futura; la alineación real se aplica
             // en el IContainer que envuelve el texto (ver uso en RenderField / RenderTableSection).
         }
+
+        private static ThemePalette ResolvePagePalette(List<ReportSectionDefinition> sections)
+        {
+            var firstStyled = sections.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.TitleBackground)
+                                                        || !string.IsNullOrWhiteSpace(s.BodyBackground)
+                                                        || !string.IsNullOrWhiteSpace(s.BorderColor));
+
+            return new ThemePalette(
+                firstStyled?.TitleBackground ?? PrimaryColor,
+                firstStyled?.BodyBackground ?? LightGray,
+                firstStyled?.BorderColor ?? BorderColor,
+                firstStyled?.TitleColor ?? Colors.White);
+        }
+
+        private static void RenderTrailingQr(ColumnDescriptor col, Dictionary<string, object?> data)
+        {
+            var qrValue = data.TryGetValue("qrCode", out var rawQr) ? rawQr?.ToString() : null;
+            if (string.IsNullOrWhiteSpace(qrValue))
+                return;
+
+            col.Item().PaddingTop(22).BorderTop(1).BorderColor("#dbe4f0").PaddingTop(14).AlignRight().Column(qr =>
+            {
+                try
+                {
+                    var qrBytes = Convert.FromBase64String(qrValue);
+                    qr.Item()
+                        .Border(1).BorderColor("#dbe4f0")
+                        .Background("#f8fbff")
+                        .Padding(10)
+                        .Width(148)
+                        .Column(content =>
+                        {
+                            content.Item().AlignCenter().Text("VALIDACION SAT").FontSize(7).SemiBold().FontColor("#204a87");
+                            content.Item().PaddingTop(8).Width(120).Height(120).AlignCenter().Image(qrBytes);
+                            content.Item().PaddingTop(8).AlignCenter().Text("Escanea este codigo para validar el CFDI en el SAT").FontSize(6.8f).FontColor(Colors.Grey.Darken2);
+                        });
+                }
+                catch
+                {
+                }
+            });
+        }
+
+        private static void RenderInvoiceHeader(IContainer container, string reportTitle, Dictionary<string, object?> data)
+        {
+            var serie = data.TryGetValue("invoiceSerie", out var serieValue) ? serieValue?.ToString() ?? string.Empty : string.Empty;
+            var folio = data.TryGetValue("invoiceFolio", out var folioValue) ? folioValue?.ToString() ?? string.Empty : string.Empty;
+            var emisor = data.TryGetValue("emisorNombre", out var emisorValue) ? emisorValue?.ToString() ?? string.Empty : string.Empty;
+            var logoUrl = data.TryGetValue("companyLogoUrl", out var logoValue) ? logoValue?.ToString() ?? string.Empty : string.Empty;
+            var tradeName = data.TryGetValue("companyTradeName", out var tradeValue) ? tradeValue?.ToString() ?? emisor : emisor;
+            var emisorRfc = data.TryGetValue("emisorRfc", out var emisorRfcValue) ? emisorRfcValue?.ToString() ?? string.Empty : string.Empty;
+            var receptor = data.TryGetValue("receptorNombre", out var receptorValue) ? receptorValue?.ToString() ?? string.Empty : string.Empty;
+            var receptorRfc = data.TryGetValue("receptorRfc", out var receptorRfcValue) ? receptorRfcValue?.ToString() ?? string.Empty : string.Empty;
+            var fecha = FormatValue(data.TryGetValue("invoiceDate", out var dateValue) ? dateValue : null, FieldFormat.DateTime);
+            var total = FormatValue(data.TryGetValue("total", out var totalValue) ? totalValue : null, FieldFormat.Currency);
+
+            container.Background("#eef3fb").Border(1).BorderColor("#d7e1ef").Padding(14).Column(col =>
+            {
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem().Element(left =>
+                    {
+                        left.Width(240).Height(108).Element(box => RenderCompanyMark(box, logoUrl, tradeName));
+                    });
+
+                    row.Spacing(12);
+
+                    row.RelativeItem().AlignRight().Column(right =>
+                    {
+                        right.Item().Border(1).BorderColor("#dbe4f0").Background(Colors.White).Padding(12).Column(meta =>
+                        {
+                            MetaRow(meta, "Folio", $"{serie}-{folio}");
+                            MetaRow(meta, "Fecha", fecha);
+                            MetaRow(meta, "Total", total, true);
+                        });
+                    });
+                });
+
+                col.Item().PaddingTop(12).Row(row =>
+                {
+                    row.RelativeItem().Border(1).BorderColor("#dbe4f0").Background(Colors.White).Padding(12).Column(x =>
+                    {
+                        x.Item().Text("EMISOR").FontSize(7).FontColor("#6b85b3").SemiBold();
+                        x.Item().PaddingTop(4).Text(emisor).FontSize(10).Bold().FontColor("#17345f");
+                        x.Item().PaddingTop(2).Text($"RFC: {emisorRfc}").FontSize(8).FontColor("#5b6472");
+                    });
+
+                    row.Spacing(10);
+
+                    row.RelativeItem().Border(1).BorderColor("#dbe4f0").Background(Colors.White).Padding(12).Column(x =>
+                    {
+                        x.Item().Text("RECEPTOR").FontSize(7).FontColor("#6b85b3").SemiBold();
+                        x.Item().PaddingTop(4).Text(receptor).FontSize(10).Bold().FontColor("#17345f");
+                        x.Item().PaddingTop(2).Text($"RFC: {receptorRfc}").FontSize(8).FontColor("#5b6472");
+                    });
+                });
+            });
+        }
+
+        private static void MetaRow(ColumnDescriptor container, string label, string value, bool highlight = false)
+        {
+            container.Item().PaddingVertical(2).Row(row =>
+            {
+                row.RelativeItem().Text(label).FontSize(8).FontColor("#6b7280");
+                var text = row.RelativeItem().AlignRight().Text(value).FontSize(8).FontColor("#1f2937");
+                if (highlight)
+                    text.SemiBold();
+            });
+        }
+
+        private static void RenderCompanyMark(IContainer container, string logoUrl, string tradeName)
+        {
+            container.Border(1).BorderColor("#d7e1ef").Background(Colors.White).Padding(4).AlignCenter().AlignMiddle().Element(inner =>
+            {
+                var imageBytes = TryGetImageBytes(logoUrl);
+                if (imageBytes is not null)
+                {
+                    inner.Image(imageBytes).FitArea();
+                    return;
+                }
+
+                inner.Text(tradeName)
+                    .FontSize(10)
+                    .FontColor("#5b6472")
+                    .SemiBold()
+                    .AlignCenter();
+            });
+        }
+
+        private static byte[]? TryGetImageBytes(string? logoUrl)
+        {
+            if (string.IsNullOrWhiteSpace(logoUrl))
+                return null;
+
+            try
+            {
+                if (logoUrl.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+                {
+                    var commaIndex = logoUrl.IndexOf(',');
+                    if (commaIndex > -1)
+                        return Convert.FromBase64String(logoUrl[(commaIndex + 1)..]);
+                }
+
+                if (File.Exists(logoUrl))
+                    return File.ReadAllBytes(logoUrl);
+
+                if (Uri.TryCreate(logoUrl, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+                    return new HttpClient().GetByteArrayAsync(uri).GetAwaiter().GetResult();
+
+                return Convert.FromBase64String(logoUrl);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static bool IsImageField(ReportSectionField field) =>
+            field.Format.Equals("image", StringComparison.OrdinalIgnoreCase)
+            || field.Field.Equals("qrCode", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsTrailingQrField(ReportSectionField field) =>
+            field.Field.Equals("qrCode", StringComparison.OrdinalIgnoreCase);
+
+        private static bool ShouldKeepSectionTogether(ReportSectionDefinition section) =>
+            section.Type is SectionType.Header or SectionType.Summary or SectionType.Footer
+            && !section.Fields.Any(IsLargeField)
+            && !section.Fields.Any(IsImageField);
+
+        private static bool IsLargeField(ReportSectionField field) =>
+            field.Field.Contains("sello", StringComparison.OrdinalIgnoreCase)
+            || field.Field.Contains("cadena", StringComparison.OrdinalIgnoreCase)
+            || field.Field.Contains("original", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsInvoiceDocument(Dictionary<string, object?> data) =>
+            data.ContainsKey("invoiceFolio") || data.ContainsKey("uuid") || data.ContainsKey("emisorNombre");
     }
 }

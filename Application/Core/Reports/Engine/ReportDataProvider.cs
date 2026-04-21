@@ -1,5 +1,6 @@
 using Domain.Entities;
-using PurchaseOrderEntity = Domain.Entities.PurchaseOrder;
+using PurchaseOrderEntity    = Domain.Entities.PurchaseOrder;
+using PurchaseReceivingEntity = Domain.Entities.PurchaseOrderReceiving;
 
 namespace Application.Core.Reports.Engine
 {
@@ -175,6 +176,71 @@ namespace Application.Core.Reports.Engine
             }).ToList();
 
         // ─────────────────────────────────────────────
+        // RECIBO DE MERCANCÍA
+        // ─────────────────────────────────────────────
+
+        public static Dictionary<string, object?> FromReceiving(PurchaseReceivingEntity rec) => new()
+        {
+            ["receivingCode"]         = rec.Code,
+            ["receivingDate"]         = rec.ReceivingDate,
+            ["status"]                = rec.Status,
+            ["poCode"]                = rec.PurchaseOrder?.Code ?? "",
+            ["supplierName"]          = rec.PurchaseOrder?.Supplier?.Name ?? "",
+            ["supplierTaxId"]         = rec.PurchaseOrder?.Supplier?.TaxId ?? "",
+            ["warehouseName"]         = rec.Warehouse?.Name ?? "",
+            ["receivedBy"]            = rec.ReceivedBy ?? "",
+            ["supplierInvoiceNumber"] = rec.SupplierInvoiceNumber ?? "",
+            ["carrierName"]           = rec.CarrierName ?? "",
+            ["trackingNumber"]        = rec.TrackingNumber ?? "",
+            ["notes"]                 = rec.Notes ?? "",
+        };
+
+        public static List<Dictionary<string, object?>> FromReceivingDetails(PurchaseReceivingEntity rec) =>
+            rec.Details.Select(d => new Dictionary<string, object?>
+            {
+                ["productCode"]        = d.Product?.code ?? "",
+                ["productName"]        = d.Product?.name ?? "",
+                ["quantityReceived"]   = d.QuantityReceived,
+                ["quantityApproved"]   = d.QuantityApproved ?? 0m,
+                ["quantityRejected"]   = d.QuantityRejected ?? 0m,
+                ["lotNumber"]          = d.LotNumber ?? "",
+                ["storageLocation"]    = d.StorageLocation ?? "",
+                ["notes"]              = d.Notes ?? "",
+            }).ToList();
+
+        // ─────────────────────────────────────────────
+        // KARDEX DE INVENTARIO
+        // ─────────────────────────────────────────────
+
+        public static Dictionary<string, object?> KardexHeader(
+            string warehouseName, string productName, DateTime? fromDate, DateTime? toDate) => new()
+        {
+            ["reportDate"]    = DateTime.UtcNow,
+            ["warehouseName"] = warehouseName,
+            ["productName"]   = productName,
+            ["fromDate"]      = fromDate,
+            ["toDate"]        = toDate,
+        };
+
+        public static Dictionary<string, object?> FromKardexMovement(InventoryMovement m) => new()
+        {
+            ["movementDate"]   = m.CreatedAt,
+            ["movementCode"]   = m.Code,
+            ["movementType"]   = m.MovementType,
+            ["productCode"]    = m.Product?.code ?? "",
+            ["productName"]    = m.Product?.name ?? "",
+            ["warehouseName"]  = m.Warehouse?.Name ?? "",
+            ["quantity"]       = m.Quantity,
+            ["stockBefore"]    = m.StockBefore,
+            ["stockAfter"]     = m.StockAfter,
+            ["unitCost"]       = m.UnitCost ?? 0m,
+            ["totalCost"]      = m.TotalCost ?? 0m,
+            ["reference"]      = m.PurchaseOrderReceiving?.Code ?? m.Sale?.Code ?? "",
+            ["notes"]          = m.Notes ?? "",
+            ["createdBy"]      = m.CreatedBy?.Name ?? "",
+        };
+
+        // ─────────────────────────────────────────────
         // Helpers
         // ─────────────────────────────────────────────
 
@@ -214,8 +280,11 @@ namespace Application.Core.Reports.Engine
             ["formaPago"]               = inv.FormaPago,
             ["condicionesDePago"]       = inv.CondicionesDePago ?? "",
             ["moneda"]                  = inv.Moneda,
+            ["tipoCambio"]              = inv.TipoCambio,
             ["lugarExpedicion"]         = inv.LugarExpedicion,
             // Emisor
+            ["companyLogoUrl"]         = inv.Company?.LogoUrl ?? "",
+            ["companyTradeName"]       = inv.Company?.TradeName ?? inv.EmisorNombre,
             ["emisorRfc"]               = inv.EmisorRfc,
             ["emisorNombre"]            = inv.EmisorNombre,
             ["emisorRegimenFiscal"]     = inv.EmisorRegimenFiscal,
@@ -227,6 +296,13 @@ namespace Application.Core.Reports.Engine
             ["receptorUsoCfdi"]         = inv.ReceptorUsoCfdi,
             // Venta origen
             ["saleCode"]                = inv.Sale?.Code ?? "",
+            // Timbrado
+            ["noCertificadoCfdi"]       = inv.NoCertificadoCfdi ?? "",
+            ["noCertificadoSat"]        = inv.NoCertificadoSat ?? "",
+            ["selloCfdi"]               = inv.SelloCfdi ?? "",
+            ["selloSat"]                = inv.SelloSat ?? "",
+            ["cadenaOriginalSat"]       = inv.CadenaOriginalSat ?? "",
+            ["qrCode"]                  = inv.QrCode ?? "",
             // Totales
             ["subTotal"]                = inv.SubTotal,
             ["discountAmount"]          = inv.DiscountAmount,

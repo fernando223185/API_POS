@@ -1,4 +1,6 @@
 using Application.Abstractions.Documents;
+using Application.Abstractions.Reports;
+using Application.Core.Reports.Engine;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
@@ -15,10 +17,14 @@ namespace Infrastructure.Services
     public class KardexDocumentService : IKardexDocumentService
     {
         private readonly POSDbContext _context;
+        private readonly IReportTemplateRepository _templateRepo;
 
-        public KardexDocumentService(POSDbContext context)
+        public KardexDocumentService(
+            POSDbContext context,
+            IReportTemplateRepository templateRepo)
         {
-            _context = context;
+            _context      = context;
+            _templateRepo = templateRepo;
         }
 
         /// <summary>
@@ -37,10 +43,10 @@ namespace Infrastructure.Services
             // Crear DataTable
             var dt = new DataTable("Kardex");
             dt.Columns.Add("Fecha/Hora", typeof(string));
-            dt.Columns.Add("Código Movimiento", typeof(string));
+            dt.Columns.Add("Cï¿½digo Movimiento", typeof(string));
             dt.Columns.Add("Tipo", typeof(string));
             dt.Columns.Add("Producto", typeof(string));
-            dt.Columns.Add("Almacén", typeof(string));
+            dt.Columns.Add("Almacï¿½n", typeof(string));
             dt.Columns.Add("Cantidad", typeof(decimal));
             dt.Columns.Add("Saldo Anterior", typeof(decimal));
             dt.Columns.Add("Saldo Nuevo", typeof(decimal));
@@ -83,7 +89,7 @@ namespace Infrastructure.Services
             // Ajustar anchos
             worksheet.Columns().AdjustToContents();
 
-            // Aplicar formato a números
+            // Aplicar formato a nï¿½meros
             worksheet.Column(6).Style.NumberFormat.Format = "#,##0.0000"; // Cantidad
             worksheet.Column(7).Style.NumberFormat.Format = "#,##0.0000"; // Saldo anterior
             worksheet.Column(8).Style.NumberFormat.Format = "#,##0.0000"; // Saldo nuevo
@@ -97,7 +103,7 @@ namespace Infrastructure.Services
         }
 
         /// <summary>
-        /// Genera un reporte de kardex en formato PDF
+        /// Genera un reporte de kardex en formato PDF usando el layout legacy por defecto.
         /// </summary>
         public async Task<byte[]> GenerateKardexPdfAsync(
             int? productId,
@@ -114,7 +120,7 @@ namespace Infrastructure.Services
             {
                 container.Page(page =>
                 {
-                    page.Size(PageSizes.A4.Landscape()); // Horizontal para más columnas
+                    page.Size(PageSizes.A4.Landscape());
                     page.Margin(20);
                     page.DefaultTextStyle(x => x.FontSize(8));
 
@@ -186,7 +192,7 @@ namespace Infrastructure.Services
                     TotalCost = m.TotalCost,
                     PurchaseOrderReceivingCode = m.PurchaseOrderReceiving != null ? m.PurchaseOrderReceiving.Code : null,
                     SaleCode = m.Sale != null ? m.Sale.Code : null,
-                    CreatedByUserName = "Sistema", // Campo CreatedBy existe pero no lo incluímos
+                    CreatedByUserName = "Sistema", // Campo CreatedBy existe pero no lo incluï¿½mos
                     Notes = m.Notes
                 })
                 .ToListAsync();
@@ -239,10 +245,10 @@ namespace Infrastructure.Services
         {
             container.Column(column =>
             {
-                // Información del período
+                // Informaciï¿½n del perï¿½odo
                 column.Item().PaddingBottom(10).Row(row =>
                 {
-                    row.RelativeItem().Text($"Período: {fromDate?.ToString("dd/MM/yyyy") ?? "Todos"} - {toDate?.ToString("dd/MM/yyyy") ?? "Hoy"}")
+                    row.RelativeItem().Text($"Perï¿½odo: {fromDate?.ToString("dd/MM/yyyy") ?? "Todos"} - {toDate?.ToString("dd/MM/yyyy") ?? "Hoy"}")
                         .FontSize(10).Bold();
                     row.RelativeItem().AlignRight().Text($"Total de movimientos: {movements.Count}")
                         .FontSize(10).Bold();
@@ -254,10 +260,10 @@ namespace Infrastructure.Services
                     table.ColumnsDefinition(columns =>
                     {
                         columns.ConstantColumn(80); // Fecha
-                        columns.ConstantColumn(60); // Código
+                        columns.ConstantColumn(60); // Cï¿½digo
                         columns.RelativeColumn(2); // Tipo
                         columns.RelativeColumn(3); // Producto
-                        columns.RelativeColumn(2); // Almacén
+                        columns.RelativeColumn(2); // Almacï¿½n
                         columns.ConstantColumn(50); // Cantidad
                         columns.ConstantColumn(50); // Saldo
                         columns.ConstantColumn(55); // Costo
@@ -270,13 +276,13 @@ namespace Infrastructure.Services
                         header.Cell().Background(Colors.Blue.Darken3).Padding(3)
                             .Text("Fecha").FontColor(Colors.White).Bold().FontSize(7);
                         header.Cell().Background(Colors.Blue.Darken3).Padding(3)
-                            .Text("Código").FontColor(Colors.White).Bold().FontSize(7);
+                            .Text("Cï¿½digo").FontColor(Colors.White).Bold().FontSize(7);
                         header.Cell().Background(Colors.Blue.Darken3).Padding(3)
                             .Text("Tipo").FontColor(Colors.White).Bold().FontSize(7);
                         header.Cell().Background(Colors.Blue.Darken3).Padding(3)
                             .Text("Producto").FontColor(Colors.White).Bold().FontSize(7);
                         header.Cell().Background(Colors.Blue.Darken3).Padding(3)
-                            .Text("Almacén").FontColor(Colors.White).Bold().FontSize(7);
+                            .Text("Almacï¿½n").FontColor(Colors.White).Bold().FontSize(7);
                         header.Cell().Background(Colors.Blue.Darken3).Padding(3)
                             .Text("Cant.").FontColor(Colors.White).Bold().FontSize(7);
                         header.Cell().Background(Colors.Blue.Darken3).Padding(3)
@@ -319,7 +325,7 @@ namespace Infrastructure.Services
         {
             container.AlignCenter().Text(text =>
             {
-                text.Span("Página ").FontSize(8);
+                text.Span("Pï¿½gina ").FontSize(8);
                 text.CurrentPageNumber().FontSize(8);
                 text.Span(" de ").FontSize(8);
                 text.TotalPages().FontSize(8);

@@ -272,6 +272,20 @@ using (var scope = app.Services.CreateScope())
         }
 
         // ============================================
+        // ✅ SEED PLANTILLAS DE REPORTE POR DEFECTO
+        // ============================================
+        Console.WriteLine("🔄 Verificando plantillas de reporte...");
+        try
+        {
+            await Infrastructure.Persistence.ReportTemplateSeed.SeedDefaultTemplatesAsync(context);
+            Console.WriteLine("✅ Plantillas de reporte verificadas");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠️  No se pudieron crear plantillas de reporte: {ex.Message}");
+        }
+
+        // ============================================
         // ✅ VERIFICAR Y CREAR ROLES SI NO EXISTEN
         // ============================================
         Console.WriteLine("🔄 Verificando roles del sistema...");
@@ -424,6 +438,8 @@ app.UseSwaggerUI(c =>
 // {
 //     app.UseHttpsRedirection();
 // }
+
+app.UseStaticFiles();
 
 app.UseRouting();
 

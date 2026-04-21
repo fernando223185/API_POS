@@ -1,5 +1,7 @@
 using Application.Abstractions.Documents;
+using Application.Abstractions.Reports;
 using Application.Abstractions.Sales;
+using Application.Core.Reports.Engine;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -8,41 +10,40 @@ namespace Infrastructure.Services
 {
     /// <summary>
     /// Servicio para generar documentos PDF de ventas
-    /// Usa QuestPDF para generación de PDFs profesionales
+    /// Usa QuestPDF para generaciÃ³n de PDFs profesionales
     /// </summary>
     public class SaleDocumentService : ISaleDocumentService
     {
         private readonly ISaleRepository _saleRepository;
+        private readonly IReportTemplateRepository _templateRepo;
 
-        public SaleDocumentService(ISaleRepository saleRepository)
+        public SaleDocumentService(
+            ISaleRepository saleRepository,
+            IReportTemplateRepository templateRepo)
         {
             _saleRepository = saleRepository;
+            _templateRepo   = templateRepo;
         }
 
         /// <summary>
-        /// Genera un ticket de venta en formato PDF
+        /// Genera un ticket de venta en formato PDF usando el layout legacy por defecto.
         /// </summary>
         public async Task<byte[]> GenerateSaleTicketPdfAsync(int saleId, bool includeCompanyLogo = true)
         {
-            var sale = await _saleRepository.GetByIdAsync(saleId);
-            if (sale == null)
-            {
-                throw new KeyNotFoundException($"Venta con ID {saleId} no encontrada");
-            }
-
-            // Configurar licencia de QuestPDF (Community license)
-            QuestPDF.Settings.License = LicenseType.Community;
+            var sale = await _saleRepository.GetByIdAsync(saleId)
+                ?? throw new KeyNotFoundException($"Venta con ID {saleId} no encontrada");
 
             var document = Document.Create(container =>
             {
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
-                    page.Margin(20);
-                    page.DefaultTextStyle(x => x.FontSize(10));
+                    page.Margin(30);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial"));
 
                     page.Header().Element(ComposeHeader);
-                    page.Content().Element(content => ComposeContent(content, sale));
+                    page.Content().Element(c => ComposeContent(c, sale));
                     page.Footer().Element(ComposeFooter);
                 });
             });
@@ -51,23 +52,15 @@ namespace Infrastructure.Services
         }
 
         /// <summary>
-        /// Genera una factura de venta en formato PDF
+        /// Genera una factura de venta en formato PDF usando el layout legacy por defecto.
         /// </summary>
         public async Task<byte[]> GenerateSaleInvoicePdfAsync(int saleId)
         {
-            var sale = await _saleRepository.GetByIdAsync(saleId);
-            if (sale == null)
-            {
-                throw new KeyNotFoundException($"Venta con ID {saleId} no encontrada");
-            }
+            var sale = await _saleRepository.GetByIdAsync(saleId)
+                ?? throw new KeyNotFoundException($"Venta con ID {saleId} no encontrada");
 
             if (!sale.RequiresInvoice)
-            {
                 throw new InvalidOperationException("Esta venta no requiere factura");
-            }
-
-            // Similar al ticket pero con formato de factura fiscal
-            QuestPDF.Settings.License = LicenseType.Community;
 
             var document = Document.Create(container =>
             {
@@ -75,11 +68,12 @@ namespace Infrastructure.Services
                 {
                     page.Size(PageSizes.A4);
                     page.Margin(30);
-                    page.DefaultTextStyle(x => x.FontSize(9));
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial"));
 
-                    page.Header().Element(header => ComposeInvoiceHeader(header, sale));
-                    page.Content().Element(content => ComposeInvoiceContent(content, sale));
-                    page.Footer().Element(footer => ComposeInvoiceFooter(footer, sale));
+                    page.Header().Element(c => ComposeInvoiceHeader(c, sale));
+                    page.Content().Element(c => ComposeInvoiceContent(c, sale));
+                    page.Footer().Element(c => ComposeInvoiceFooter(c, sale));
                 });
             });
 
@@ -115,14 +109,14 @@ namespace Infrastructure.Services
         {
             container.Column(column =>
             {
-                // Información de la venta
+                // Informaciï¿½n de la venta
                 column.Item().PaddingBottom(10).Row(row =>
                 {
                     row.RelativeItem().Column(col =>
                     {
                         col.Item().Text($"Folio: {sale.Code}").Bold();
                         col.Item().Text($"Fecha: {sale.SaleDate:dd/MM/yyyy HH:mm}");
-                        col.Item().Text($"Almacén: {sale.Warehouse?.Name ?? "N/A"}");
+                        col.Item().Text($"Almacï¿½n: {sale.Warehouse?.Name ?? "N/A"}");
                     });
 
                     row.RelativeItem().Column(col =>
@@ -233,7 +227,7 @@ namespace Infrastructure.Services
 
                             if (!string.IsNullOrEmpty(payment.AuthorizationCode))
                             {
-                                col.Item().Text($"  Autorización: {payment.AuthorizationCode}").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                col.Item().Text($"  Autorizaciï¿½n: {payment.AuthorizationCode}").FontSize(8).FontColor(Colors.Grey.Darken1);
                             }
                         }
 
@@ -262,10 +256,10 @@ namespace Infrastructure.Services
             {
                 column.Item().PaddingVertical(10).LineHorizontal(1).LineColor(Colors.Grey.Medium);
                 
-                column.Item().AlignCenter().Text("¡Gracias por su compra!")
+                column.Item().AlignCenter().Text("ï¿½Gracias por su compra!")
                     .FontSize(12).Bold().FontColor(Colors.Blue.Darken3);
                 
-                column.Item().AlignCenter().Text("Conserve este ticket para cualquier aclaración")
+                column.Item().AlignCenter().Text("Conserve este ticket para cualquier aclaraciï¿½n")
                     .FontSize(8).FontColor(Colors.Grey.Darken1);
                 
                 column.Item().AlignCenter().PaddingTop(10).Text(text =>
@@ -290,7 +284,7 @@ namespace Infrastructure.Services
                     {
                         col.Item().Text("EXPANDA ERP").FontSize(18).Bold().FontColor(Colors.Blue.Darken3);
                         col.Item().Text("RFC: XAXX010101000").FontSize(10);
-                        col.Item().Text("Régimen Fiscal: 601 - General").FontSize(9);
+                        col.Item().Text("Rï¿½gimen Fiscal: 601 - General").FontSize(9);
                     });
 
                     row.RelativeItem().AlignRight().Column(col =>
@@ -307,7 +301,7 @@ namespace Infrastructure.Services
 
         private void ComposeInvoiceContent(IContainer container, Domain.Entities.Sale sale)
         {
-            // Similar a ComposeContent pero con más detalles fiscales
+            // Similar a ComposeContent pero con mï¿½s detalles fiscales
             ComposeContent(container, sale);
         }
 
@@ -351,8 +345,8 @@ namespace Infrastructure.Services
             return method switch
             {
                 "Cash" => "Efectivo",
-                "CreditCard" => "Tarjeta de Crédito",
-                "DebitCard" => "Tarjeta de Débito",
+                "CreditCard" => "Tarjeta de Crï¿½dito",
+                "DebitCard" => "Tarjeta de Dï¿½bito",
                 "Transfer" => "Transferencia Bancaria",
                 "Check" => "Cheque",
                 _ => method

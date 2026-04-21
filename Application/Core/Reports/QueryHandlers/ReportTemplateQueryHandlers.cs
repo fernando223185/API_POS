@@ -1,10 +1,10 @@
 using Application.Abstractions.Billing;
 using Application.Abstractions.CashierShifts;
+using Application.Abstractions.Config;
 using Application.Abstractions.Purchasing;
 using Application.Abstractions.Quotations;
 using Application.Abstractions.Reports;
 using Application.Abstractions.Sales;
-using Application.Core.Billing.Documents;
 using Application.Core.Reports.Engine;
 using Application.Core.Reports.Queries;
 using Application.DTOs.Reports;
@@ -51,6 +51,62 @@ namespace Application.Core.Reports.QueryHandlers
         {
             try { return JsonSerializer.Deserialize<List<ReportSectionDefinition>>(json) ?? new(); }
             catch { return new(); }
+        }
+
+        internal static List<ReportSectionDefinition> EnsureInvoiceVisualSections(List<ReportSectionDefinition> sections)
+        {
+            if (!sections.Any())
+                return sections;
+
+            var timbreSection = sections.FirstOrDefault(s => s.Fields.Any(f => f.Field.Equals("uuid", StringComparison.OrdinalIgnoreCase)))
+                ?? sections.LastOrDefault(s => s.Type == SectionType.Footer || s.Type == SectionType.Summary);
+
+            if (timbreSection is null)
+                return sections;
+
+            var qrField = timbreSection.Fields.FirstOrDefault(f => f.Field.Equals("qrCode", StringComparison.OrdinalIgnoreCase));
+            if (qrField is null)
+            {
+                timbreSection.Fields.Add(new ReportSectionField
+                {
+                    Field = "qrCode",
+                    Label = "Código QR",
+                    Format = FieldFormat.Image
+                });
+            }
+
+            if (!timbreSection.Fields.Any(f => f.Field.Equals("uuid", StringComparison.OrdinalIgnoreCase)))
+                timbreSection.Fields.Add(new ReportSectionField { Field = "uuid", Label = "UUID", Bold = true });
+
+            if (!timbreSection.Fields.Any(f => f.Field.Equals("timbradoAt", StringComparison.OrdinalIgnoreCase)))
+                timbreSection.Fields.Add(new ReportSectionField { Field = "timbradoAt", Label = "Fecha timbrado", Format = FieldFormat.DateTime, Inline = true });
+
+            if (!timbreSection.Fields.Any(f => f.Field.Equals("noCertificadoCfdi", StringComparison.OrdinalIgnoreCase)))
+                timbreSection.Fields.Add(new ReportSectionField { Field = "noCertificadoCfdi", Label = "No. Cert. CFDI" });
+
+            if (!timbreSection.Fields.Any(f => f.Field.Equals("noCertificadoSat", StringComparison.OrdinalIgnoreCase)))
+                timbreSection.Fields.Add(new ReportSectionField { Field = "noCertificadoSat", Label = "No. Cert. SAT", Inline = true });
+
+            var legacySatSection = sections.FirstOrDefault(s => s.Title.Equals("Validación SAT", StringComparison.OrdinalIgnoreCase));
+            if (legacySatSection is not null && !ReferenceEquals(legacySatSection, timbreSection))
+            {
+                foreach (var field in legacySatSection.Fields)
+                {
+                    if (!timbreSection.Fields.Any(existing => existing.Field.Equals(field.Field, StringComparison.OrdinalIgnoreCase)))
+                        timbreSection.Fields.Add(field);
+                }
+
+                sections.Remove(legacySatSection);
+            }
+
+            qrField = timbreSection.Fields.FirstOrDefault(f => f.Field.Equals("qrCode", StringComparison.OrdinalIgnoreCase));
+            if (qrField is not null)
+            {
+                timbreSection.Fields.Remove(qrField);
+                timbreSection.Fields.Add(qrField);
+            }
+
+            return sections.OrderBy(s => s.Order).ToList();
         }
     }
 
@@ -113,9 +169,13 @@ namespace Application.Core.Reports.QueryHandlers
     public class GetReportPreviewDataQueryHandler : IRequestHandler<GetReportPreviewDataQuery, ReportPreviewDataDto>
     {
         private readonly IReportTemplateRepository _repo;
+        private readonly ICompanyRepository _companyRepo;
 
-        public GetReportPreviewDataQueryHandler(IReportTemplateRepository repo)
-            => _repo = repo;
+        public GetReportPreviewDataQueryHandler(IReportTemplateRepository repo, ICompanyRepository companyRepo)
+        {
+            _repo = repo;
+            _companyRepo = companyRepo;
+        }
 
         public async Task<ReportPreviewDataDto> Handle(GetReportPreviewDataQuery request, CancellationToken cancellationToken)
         {
@@ -124,14 +184,40 @@ namespace Application.Core.Reports.QueryHandlers
 
             var sections = GetReportTemplateByIdQueryHandler.DeserializeSections(template.SectionsJson);
 
+            var mockDataRow = await EnrichMockDataRowAsync(template.ReportType, ReportMockDataProvider.GetMockDataRow(template.ReportType));
+
             return new ReportPreviewDataDto
             {
                 TemplateName  = template.Name,
                 ReportType    = template.ReportType,
                 Sections      = sections,
-                MockDataRow   = ReportMockDataProvider.GetMockDataRow(template.ReportType),
+                MockDataRow   = mockDataRow,
                 MockTableRows = ReportMockDataProvider.GetMockTableRows(template.ReportType),
             };
+        }
+
+        private async Task<Dictionary<string, string>> EnrichMockDataRowAsync(string reportType, Dictionary<string, string> row)
+        {
+            if (!reportType.Equals("Invoice", StringComparison.OrdinalIgnoreCase))
+                return row;
+
+            var company = await _companyRepo.GetMainCompanyAsync();
+            if (company is null)
+                return row;
+
+            if (!string.IsNullOrWhiteSpace(company.LogoUrl))
+                row["companyLogoUrl"] = company.LogoUrl;
+
+            if (!string.IsNullOrWhiteSpace(company.TradeName))
+                row["companyTradeName"] = company.TradeName;
+
+            if (!string.IsNullOrWhiteSpace(company.LegalName))
+                row["emisorNombre"] = company.LegalName;
+
+            if (!string.IsNullOrWhiteSpace(company.TaxId))
+                row["emisorRfc"] = company.TaxId;
+
+            return row;
         }
     }
 
@@ -152,21 +238,22 @@ namespace Application.Core.Reports.QueryHandlers
     public class GetReportTemplatePdfPreviewQueryHandler : IRequestHandler<GetReportTemplatePdfPreviewQuery, byte[]>
     {
         private readonly IReportTemplateRepository _repo;
+        private readonly ICompanyRepository _companyRepo;
 
-        public GetReportTemplatePdfPreviewQueryHandler(IReportTemplateRepository repo)
-            => _repo = repo;
+        public GetReportTemplatePdfPreviewQueryHandler(IReportTemplateRepository repo, ICompanyRepository companyRepo)
+        {
+            _repo = repo;
+            _companyRepo = companyRepo;
+        }
 
         public async Task<byte[]> Handle(GetReportTemplatePdfPreviewQuery request, CancellationToken cancellationToken)
         {
             var template = await _repo.GetByIdAsync(request.TemplateId)
                 ?? throw new KeyNotFoundException($"Plantilla {request.TemplateId} no encontrada");
 
-            // Las facturas usan su propio motor PDF (layout CFDI fijo), no el motor genérico de plantillas
-            if (template.ReportType == "Invoice")
-                return InvoicePdfDocument.Generate(ReportMockDataProvider.GetMockInvoice());
-
-            var sections  = GetReportTemplateByIdQueryHandler.DeserializeSections(template.SectionsJson);
-            var dataRow   = ReportMockDataProvider.GetMockDataRow(template.ReportType)
+            var sections  = GetReportTemplateByIdQueryHandler.EnsureInvoiceVisualSections(
+                GetReportTemplateByIdQueryHandler.DeserializeSections(template.SectionsJson));
+            var dataRow   = (await BuildPreviewDataRowAsync(template.ReportType))
                                 .ToDictionary(k => k.Key, v => (object?)v.Value);
             var tableRows = ReportMockDataProvider.GetMockTableRows(template.ReportType)
                                 .Select(r => r.ToDictionary(k => k.Key, v => (object?)v.Value))
@@ -174,6 +261,31 @@ namespace Application.Core.Reports.QueryHandlers
 
             var title = $"{template.Name} — VISTA PREVIA ({DateTime.Now:dd/MM/yyyy})";
             return ReportPdfEngine.Generate(sections, new() { dataRow }, tableRows, title);
+        }
+
+        private async Task<Dictionary<string, string>> BuildPreviewDataRowAsync(string reportType)
+        {
+            var row = ReportMockDataProvider.GetMockDataRow(reportType);
+            if (!reportType.Equals("Invoice", StringComparison.OrdinalIgnoreCase))
+                return row;
+
+            var company = await _companyRepo.GetMainCompanyAsync();
+            if (company is null)
+                return row;
+
+            if (!string.IsNullOrWhiteSpace(company.LogoUrl))
+                row["companyLogoUrl"] = company.LogoUrl;
+
+            if (!string.IsNullOrWhiteSpace(company.TradeName))
+                row["companyTradeName"] = company.TradeName;
+
+            if (!string.IsNullOrWhiteSpace(company.LegalName))
+                row["emisorNombre"] = company.LegalName;
+
+            if (!string.IsNullOrWhiteSpace(company.TaxId))
+                row["emisorRfc"] = company.TaxId;
+
+            return row;
         }
     }
 
@@ -184,21 +296,22 @@ namespace Application.Core.Reports.QueryHandlers
     public class GetReportTemplateHtmlPreviewQueryHandler : IRequestHandler<GetReportTemplateHtmlPreviewQuery, string>
     {
         private readonly IReportTemplateRepository _repo;
+        private readonly ICompanyRepository _companyRepo;
 
-        public GetReportTemplateHtmlPreviewQueryHandler(IReportTemplateRepository repo)
-            => _repo = repo;
+        public GetReportTemplateHtmlPreviewQueryHandler(IReportTemplateRepository repo, ICompanyRepository companyRepo)
+        {
+            _repo = repo;
+            _companyRepo = companyRepo;
+        }
 
         public async Task<string> Handle(GetReportTemplateHtmlPreviewQuery request, CancellationToken cancellationToken)
         {
             var template = await _repo.GetByIdAsync(request.TemplateId)
                 ?? throw new KeyNotFoundException($"Plantilla {request.TemplateId} no encontrada");
 
-            // Las facturas usan el motor HTML de CFDI (layout fijo oficial)
-            if (template.ReportType == "Invoice")
-                return InvoiceHtmlDocument.GenerateHtml(ReportMockDataProvider.GetMockInvoice());
-
-            var sections  = GetReportTemplateByIdQueryHandler.DeserializeSections(template.SectionsJson);
-            var dataRow   = ReportMockDataProvider.GetMockDataRow(template.ReportType)
+            var sections  = GetReportTemplateByIdQueryHandler.EnsureInvoiceVisualSections(
+                GetReportTemplateByIdQueryHandler.DeserializeSections(template.SectionsJson));
+            var dataRow   = (await BuildPreviewDataRowAsync(template.ReportType))
                                 .ToDictionary(k => k.Key, v => (object?)v.Value);
             var tableRows = ReportMockDataProvider.GetMockTableRows(template.ReportType)
                                 .Select(r => r.ToDictionary(k => k.Key, v => (object?)v.Value))
@@ -206,6 +319,31 @@ namespace Application.Core.Reports.QueryHandlers
 
             var title = $"{template.Name} — VISTA PREVIA ({DateTime.Now:dd/MM/yyyy})";
             return ReportHtmlEngine.Generate(sections, new() { dataRow }, tableRows, title);
+        }
+
+        private async Task<Dictionary<string, string>> BuildPreviewDataRowAsync(string reportType)
+        {
+            var row = ReportMockDataProvider.GetMockDataRow(reportType);
+            if (!reportType.Equals("Invoice", StringComparison.OrdinalIgnoreCase))
+                return row;
+
+            var company = await _companyRepo.GetMainCompanyAsync();
+            if (company is null)
+                return row;
+
+            if (!string.IsNullOrWhiteSpace(company.LogoUrl))
+                row["companyLogoUrl"] = company.LogoUrl;
+
+            if (!string.IsNullOrWhiteSpace(company.TradeName))
+                row["companyTradeName"] = company.TradeName;
+
+            if (!string.IsNullOrWhiteSpace(company.LegalName))
+                row["emisorNombre"] = company.LegalName;
+
+            if (!string.IsNullOrWhiteSpace(company.TaxId))
+                row["emisorRfc"] = company.TaxId;
+
+            return row;
         }
     }
 
@@ -252,7 +390,8 @@ namespace Application.Core.Reports.QueryHandlers
                     $"No se encontró plantilla para el tipo '{data.ReportType}'. " +
                     "Cree una plantilla o marque una como predeterminada.");
 
-            var sections = GetReportTemplateByIdQueryHandler.DeserializeSections(template.SectionsJson);
+            var sections = GetReportTemplateByIdQueryHandler.EnsureInvoiceVisualSections(
+                GetReportTemplateByIdQueryHandler.DeserializeSections(template.SectionsJson));
             var reportTitle = $"{template.Name} — {DateTime.Now:dd/MM/yyyy}";
 
             return data.ReportType switch
@@ -358,11 +497,13 @@ namespace Application.Core.Reports.QueryHandlers
             if (!data.DocumentIds.Any())
                 throw new InvalidOperationException("Debe especificar el ID de la factura");
 
-            // Las facturas usan InvoicePdfDocument para respetar el layout CFDI 4.0 oficial
             var inv = await _invoiceRepo.GetByIdAsync(data.DocumentIds[0])
                 ?? throw new KeyNotFoundException($"Factura {data.DocumentIds[0]} no encontrada");
 
-            return InvoicePdfDocument.Generate(inv);
+            var dataRow  = ReportDataProvider.FromInvoice(inv);
+            var tableRows = ReportDataProvider.FromInvoiceDetails(inv);
+
+            return ReportPdfEngine.Generate(sections, new() { dataRow }, tableRows, title);
         }
     }
 }

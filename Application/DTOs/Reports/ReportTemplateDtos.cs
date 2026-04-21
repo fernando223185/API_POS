@@ -33,6 +33,7 @@ namespace Application.DTOs.Reports
     public static class FieldFormat
     {
         public const string Text = "text";
+        public const string Image = "image";
         public const string Currency = "currency";
         public const string Date = "date";
         public const string DateTime = "datetime";
@@ -122,6 +123,21 @@ namespace Application.DTOs.Reports
         /// <summary>Mostrar título de sección en el PDF</summary>
         [JsonPropertyName("showTitle")]
         public bool ShowTitle { get; set; } = true;
+
+        [JsonPropertyName("titleBackground")]
+        public string? TitleBackground { get; set; }
+
+        [JsonPropertyName("titleColor")]
+        public string? TitleColor { get; set; }
+
+        [JsonPropertyName("bodyBackground")]
+        public string? BodyBackground { get; set; }
+
+        [JsonPropertyName("borderColor")]
+        public string? BorderColor { get; set; }
+
+        [JsonPropertyName("variant")]
+        public string? Variant { get; set; }
     }
 
     // ─────────────────────────────────────────────

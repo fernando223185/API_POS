@@ -497,27 +497,43 @@ namespace Application.Core.Billing.QueryHandlers
     public class GetInvoicePdfQueryHandler : IRequestHandler<GetInvoicePdfQuery, (byte[] Bytes, string FileName)>
     {
         private readonly Application.Abstractions.Billing.IInvoiceRepository _invoiceRepository;
+        private readonly Application.Abstractions.Reports.IReportTemplateRepository _templateRepository;
 
-        public GetInvoicePdfQueryHandler(Application.Abstractions.Billing.IInvoiceRepository invoiceRepository)
+        public GetInvoicePdfQueryHandler(
+            Application.Abstractions.Billing.IInvoiceRepository invoiceRepository,
+            Application.Abstractions.Reports.IReportTemplateRepository templateRepository)
         {
             _invoiceRepository = invoiceRepository;
+            _templateRepository = templateRepository;
         }
 
         public async Task<(byte[] Bytes, string FileName)> Handle(
             GetInvoicePdfQuery request,
             CancellationToken cancellationToken)
         {
-            var invoice = await _invoiceRepository.GetByIdAsync(request.InvoiceId);
-
-            if (invoice == null)
-                throw new KeyNotFoundException($"Factura con ID {request.InvoiceId} no encontrada");
+            var invoice = await _invoiceRepository.GetByIdAsync(request.InvoiceId)
+                ?? throw new KeyNotFoundException($"Factura con ID {request.InvoiceId} no encontrada");
 
             if (invoice.Status != "Timbrada")
                 throw new InvalidOperationException("Solo se puede generar PDF de facturas timbradas");
 
-            var bytes = InvoicePdfDocument.Generate(invoice);
+            var template = await _templateRepository.GetDefaultByTypeAsync("Invoice", invoice.CompanyId)
+                ?? await _templateRepository.GetDefaultByTypeAsync("Invoice", null)
+                ?? throw new InvalidOperationException("No hay una plantilla por defecto para Facturas. Crea una desde el Report Builder.");
+
+            var sections = Reports.QueryHandlers.GetReportTemplateByIdQueryHandler
+                .EnsureInvoiceVisualSections(
+                    Reports.QueryHandlers.GetReportTemplateByIdQueryHandler
+                        .DeserializeSections(template.SectionsJson));
+
+            var bytes = Reports.Engine.ReportPdfEngine.Generate(
+                sections,
+                new() { Reports.Engine.ReportDataProvider.FromInvoice(invoice) },
+                Reports.Engine.ReportDataProvider.FromInvoiceDetails(invoice),
+                template.Name);
+
             var fileName = $"{invoice.Serie}-{invoice.Folio}_{invoice.Uuid}.pdf";
-            return await Task.FromResult((bytes, fileName));
+            return (bytes, fileName);
         }
     }
 

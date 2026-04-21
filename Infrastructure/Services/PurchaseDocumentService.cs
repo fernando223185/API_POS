@@ -1,6 +1,8 @@
 using Application.Abstractions.Documents;
 using Application.Abstractions.Purchasing;
+using Application.Abstractions.Reports;
 using Application.Abstractions.Storage;
+using Application.Core.Reports.Engine;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -12,15 +14,18 @@ namespace Infrastructure.Services
         private readonly IPurchaseOrderRepository _purchaseOrderRepository;
         private readonly IPurchaseOrderReceivingRepository _receivingRepository;
         private readonly IS3StorageService _s3Service;
+        private readonly IReportTemplateRepository _templateRepo;
 
         public PurchaseDocumentService(
             IPurchaseOrderRepository purchaseOrderRepository,
             IPurchaseOrderReceivingRepository receivingRepository,
-            IS3StorageService s3Service)
+            IS3StorageService s3Service,
+            IReportTemplateRepository templateRepo)
         {
             _purchaseOrderRepository = purchaseOrderRepository;
             _receivingRepository = receivingRepository;
             _s3Service = s3Service;
+            _templateRepo = templateRepo;
 
             // Configurar licencia Community de QuestPDF
             QuestPDF.Settings.License = LicenseType.Community;
@@ -30,11 +35,8 @@ namespace Infrastructure.Services
 
         public async Task<byte[]> GeneratePurchaseOrderPdfAsync(int purchaseOrderId)
         {
-            var order = await _purchaseOrderRepository.GetByIdAsync(purchaseOrderId);
-            if (order == null)
-            {
-                throw new KeyNotFoundException($"Orden de compra con ID {purchaseOrderId} no encontrada");
-            }
+            var order = await _purchaseOrderRepository.GetByIdAsync(purchaseOrderId)
+                ?? throw new KeyNotFoundException($"Orden de compra con ID {purchaseOrderId} no encontrada");
 
             var document = Document.Create(container =>
             {
@@ -79,7 +81,7 @@ namespace Infrastructure.Services
                         .FontSize(9);
                 });
 
-                // Información del documento (derecha)
+                // Informaciï¿½n del documento (derecha)
                 row.ConstantItem(200).Column(column =>
                 {
                     column.Item().Background("#E8EDF5") // Color primario claro
@@ -119,10 +121,10 @@ namespace Infrastructure.Services
         {
             container.PaddingTop(20).Column(column =>
             {
-                // Información del Proveedor
+                // Informaciï¿½n del Proveedor
                 column.Item().Element(c => ComposeOrderSupplierInfo(c, order));
 
-                // Información de Entrega
+                // Informaciï¿½n de Entrega
                 column.Item().PaddingTop(15).Element(c => ComposeOrderDeliveryInfo(c, order));
 
                 // Tabla de Productos
@@ -137,7 +139,7 @@ namespace Infrastructure.Services
                     column.Item().PaddingTop(15).Element(c => ComposeOrderNotes(c, order));
                 }
 
-                // Términos y Condiciones
+                // Tï¿½rminos y Condiciones
                 column.Item().PaddingTop(15).Element(ComposeOrderTerms);
             });
         }
@@ -148,7 +150,7 @@ namespace Infrastructure.Services
             {
                 "Pending" => "Pendiente",
                 "Approved" => "Aprobada",
-                "InTransit" => "En Tránsito",
+                "InTransit" => "En Trï¿½nsito",
                 "PartiallyReceived" => "Parcialmente Recibida",
                 "Received" => "Recibida",
                 "Cancelled" => "Cancelada",
@@ -205,7 +207,7 @@ namespace Infrastructure.Services
 
                             col.Item().Row(r =>
                             {
-                                r.AutoItem().Text("Teléfono: ").Bold();
+                                r.AutoItem().Text("Telï¿½fono: ").Bold();
                                 r.AutoItem().Text(order.Supplier.Phone ?? "N/A");
                             });
                         });
@@ -219,17 +221,17 @@ namespace Infrastructure.Services
             {
                 row.RelativeItem().Column(column =>
                 {
-                    column.Item().Text("INFORMACIÓN DE ENTREGA").Bold().FontSize(11);
+                    column.Item().Text("INFORMACIï¿½N DE ENTREGA").Bold().FontSize(11);
 
                     column.Item().PaddingTop(5).Row(r =>
                     {
-                        r.AutoItem().Text("Almacén: ").Bold();
+                        r.AutoItem().Text("Almacï¿½n: ").Bold();
                         r.AutoItem().Text(order.Warehouse.Name);
                     });
 
                     column.Item().Row(r =>
                     {
-                        r.AutoItem().Text("Código: ").Bold();
+                        r.AutoItem().Text("Cï¿½digo: ").Bold();
                         r.AutoItem().Text(order.Warehouse.Code ?? "N/A");
                     });
                 });
@@ -261,8 +263,8 @@ namespace Infrastructure.Services
                 table.ColumnsDefinition(columns =>
                 {
                     columns.ConstantColumn(40);  // #
-                    columns.ConstantColumn(100); // Código
-                    columns.RelativeColumn(3);   // Descripción
+                    columns.ConstantColumn(100); // Cï¿½digo
+                    columns.RelativeColumn(3);   // Descripciï¿½n
                     columns.ConstantColumn(70);  // Cantidad
                     columns.ConstantColumn(90);  // P. Unitario
                     columns.ConstantColumn(60);  // Desc %
@@ -273,8 +275,8 @@ namespace Infrastructure.Services
                 table.Header(header =>
                 {
                     header.Cell().Element(CellStyle).Text("#").Bold();
-                    header.Cell().Element(CellStyle).Text("Código").Bold();
-                    header.Cell().Element(CellStyle).Text("Descripción").Bold();
+                    header.Cell().Element(CellStyle).Text("Cï¿½digo").Bold();
+                    header.Cell().Element(CellStyle).Text("Descripciï¿½n").Bold();
                     header.Cell().Element(CellStyle).Text("Cantidad").Bold();
                     header.Cell().Element(CellStyle).AlignRight().Text("P. Unitario").Bold();
                     header.Cell().Element(CellStyle).AlignRight().Text("Desc %").Bold();
@@ -363,27 +365,24 @@ namespace Infrastructure.Services
         {
             container.Padding(10).Column(column =>
             {
-                column.Item().Text("Términos y Condiciones").Bold().FontSize(9);
+                column.Item().Text("Tï¿½rminos y Condiciones").Bold().FontSize(9);
                 column.Item().PaddingTop(5).Text(
-                    "1. Los precios están sujetos a cambio sin previo aviso.\n" +
-                    "2. El tiempo de entrega puede variar según disponibilidad.\n" +
-                    "3. La mercancía debe ser inspeccionada al momento de la entrega.\n" +
-                    "4. No se aceptan devoluciones después de 30 días."
+                    "1. Los precios estï¿½n sujetos a cambio sin previo aviso.\n" +
+                    "2. El tiempo de entrega puede variar segï¿½n disponibilidad.\n" +
+                    "3. La mercancï¿½a debe ser inspeccionada al momento de la entrega.\n" +
+                    "4. No se aceptan devoluciones despuï¿½s de 30 dï¿½as."
                 ).FontSize(8).FontColor(Colors.Grey.Darken1);
             });
         }
 
         #endregion
 
-        #region RECIBO DE MERCANCÍA PDF
+        #region RECIBO DE MERCANCï¿½A PDF
 
         public async Task<byte[]> GenerateReceivingPdfAsync(int receivingId)
         {
-            var receiving = await _receivingRepository.GetByIdAsync(receivingId);
-            if (receiving == null)
-            {
-                throw new KeyNotFoundException($"Recibo con ID {receivingId} no encontrado");
-            }
+            var receiving = await _receivingRepository.GetByIdAsync(receivingId)
+                ?? throw new KeyNotFoundException($"Recibo con ID {receivingId} no encontrado");
 
             var document = Document.Create(container =>
             {
@@ -425,14 +424,14 @@ namespace Infrastructure.Services
                         .FontSize(9);
                 });
 
-                // Información del documento (derecha)
+                // Informaciï¿½n del documento (derecha)
                 row.ConstantItem(200).Column(column =>
                 {
                     column.Item().Background("#FEF3E5") // Color secundario claro
                         .Padding(10)
                         .Column(innerColumn =>
                         {
-                            innerColumn.Item().Text("RECIBO DE MERCANCÍA")
+                            innerColumn.Item().Text("RECIBO DE MERCANCï¿½A")
                                 .FontSize(14)
                                 .Bold()
                                 .FontColor("#1D336F"); // Color primario
@@ -457,7 +456,7 @@ namespace Infrastructure.Services
                                     .Bold();
                             });
 
-                            // Mostrar si ya se aplicó al inventario
+                            // Mostrar si ya se aplicï¿½ al inventario
                             if (receiving.IsPostedToInventory)
                             {
                                 innerColumn.Item().PaddingTop(3).Row(infoRow =>
@@ -477,7 +476,7 @@ namespace Infrastructure.Services
         {
             container.PaddingTop(20).Column(column =>
             {
-                // Información general
+                // Informaciï¿½n general
                 column.Item().Element(c => ComposeReceivingInfo(c, receiving));
 
                 // Tabla de productos recibidos
@@ -543,7 +542,7 @@ namespace Infrastructure.Services
 
                     row.RelativeItem().Column(col =>
                     {
-                        col.Item().Text("ALMACÉN").Bold().FontSize(11).FontColor("#1D336F");
+                        col.Item().Text("ALMACï¿½N").Bold().FontSize(11).FontColor("#1D336F");
                         col.Item().PaddingTop(5).Text(receiving.Warehouse.Name);
                     });
 
@@ -554,7 +553,7 @@ namespace Infrastructure.Services
                     });
                 });
 
-                // Información de transporte
+                // Informaciï¿½n de transporte
                 if (!string.IsNullOrEmpty(receiving.CarrierName) || !string.IsNullOrEmpty(receiving.TrackingNumber))
                 {
                     column.Item().PaddingTop(10).Background(Colors.Grey.Lighten4)
@@ -574,7 +573,7 @@ namespace Infrastructure.Services
                             {
                                 row.RelativeItem().Row(r =>
                                 {
-                                    r.AutoItem().Text("Guía: ").Bold();
+                                    r.AutoItem().Text("Guï¿½a: ").Bold();
                                     r.AutoItem().Text(receiving.TrackingNumber);
                                 });
                             }
@@ -590,7 +589,7 @@ namespace Infrastructure.Services
                 table.ColumnsDefinition(columns =>
                 {
                     columns.ConstantColumn(30);  // #
-                    columns.ConstantColumn(90);  // Código
+                    columns.ConstantColumn(90);  // Cï¿½digo
                     columns.RelativeColumn(3);   // Producto
                     columns.ConstantColumn(70);  // Ordenado
                     columns.ConstantColumn(70);  // Recibido
@@ -602,7 +601,7 @@ namespace Infrastructure.Services
                 table.Header(header =>
                 {
                     header.Cell().Element(CellStyle).Text("#").Bold();
-                    header.Cell().Element(CellStyle).Text("Código").Bold();
+                    header.Cell().Element(CellStyle).Text("Cï¿½digo").Bold();
                     header.Cell().Element(CellStyle).Text("Producto").Bold();
                     header.Cell().Element(CellStyle).AlignRight().Text("Ordenado").Bold();
                     header.Cell().Element(CellStyle).AlignRight().Text("Recibido").Bold();
@@ -664,11 +663,11 @@ namespace Infrastructure.Services
                 {
                     row.RelativeItem().Column(column =>
                     {
-                        column.Item().Text("RESUMEN DE RECEPCIÓN").Bold().FontSize(11);
+                        column.Item().Text("RESUMEN DE RECEPCIï¿½N").Bold().FontSize(11);
 
                         column.Item().PaddingTop(5).Row(r =>
                         {
-                            r.AutoItem().Text("Total Artículos: ").Bold();
+                            r.AutoItem().Text("Total Artï¿½culos: ").Bold();
                             r.AutoItem().Text(receiving.Details.Count.ToString());
                         });
 
@@ -705,8 +704,8 @@ namespace Infrastructure.Services
                 row.RelativeItem().Column(column =>
                 {
                     column.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
-                    column.Item().PaddingTop(5).AlignCenter().Text("Recibió").FontSize(9).Bold();
-                    column.Item().AlignCenter().Text("Almacén").FontSize(8);
+                    column.Item().PaddingTop(5).AlignCenter().Text("Recibiï¿½").FontSize(9).Bold();
+                    column.Item().AlignCenter().Text("Almacï¿½n").FontSize(8);
                 });
 
                 row.ConstantItem(50);
@@ -714,7 +713,7 @@ namespace Infrastructure.Services
                 row.RelativeItem().Column(column =>
                 {
                     column.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
-                    column.Item().PaddingTop(5).AlignCenter().Text("Autorizó").FontSize(9).Bold();
+                    column.Item().PaddingTop(5).AlignCenter().Text("Autorizï¿½").FontSize(9).Bold();
                     column.Item().AlignCenter().Text("Compras").FontSize(8);
                 });
 
@@ -723,7 +722,7 @@ namespace Infrastructure.Services
                 row.RelativeItem().Column(column =>
                 {
                     column.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
-                    column.Item().PaddingTop(5).AlignCenter().Text("V°B°").FontSize(9).Bold();
+                    column.Item().PaddingTop(5).AlignCenter().Text("Vï¿½Bï¿½").FontSize(9).Bold();
                     column.Item().AlignCenter().Text("Gerencia").FontSize(8);
                 });
             });
@@ -731,15 +730,15 @@ namespace Infrastructure.Services
 
         #endregion
 
-        #region FOOTER COMÚN
+        #region FOOTER COMï¿½N
 
         private void ComposeFooter(IContainer container)
         {
             container.AlignCenter().Text(text =>
             {
-                text.Span("Documento generado automáticamente el ").FontSize(8).FontColor(Colors.Grey.Darken1);
+                text.Span("Documento generado automï¿½ticamente el ").FontSize(8).FontColor(Colors.Grey.Darken1);
                 text.Span(DateTime.Now.ToString("dd/MM/yyyy HH:mm")).Bold().FontSize(8).FontColor(Colors.Grey.Darken1);
-                text.Span(" | Página ").FontSize(8).FontColor(Colors.Grey.Darken1);
+                text.Span(" | Pï¿½gina ").FontSize(8).FontColor(Colors.Grey.Darken1);
                 text.CurrentPageNumber().FontSize(8).FontColor(Colors.Grey.Darken1);
                 text.Span(" de ").FontSize(8).FontColor(Colors.Grey.Darken1);
                 text.TotalPages().FontSize(8).FontColor(Colors.Grey.Darken1);

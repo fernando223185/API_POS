@@ -230,6 +230,7 @@ namespace Application.Core.Reports.Engine
                 F("invoiceSerie",       "Serie",                    FieldFormat.Text,       HeaderSummaryFooter),
                 F("invoiceDate",        "Fecha del comprobante",    FieldFormat.DateTime,   HeaderSummaryFooter),
                 F("invoiceStatus",      "Estado",                   FieldFormat.Text,       HeaderSummaryFooter),
+                F("qrCode",             "Código QR SAT",            FieldFormat.Image,      HeaderSummaryFooter),
                 F("uuid",               "UUID / Folio Fiscal",      FieldFormat.Text,       HeaderSummaryFooter),
                 F("timbradoAt",         "Fecha timbrado",           FieldFormat.DateTime,   HeaderSummaryFooter),
                 F("tipoDeComprobante",  "Tipo comprobante",         FieldFormat.Text,       HeaderSummaryFooter),

@@ -1,5 +1,7 @@
 ﻿using Application.Core.Company.Commands;
 using Application.Core.Company.Queries;
+using Application.Abstractions.Config;
+using Application.Abstractions.Storage;
 using Application.DTOs.Company;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -15,10 +17,20 @@ namespace Web.Api.Controllers.Config
     public class CompaniesController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly ICompanyRepository _companyRepository;
+        private readonly IS3StorageService _s3StorageService;
+        private readonly IConfiguration _configuration;
+        private static readonly string[] AllowedImageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+        private static readonly string[] AllowedImageContentTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+        private const long MaxLogoFileSize = 5 * 1024 * 1024;
+        private const string CompanyLogosFolder = "companies/logos";
 
-        public CompaniesController(IMediator mediator)
+        public CompaniesController(IMediator mediator, ICompanyRepository companyRepository, IS3StorageService s3StorageService, IConfiguration configuration)
         {
             _mediator = mediator;
+            _companyRepository = companyRepository;
+            _s3StorageService = s3StorageService;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -26,8 +38,10 @@ namespace Web.Api.Controllers.Config
         /// </summary>
         [HttpPost]
         [RequirePermission("Configuracion", "Create")]
-        public async Task<IActionResult> CreateCompany([FromBody] CreateCompanyDto request)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> CreateCompany([FromForm] CreateCompanyDto request, [FromForm] IFormFile? logoFile)
         {
+            string? savedLogoUrl = null;
             try
             {
                 var userId = HttpContext.Items["UserId"] as int? ?? 0;
@@ -39,6 +53,16 @@ namespace Web.Api.Controllers.Config
                 }
 
                 Console.WriteLine($"?? Creando empresa - Usuario: {userName}, Razón Social: {request.LegalName}");
+
+                if (logoFile is not null)
+                {
+                    var logoValidation = ValidateLogoFile(logoFile);
+                    if (logoValidation is not null)
+                        return logoValidation;
+
+                    savedLogoUrl = await SaveCompanyLogoAsync(logoFile, request.TradeName, userId);
+                    request.LogoUrl = savedLogoUrl;
+                }
 
                 var command = new CreateCompanyCommand(request, userId);
                 var result = await _mediator.Send(command);
@@ -52,11 +76,13 @@ namespace Web.Api.Controllers.Config
             }
             catch (InvalidOperationException ex)
             {
+                await DeleteCompanyLogoIfManagedAsync(savedLogoUrl, null);
                 Console.WriteLine($"? Validation error: {ex.Message}");
                 return BadRequest(new { message = ex.Message, error = 1 });
             }
             catch (Exception ex)
             {
+                await DeleteCompanyLogoIfManagedAsync(savedLogoUrl, null);
                 Console.WriteLine($"? Error creating company: {ex.Message}");
                 return StatusCode(500, new
                 {
@@ -72,8 +98,10 @@ namespace Web.Api.Controllers.Config
         /// </summary>
         [HttpPut("{id}")]
         [RequirePermission("Configuracion", "Edit")]
-        public async Task<IActionResult> UpdateCompany(int id, [FromBody] UpdateCompanyDto request)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdateCompany(int id, [FromForm] UpdateCompanyDto request, [FromForm] IFormFile? logoFile)
         {
+            string? savedLogoUrl = null;
             try
             {
                 var userId = HttpContext.Items["UserId"] as int? ?? 0;
@@ -86,8 +114,35 @@ namespace Web.Api.Controllers.Config
 
                 Console.WriteLine($"?? Actualizando empresa {id} - Usuario: {userName}");
 
+                var existingCompany = await _companyRepository.GetByIdAsync(id);
+                if (existingCompany == null)
+                {
+                    return NotFound(new { message = $"Empresa con ID {id} no encontrada", error = 1 });
+                }
+
+                var previousLogoUrl = existingCompany.LogoUrl;
+
+                if (logoFile is not null)
+                {
+                    var logoValidation = ValidateLogoFile(logoFile);
+                    if (logoValidation is not null)
+                        return logoValidation;
+
+                    savedLogoUrl = await SaveCompanyLogoAsync(logoFile, request.TradeName, userId);
+                    request.LogoUrl = savedLogoUrl;
+                }
+                else if (request.LogoUrl is null)
+                {
+                    request.LogoUrl = previousLogoUrl;
+                }
+
                 var command = new UpdateCompanyCommand(id, request, userId);
                 var result = await _mediator.Send(command);
+
+                if (logoFile is not null)
+                    await DeleteCompanyLogoIfManagedAsync(previousLogoUrl, request.LogoUrl);
+                else if (string.IsNullOrWhiteSpace(request.LogoUrl))
+                    await DeleteCompanyLogoIfManagedAsync(previousLogoUrl, request.LogoUrl);
 
                 return Ok(new
                 {
@@ -98,11 +153,13 @@ namespace Web.Api.Controllers.Config
             }
             catch (KeyNotFoundException ex)
             {
+                await DeleteCompanyLogoIfManagedAsync(savedLogoUrl, null);
                 Console.WriteLine($"? Not found: {ex.Message}");
                 return NotFound(new { message = ex.Message, error = 1 });
             }
             catch (Exception ex)
             {
+                await DeleteCompanyLogoIfManagedAsync(savedLogoUrl, null);
                 Console.WriteLine($"? Error updating company: {ex.Message}");
                 return StatusCode(500, new
                 {
@@ -111,6 +168,105 @@ namespace Web.Api.Controllers.Config
                     details = ex.Message
                 });
             }
+        }
+
+        private IActionResult? ValidateLogoFile(IFormFile file)
+        {
+            if (file.Length == 0)
+            {
+                return BadRequest(new { message = "El archivo de logo está vacío", error = 1 });
+            }
+
+            if (file.Length > MaxLogoFileSize)
+            {
+                return BadRequest(new
+                {
+                    message = "El logo es demasiado grande. Tamaño máximo: 5MB",
+                    error = 1,
+                    fileSize = file.Length,
+                    maxSize = MaxLogoFileSize
+                });
+            }
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!AllowedImageExtensions.Contains(extension))
+            {
+                return BadRequest(new
+                {
+                    message = "Formato de logo no válido. Solo se permiten: JPG, JPEG, PNG, GIF, WebP",
+                    error = 1,
+                    allowedFormats = AllowedImageExtensions
+                });
+            }
+
+            if (!string.IsNullOrWhiteSpace(file.ContentType)
+                && !AllowedImageContentTypes.Contains(file.ContentType.ToLowerInvariant()))
+            {
+                return BadRequest(new
+                {
+                    message = "Tipo de archivo no permitido para el logo",
+                    error = 1,
+                    contentType = file.ContentType
+                });
+            }
+
+            return null;
+        }
+
+        private async Task<string> SaveCompanyLogoAsync(IFormFile file, string tradeName, int userId)
+        {
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var safeTradeName = BuildSlug(string.IsNullOrWhiteSpace(tradeName) ? $"company-{userId}" : tradeName);
+            var fileName = $"{safeTradeName}-{Guid.NewGuid():N}{extension}";
+            var companiesBucket = GetCompaniesBucketName();
+
+            await using var stream = file.OpenReadStream();
+            var key = await _s3StorageService.UploadImageAsync(
+                stream,
+                fileName,
+                file.ContentType,
+                CompanyLogosFolder,
+                companiesBucket);
+
+            return _s3StorageService.GetPublicUrl(key, companiesBucket);
+        }
+
+        private async Task DeleteCompanyLogoIfManagedAsync(string? oldLogoUrl, string? newLogoUrl)
+        {
+            if (string.IsNullOrWhiteSpace(oldLogoUrl))
+                return;
+
+            if (string.Equals(oldLogoUrl, newLogoUrl, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            var companiesBucket = GetCompaniesBucketName();
+            var publicPrefix = _s3StorageService.GetPublicUrl(string.Empty, companiesBucket);
+            if (!oldLogoUrl.StartsWith(publicPrefix, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            var oldKey = oldLogoUrl.Replace(publicPrefix, string.Empty, StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(oldKey))
+                return;
+
+            await _s3StorageService.DeleteImageAsync(oldKey, companiesBucket);
+        }
+
+        private string GetCompaniesBucketName() =>
+            _configuration["AWS:S3:CompaniesBucketName"] ?? "expanda-companies";
+
+        private static string BuildSlug(string value)
+        {
+            var chars = value
+                .Trim()
+                .ToLowerInvariant()
+                .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')
+                .ToArray();
+
+            var slug = new string(chars);
+            while (slug.Contains("--", StringComparison.Ordinal))
+                slug = slug.Replace("--", "-", StringComparison.Ordinal);
+
+            return slug.Trim('-');
         }
 
         /// <summary>
