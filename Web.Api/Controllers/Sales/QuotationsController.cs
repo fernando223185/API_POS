@@ -210,5 +210,30 @@ namespace Web.Api.Controllers.Sales
                 return StatusCode(500, new { message = $"Error interno: {ex.Message}", error = 1 });
             }
         }
+
+        // ============================================================
+        // GET /api/quotations/{id}/pdf
+        // ============================================================
+        /// <summary>
+        /// Genera el PDF de una cotización, incluyendo un código QR que al
+        /// escanearse permite convertirla en venta desde la aplicación.
+        /// </summary>
+        [HttpGet("{id:int}/pdf")]
+        public async Task<IActionResult> GetQuotationPdf(int id)
+        {
+            try
+            {
+                var pdfBytes = await _mediator.Send(new GetQuotationPdfQuery(id));
+                return File(pdfBytes, "application/pdf", $"cotizacion-{id}.pdf");
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Error interno: {ex.Message}", error = 1 });
+            }
+        }
     }
 }

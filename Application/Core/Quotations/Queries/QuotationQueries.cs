@@ -5,6 +5,8 @@ namespace Application.Core.Quotations.Queries
 {
     public record GetQuotationByIdQuery(int QuotationId) : IRequest<QuotationResponseDto>;
 
+    public record GetQuotationPdfQuery(int QuotationId) : IRequest<byte[]>;
+
     public record GetQuotationByCodeQuery(string Code) : IRequest<QuotationResponseDto>;
 
     public record GetQuotationsPagedQuery(
