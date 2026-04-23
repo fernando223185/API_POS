@@ -30,6 +30,7 @@ namespace Application.Core.Reports.CommandHandlers
                 IsDefault = request.Data.IsDefault,
                 IsActive = true,
                 SectionsJson = JsonSerializer.Serialize(request.Data.Sections),
+                HtmlTemplate = request.Data.HtmlTemplate,
                 CompanyId = request.CompanyId,
                 CreatedByUserId = request.UserId,
                 CreatedAt = DateTime.UtcNow,
@@ -73,6 +74,7 @@ namespace Application.Core.Reports.CommandHandlers
             template.Description = request.Data.Description;
             template.IsDefault = request.Data.IsDefault;
             template.SectionsJson = JsonSerializer.Serialize(request.Data.Sections);
+            template.HtmlTemplate = request.Data.HtmlTemplate;
             template.UpdatedAt = DateTime.UtcNow;
 
             var updated = await _repo.UpdateAsync(template);
@@ -128,6 +130,7 @@ namespace Application.Core.Reports.CommandHandlers
             await _repo.ClearDefaultForTypeAsync(template.ReportType, template.CompanyId);
 
             template.IsDefault = true;
+            template.IsActive = true;
             template.UpdatedAt = DateTime.UtcNow;
             await _repo.UpdateAsync(template);
             return true;

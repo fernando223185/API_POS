@@ -12,48 +12,66 @@ namespace Infrastructure.Persistence
     {
         public static async Task SeedDefaultTemplatesAsync(POSDbContext context)
         {
+            // Mapa: tipo â†’ (nombre, htmlTemplate)
             var types = new[]
             {
-                ("Sales",        "Ticket / Factura de Venta", BuildSalesTemplate()),
-                ("Purchase",     "Orden de Compra / Recibo",  BuildPurchaseTemplate()),
-                ("CashierShift", "Corte de Caja",             BuildCashierShiftTemplate()),
-                ("Inventory",    "Kardex de Inventario",      BuildInventoryTemplate()),
-                ("Invoice",      "Factura CFDI",              BuildInvoiceTemplate()),
-                ("Quotation",    "Cotización",                BuildQuotationTemplate()),
-                ("Delivery",     "Nota de Entrega",           BuildDeliveryTemplate()),
+                ("Sales",        "Ticket / Factura de Venta",    HtmlReportTemplates.Sales,        BuildSalesTemplate()),
+                ("Purchase",     "Orden de Compra / Recibo",      HtmlReportTemplates.Purchase,     BuildPurchaseTemplate()),
+                ("CashierShift", "Corte de Caja",                 HtmlReportTemplates.CashierShift, BuildCashierShiftTemplate()),
+                ("Inventory",    "Kardex de Inventario",          HtmlReportTemplates.Inventory,    BuildInventoryTemplate()),
+                ("Invoice",      "Factura CFDI",                  HtmlReportTemplates.Invoice,      BuildInvoiceTemplate()),
+                ("Payment",      "Complemento de Pago CFDI",      HtmlReportTemplates.Payment,      BuildPaymentTemplate()),
+                ("Quotation",    "Cotización",                    HtmlReportTemplates.Quotation,    BuildQuotationTemplate()),
+                ("Delivery",     "Nota de Entrega",               HtmlReportTemplates.Delivery,     BuildDeliveryTemplate()),
             };
 
             bool changed = false;
-            foreach (var (type, name, sectionsJson) in types)
+            foreach (var (type, name, htmlTemplate, sectionsJson) in types)
             {
-                var existing = await context.ReportTemplates
-                    .FirstOrDefaultAsync(t => t.ReportType == type && t.IsDefault && t.CompanyId == null);
+                // Obtener TODOS los registros de este tipo (todas las compañías)
+                var allOfType = await context.ReportTemplates
+                    .Where(t => t.ReportType == type)
+                    .ToListAsync();
 
-                if (existing == null)
+                var defaultRecord = allOfType.FirstOrDefault(t => t.IsDefault && t.CompanyId == null);
+
+                // Crear el registro global default si no existe
+                if (defaultRecord == null)
                 {
                     context.ReportTemplates.Add(new ReportTemplate
                     {
-                        Name        = name,
-                        ReportType  = type,
-                        IsDefault   = true,
-                        IsActive    = true,
+                        Name         = name,
+                        ReportType   = type,
+                        IsDefault    = true,
+                        IsActive     = true,
                         SectionsJson = sectionsJson,
-                        Description = $"Plantilla base editable inspirada en el layout legacy para reportes de tipo {type}.",
-                        CompanyId   = null,
+                        HtmlTemplate = htmlTemplate,
+                        Description  = $"Plantilla HTML editable con motor Playwright para reportes de tipo {type}.",
+                        CompanyId    = null,
                     });
                     changed = true;
-                    Console.WriteLine($"   ✅ Plantilla por defecto creada para tipo: {type}");
+                    Console.WriteLine($"   ✅ Plantilla HTML creada para tipo: {type}");
                 }
-                else if (existing.Name.StartsWith("Plantilla por defecto", StringComparison.OrdinalIgnoreCase)
-                      || (existing.Description?.Contains("generada automáticamente por el sistema", StringComparison.OrdinalIgnoreCase) ?? false)
-                      || (existing.Description?.Contains("layout legacy", StringComparison.OrdinalIgnoreCase) ?? false))
+
+                // Actualizar TODOS los registros que no tienen los nuevos selectores CSS
+                foreach (var record in allOfType)
                 {
-                    existing.Name = name;
-                    existing.SectionsJson = sectionsJson;
-                    existing.Description = $"Plantilla base editable inspirada en el layout legacy para reportes de tipo {type}.";
-                    existing.IsActive = true;
-                    changed = true;
-                    Console.WriteLine($"   ✅ Plantilla por defecto actualizada para tipo: {type}");
+                    if (record.HtmlTemplate == null)
+                    {
+                        record.HtmlTemplate = htmlTemplate;
+                        record.SectionsJson = sectionsJson;
+                        record.Name         = name;
+                        record.Description  = $"Plantilla HTML editable con motor Playwright para reportes de tipo {type}.";
+                        changed = true;
+                        Console.WriteLine($"   ✅ Plantilla migrada a HTML: tipo={type} id={record.Id}");
+                    }
+                    else if (record.SectionsJson == "[]" || !record.HtmlTemplate.Contains("id=\"\"sec-"))
+                    {
+                        record.HtmlTemplate = htmlTemplate;
+                        record.SectionsJson = sectionsJson;
+                        changed = true;
+                        Console.WriteLine($"   ✅ HTML y SectionsJson actualizados: tipo={type} id={record.Id}");
+                    }
                 }
             }
 
@@ -61,9 +79,9 @@ namespace Infrastructure.Persistence
                 await context.SaveChangesAsync();
         }
 
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // VENTAS
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private static string BuildSalesTemplate() => Json(new[]
         {
@@ -75,14 +93,19 @@ namespace Infrastructure.Persistence
                 F("warehouseName",  "Almacén",      inline: true),
                 F("sellerName",     "Vendedor"),
                 F("status",         "Estado",       inline: true),
-            }, titleBg: "#1f4b99", bodyBg: "#eef4ff", border: "#c8d9f6", variant: "corporate"),
+                // Campos disponibles (ocultos por defecto)
+                F("saleType",       "Tipo de venta",                visible: false),
+                F("branchName",     "Sucursal",                     visible: false, inline: true),
+            }, titleBg: "#1f4b99", bodyBg: "#eef4ff", border: "#c8d9f6", variant: "corporate", sectionId: "doc"),
             Header("Cliente", 2, new[]
             {
                 F("customerName",   "Cliente",      bold: true),
                 F("customerTaxId",  "RFC",          inline: true),
                 F("paymentMethods", "Forma de pago"),
                 F("notes",          "Notas"),
-            }, titleBg: "#2f66c2", bodyBg: "#f7faff", border: "#c8d9f6", variant: "corporate"),
+                // Campos disponibles (ocultos por defecto)
+                F("customerCode",   "Código cliente",               visible: false),
+            }, titleBg: "#2f66c2", bodyBg: "#f7faff", border: "#c8d9f6", variant: "corporate", sectionId: "cliente"),
             Table("Detalle de Productos", 3, new[]
             {
                 C("productCode",  "Cód.",        60),
@@ -91,7 +114,12 @@ namespace Infrastructure.Persistence
                 C("unitPrice",    "Precio U.",    70,  fmt: "currency", align: "right"),
                 C("discountPercentage","Desc %",   60,  fmt: "percentage", align: "right"),
                 C("lineTotal",    "Total",        70,  fmt: "currency", align: "right"),
-            }, titleBg: "#1f4b99", bodyBg: "#f7faff", border: "#c8d9f6", variant: "corporate"),
+                // Columnas disponibles (ocultas por defecto)
+                C("discountAmount",   "Descuento $",    65,  fmt: "currency",    align: "right",  visible: false),
+                C("taxPercentage",    "% IVA",          55,  fmt: "percentage",  align: "right",  visible: false),
+                C("taxAmount",        "IVA $",          65,  fmt: "currency",    align: "right",  visible: false),
+                C("subtotal",         "Subtotal",       70,  fmt: "currency",    align: "right",  visible: false),
+            }, titleBg: "#1f4b99", bodyBg: "#f7faff", border: "#c8d9f6", variant: "corporate", sectionId: "productos"),
             Footer("Totales", 4, new[]
             {
                 F("totalSubtotal", "Subtotal",  fmt: "currency", bold: true, inline: false),
@@ -100,12 +128,12 @@ namespace Infrastructure.Persistence
                 F("totalAmount",   "Total",     fmt: "currency", bold: true, inline: true),
                 F("amountPaid",    "Pagado",    fmt: "currency", inline: false),
                 F("changeAmount",  "Cambio",    fmt: "currency", inline: true),
-            }, titleBg: "#123a7a", bodyBg: "#eef4ff", border: "#c8d9f6", variant: "corporate"),
+            }, titleBg: "#123a7a", bodyBg: "#eef4ff", border: "#c8d9f6", variant: "corporate", sectionId: "totales"),
         });
 
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // COMPRAS (Orden de compra Y recibo de mercancía comparten la plantilla)
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private static string BuildPurchaseTemplate() => Json(new[]
         {
@@ -125,7 +153,9 @@ namespace Infrastructure.Persistence
                 F("trackingNumber", "Guía",            inline: true),
                 F("receivedBy",     "Recibió"),
                 F("notes",          "Notas"),
-            }, titleBg: "#8c4b16", bodyBg: "#fff7ef", border: "#f1cfaa", variant: "warm"),
+                // Campos disponibles (ocultos por defecto)
+                F("branchName",     "Sucursal",                     visible: false),
+            }, titleBg: "#8c4b16", bodyBg: "#fff7ef", border: "#f1cfaa", variant: "warm", sectionId: "doc"),
             Table("Detalle de Partidas", 2, new[]
             {
                 C("productCode",       "Cód.",           60),
@@ -136,17 +166,17 @@ namespace Infrastructure.Persistence
                 C("quantityRejected",  "Rechazado",      60,  fmt: "number",   align: "center"),
                 C("unitCost",          "Costo Unit.",    70,  fmt: "currency", align: "right"),
                 C("lineTotal",         "Total",          70,  fmt: "currency", align: "right"),
-            }, titleBg: "#b5631b", bodyBg: "#fffaf4", border: "#f1cfaa", variant: "warm"),
+            }, titleBg: "#b5631b", bodyBg: "#fffaf4", border: "#f1cfaa", variant: "warm", sectionId: "partidas"),
             Footer("Total de la Orden", 3, new[]
             {
                 F("totalAmount", "Total", fmt: "currency", bold: true),
                 F("notes",       "Notas"),
-            }, titleBg: "#7c3d12", bodyBg: "#fff7ef", border: "#f1cfaa", variant: "warm"),
+            }, titleBg: "#7c3d12", bodyBg: "#fff7ef", border: "#f1cfaa", variant: "warm", sectionId: "totales"),
         });
 
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // CORTE DE CAJA
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private static string BuildCashierShiftTemplate() => Json(new[]
         {
@@ -157,7 +187,9 @@ namespace Infrastructure.Persistence
                 F("warehouseName","Caja / Sucursal"),
                 F("openedAt",     "Apertura",      fmt: "datetime", inline: false),
                 F("closedAt",     "Cierre",        fmt: "datetime", inline: true),
-            }, titleBg: "#1a6e5a", bodyBg: "#edf9f5", border: "#bde3d8", variant: "fresh"),
+                // Campos disponibles (ocultos por defecto)
+                F("branchName",   "Sucursal",                     visible: false, inline: true),
+            }, titleBg: "#1a6e5a", bodyBg: "#edf9f5", border: "#bde3d8", variant: "fresh", sectionId: "encabezado"),
             Table("Ventas del Turno", 2, new[]
             {
                 C("saleCode",     "Folio",       80),
@@ -165,7 +197,7 @@ namespace Infrastructure.Persistence
                 C("customerName", "Cliente",     0),
                 C("paymentMethod","Pago",        60,  align: "center"),
                 C("saleTotal",    "Total",       70,  fmt: "currency", align: "right"),
-            }, titleBg: "#0f7b62", bodyBg: "#f5fcfa", border: "#bde3d8", variant: "fresh"),
+            }, titleBg: "#0f7b62", bodyBg: "#f5fcfa", border: "#bde3d8", variant: "fresh", sectionId: "ventas"),
             Footer("Resumen del Turno", 3, new[]
             {
                 F("salesCount",    "N° Ventas",   fmt: "number",   bold: true),
@@ -176,12 +208,12 @@ namespace Infrastructure.Persistence
                 F("openingCash",   "Fondo Inicial",fmt: "currency", inline: false),
                 F("closingCash",   "Fondo Final",  fmt: "currency", inline: true),
                 F("difference",    "Diferencia",   fmt: "currency", bold: true),
-            }, titleBg: "#145347", bodyBg: "#edf9f5", border: "#bde3d8", variant: "fresh"),
+            }, titleBg: "#145347", bodyBg: "#edf9f5", border: "#bde3d8", variant: "fresh", sectionId: "totales"),
         });
 
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // KARDEX / INVENTARIO
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private static string BuildInventoryTemplate() => Json(new[]
         {
@@ -192,7 +224,9 @@ namespace Infrastructure.Persistence
                 F("productName",   "Producto",      bold: true),
                 F("fromDate",      "Del",           fmt: "date", inline: true),
                 F("toDate",        "Al",            fmt: "date", inline: true),
-            }, titleBg: "#5a3f9e", bodyBg: "#f3efff", border: "#d7cbff", variant: "technical"),
+                // Campos disponibles (ocultos por defecto)
+                F("companyName",   "Empresa",                      visible: false),
+            }, titleBg: "#5a3f9e", bodyBg: "#f3efff", border: "#d7cbff", variant: "technical", sectionId: "kardex"),
             Table("Movimientos de Inventario", 2, new[]
             {
                 C("movementDate",  "Fecha",       80,  fmt: "datetime", align: "center"),
@@ -206,12 +240,12 @@ namespace Infrastructure.Persistence
                 C("unitCost",      "Costo U.",    65,  fmt: "currency", align: "right"),
                 C("totalCost",     "Costo Total", 70,  fmt: "currency", align: "right"),
                 C("reference",     "Referencia",  80),
-            }, titleBg: "#4d35a2", bodyBg: "#faf8ff", border: "#d7cbff", variant: "technical"),
+            }, titleBg: "#4d35a2", bodyBg: "#faf8ff", border: "#d7cbff", variant: "technical", sectionId: "movimientos"),
         });
 
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // FACTURA CFDI
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private static string BuildInvoiceTemplate() => Json(new[]
         {
@@ -228,7 +262,10 @@ namespace Infrastructure.Persistence
                 F("invoiceStatus",       "Estado"),
                 F("moneda",              "Moneda",            inline: true),
                 F("tipoCambio",          "Tipo de cambio",    inline: true),
-            }, titleBg: "#204a87", bodyBg: "#f3f7fd", border: "#b8cce8", variant: "fiscal"),
+                // Campos disponibles (ocultos por defecto)
+                F("saleCode",            "N° venta origen",              visible: false),
+                F("qrCode",              "Código QR SAT (encabezado)",   fmt: "image", visible: false),
+            }, titleBg: "#204a87", bodyBg: "#f3f7fd", border: "#b8cce8", variant: "fiscal", sectionId: "comprobante"),
             Header("Receptor", 2, new[]
             {
                 F("receptorRfc",              "RFC"),
@@ -236,7 +273,7 @@ namespace Infrastructure.Persistence
                 F("receptorUsoCfdi",          "Uso CFDI", inline: true),
                 F("receptorNombre",           "Razón social", bold: true),
                 F("receptorDomicilioFiscal",  "Domicilio fiscal", inline: true),
-            }, titleBg: "#204a87", bodyBg: "#f7f9fc", border: "#b8cce8", variant: "fiscal"),
+            }, titleBg: "#204a87", bodyBg: "#f7f9fc", border: "#b8cce8", variant: "fiscal", sectionId: "receptor"),
             Table("Conceptos", 3, new[]
             {
                 C("claveProdServ",  "Clave SAT",   70),
@@ -248,7 +285,7 @@ namespace Infrastructure.Persistence
                 C("descuento",      "Desc.",        60,  fmt: "currency", align: "right"),
                 C("importe",        "Importe",      70,  fmt: "currency", align: "right"),
                 C("trasladoImporte","IVA",          65,  fmt: "currency", align: "right"),
-            }, titleBg: "#264b7f", bodyBg: "#ffffff", border: "#b8cce8", variant: "fiscal"),
+            }, titleBg: "#264b7f", bodyBg: "#ffffff", border: "#b8cce8", variant: "fiscal", sectionId: "conceptos"),
             Footer("Pago y Totales", 4, new[]
             {
                 F("formaPago",      "Forma de pago"),
@@ -260,7 +297,7 @@ namespace Infrastructure.Persistence
                 F("discountAmount", "Descuento", fmt: "currency", inline: true),
                 F("taxAmount",      "IVA",       fmt: "currency", inline: false),
                 F("total",          "Total",     fmt: "currency", bold: true, inline: true),
-            }, titleBg: "#163a68", bodyBg: "#f3f7fd", border: "#b8cce8", variant: "fiscal"),
+            }, titleBg: "#163a68", bodyBg: "#f3f7fd", border: "#b8cce8", variant: "fiscal", sectionId: "pago"),
             Footer("Datos de Timbrado", 5, new[]
             {
                 F("uuid",                "UUID", bold: true),
@@ -271,12 +308,12 @@ namespace Infrastructure.Persistence
                 F("selloSat",            "Sello SAT"),
                 F("cadenaOriginalSat",   "Cadena original SAT"),
                 F("qrCode",              "Código QR", fmt: "image"),
-            }, titleBg: "#204a87", bodyBg: "#ffffff", border: "#b8cce8", variant: "fiscal"),
+            }, titleBg: "#204a87", bodyBg: "#ffffff", border: "#b8cce8", variant: "fiscal", sectionId: "emisor"),
         });
 
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // COTIZACIÓN
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private static string BuildQuotationTemplate() => Json(new[]
         {
@@ -292,7 +329,10 @@ namespace Infrastructure.Persistence
                 F("sellerName",    "Vendedor"),
                 F("status",        "Estatus",     inline: true),
                 F("notes",         "Notas"),
-            }, titleBg: "#8d2f5a", bodyBg: "#fff1f7", border: "#f0bfd3", variant: "proposal"),
+                // Campos disponibles (ocultos por defecto)
+                F("convertedSaleCode", "Venta generada",               visible: false),
+                F("customerCode",      "Código cliente",               visible: false, inline: true),
+            }, titleBg: "#8d2f5a", bodyBg: "#fff1f7", border: "#f0bfd3", variant: "proposal", sectionId: "encabezado"),
             Table("Partidas Cotizadas", 2, new[]
             {
                 C("productCode",  "Cód.",        60),
@@ -302,19 +342,22 @@ namespace Infrastructure.Persistence
                 C("discountAmount","Desc.",        60,  fmt: "currency", align: "right"),
                 C("taxAmount",    "IVA",          60,  fmt: "currency", align: "right"),
                 C("lineTotal",    "Total",        70,  fmt: "currency", align: "right"),
-            }, titleBg: "#aa3a6d", bodyBg: "#fff8fb", border: "#f0bfd3", variant: "proposal"),
+                // Columnas disponibles (ocultas por defecto)
+                C("discountPercentage", "% Desc.",    50,  fmt: "percentage", align: "right",  visible: false),
+                C("taxPercentage",      "% IVA",      50,  fmt: "percentage", align: "right",  visible: false),
+            }, titleBg: "#aa3a6d", bodyBg: "#fff8fb", border: "#f0bfd3", variant: "proposal", sectionId: "partidas"),
             Footer("Totales", 3, new[]
             {
                 F("totalSubtotal", "Subtotal",  fmt: "currency", bold: true, inline: false),
                 F("totalDiscount", "Descuento", fmt: "currency", inline: true),
                 F("totalTax",      "IVA",       fmt: "currency", inline: false),
                 F("totalAmount",   "Total",     fmt: "currency", bold: true, inline: true),
-            }, titleBg: "#702143", bodyBg: "#fff1f7", border: "#f0bfd3", variant: "proposal"),
+            }, titleBg: "#702143", bodyBg: "#fff1f7", border: "#f0bfd3", variant: "proposal", sectionId: "totales"),
         });
 
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // ENTREGA (Delivery)
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private static string BuildDeliveryTemplate() => Json(new[]
         {
@@ -332,7 +375,10 @@ namespace Infrastructure.Persistence
                 F("deliveryAddress", "Dirección de Entrega", bold: true),
                 F("status",          "Estatus",        inline: true),
                 F("notes",           "Notas"),
-            }, titleBg: "#b04b2a", bodyBg: "#fff3ee", border: "#f2c8b9", variant: "delivery"),
+                // Campos disponibles (ocultos por defecto)
+                F("customerCode",    "Código cliente",               visible: false),
+                F("paymentMethods",  "Forma de pago",               visible: false),
+            }, titleBg: "#b04b2a", bodyBg: "#fff3ee", border: "#f2c8b9", variant: "delivery", sectionId: "entrega"),
             Table("Productos a Entregar", 2, new[]
             {
                 C("productCode",  "Cód.",        60),
@@ -340,41 +386,109 @@ namespace Infrastructure.Persistence
                 C("quantity",     "Cant.",        50,  fmt: "number",   align: "center"),
                 C("unitPrice",    "P. Unit.",     70,  fmt: "currency", align: "right"),
                 C("lineTotal",    "Total",        70,  fmt: "currency", align: "right"),
-            }, titleBg: "#cb5c36", bodyBg: "#fffaf7", border: "#f2c8b9", variant: "delivery"),
+                // Columnas disponibles (ocultas por defecto)
+                C("discountPercentage", "% Desc.",    55,  fmt: "percentage", align: "right",  visible: false),
+                C("discountAmount",     "Descuento $", 65,  fmt: "currency",   align: "right",  visible: false),
+                C("taxAmount",          "IVA $",       65,  fmt: "currency",   align: "right",  visible: false),
+            }, titleBg: "#cb5c36", bodyBg: "#fffaf7", border: "#f2c8b9", variant: "delivery", sectionId: "productos"),
             Footer("Totales", 3, new[]
             {
                 F("totalSubtotal", "Subtotal",  fmt: "currency", bold: true, inline: false),
                 F("totalDiscount", "Descuento", fmt: "currency", inline: true),
                 F("totalTax",      "IVA",       fmt: "currency", inline: false),
                 F("totalAmount",   "Total",     fmt: "currency", bold: true, inline: true),
-            }, titleBg: "#8b3d23", bodyBg: "#fff3ee", border: "#f2c8b9", variant: "delivery"),
+            }, titleBg: "#8b3d23", bodyBg: "#fff3ee", border: "#f2c8b9", variant: "delivery", sectionId: "totales"),
         });
 
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // COMPLEMENTO DE PAGO CFDI
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+        private static string BuildPaymentTemplate() => Json(new[]
+        {
+            Header("Emisor", 1, new[]
+            {
+                F("emisorNombre",        "Emisor",             bold: true),
+                F("emisorRfc",           "RFC Emisor",         inline: true),
+                F("emisorRegimenFiscal", "Régimen Fiscal",     inline: false),
+                F("lugarExpedicion",     "Lugar Expedición",   inline: true),
+            }, titleBg: "#1a3c6e", bodyBg: "#f3f7fd", border: "#b8cce8", variant: "fiscal", sectionId: "emisor"),
+            Header("Receptor", 2, new[]
+            {
+                F("receptorNombre",          "Receptor",           bold: true),
+                F("receptorRfc",             "RFC Receptor",       inline: true),
+                F("receptorRegimenFiscal",   "Régimen Fiscal",     inline: false),
+                F("receptorUsoCfdi",         "Uso CFDI",           inline: true),
+                F("receptorDomicilioFiscal", "Domicilio Fiscal",   inline: false),
+            }, titleBg: "#1a3c6e", bodyBg: "#f7f9fc", border: "#b8cce8", variant: "fiscal", sectionId: "receptor"),
+            Header("Datos del Pago", 3, new[]
+            {
+                F("complementSerie",  "Serie",              inline: false),
+                F("complementFolio",  "Folio",              bold: true,  inline: true),
+                F("paymentDate",      "Fecha de Pago",      fmt: "datetime", inline: false),
+                F("totalAmount",      "Monto Total",        fmt: "currency", bold: true, inline: true),
+                F("currency",         "Moneda",             inline: false),
+                F("paymentFormSAT",   "Forma de Pago SAT",  inline: true),
+                // Campos disponibles (ocultos por defecto)
+                F("exchangeRate",         "Tipo de cambio",             fmt: "number",   visible: false, inline: true),
+                F("reference",            "Referencia bancaria",        visible: false),
+                F("bankOrigin",           "Banco origen",               visible: false, inline: true),
+                F("bankAccountOrigin",    "Cuenta origen",              visible: false, inline: true),
+                F("bankDestination",      "Banco destino",              visible: false),
+                F("bankAccountDestination","Cuenta destino",            visible: false, inline: true),
+                F("notes",                "Notas",                      visible: false),
+            }, titleBg: "#1a3c6e", bodyBg: "#eef4ff", border: "#b8cce8", variant: "fiscal", sectionId: "pago"),
+            Table("Facturas Aplicadas", 4, new[]
+            {
+                C("serieAndFolio",     "Serie/Folio",     80),
+                C("amountApplied",     "Importe Pagado",  85,  fmt: "currency", align: "right"),
+                C("previousBalance",   "Saldo Anterior",  85,  fmt: "currency", align: "right"),
+                C("newBalance",        "Saldo Insoluto",  85,  fmt: "currency", align: "right"),
+                C("partialityNumber",  "Parcialidad",     65,  fmt: "number",   align: "center"),
+                // Columnas disponibles (ocultas por defecto)
+                C("folioUUID",             "UUID Factura",       0,  fmt: "text",     visible: false),
+                C("paymentType",           "Tipo de pago",      70,  fmt: "text",     visible: false),
+                C("originalInvoiceAmount", "Importe original",  85,  fmt: "currency", align: "right", visible: false),
+            }, titleBg: "#1a3c6e", bodyBg: "#ffffff", border: "#b8cce8", variant: "fiscal", sectionId: "facturas"),
+            Footer("Datos de Timbrado", 5, new[]
+            {
+                F("uuid",                "UUID / Folio Fiscal", bold: true),
+                F("timbradoAt",          "Fecha Timbrado",      fmt: "datetime", inline: true),
+                F("noCertificadoCfdi",   "No. Cert. CFDI",      inline: false),
+                F("noCertificadoSat",    "No. Cert. SAT",       inline: true),
+                F("qrCode",              "Código QR SAT",       fmt: "image"),
+                // Campos disponibles (ocultos por defecto)
+                F("selloCfdi",           "Sello CFDI",          visible: false),
+                F("selloSat",            "Sello SAT",           visible: false),
+                F("cadenaOriginalSat",   "Cadena original SAT", visible: false),
+            }, titleBg: "#1a3c6e", bodyBg: "#f3f7fd", border: "#b8cce8", variant: "fiscal", sectionId: "timbrado"),
+        });
+
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Helpers JSON
-        // ─────────────────────────────────────────────
+        // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         private static string Json(object sections) =>
             JsonSerializer.Serialize(sections, new JsonSerializerOptions { WriteIndented = false });
 
         private static object Header(string title, int order, object[] fields,
-            string? titleBg = null, string? bodyBg = null, string? border = null, string? variant = null) =>
-            new { type = "Header", title, order, showTitle = true, fields, columns = Array.Empty<object>(), titleBackground = titleBg, titleColor = "#ffffff", bodyBackground = bodyBg, borderColor = border, variant };
+            string? titleBg = null, string? bodyBg = null, string? border = null, string? variant = null, string? sectionId = null) =>
+            new { type = "Header", title, order, sectionId, showTitle = true, fields, columns = Array.Empty<object>(), titleBackground = titleBg, titleColor = "#ffffff", bodyBackground = bodyBg, borderColor = border, variant };
 
         private static object Table(string title, int order, object[] columns,
-            string? titleBg = null, string? bodyBg = null, string? border = null, string? variant = null) =>
-            new { type = "Table", title, order, showTitle = true, fields = Array.Empty<object>(), columns, titleBackground = titleBg, titleColor = "#ffffff", bodyBackground = bodyBg, borderColor = border, variant };
+            string? titleBg = null, string? bodyBg = null, string? border = null, string? variant = null, string? sectionId = null) =>
+            new { type = "Table", title, order, sectionId, showTitle = true, fields = Array.Empty<object>(), columns, titleBackground = titleBg, titleColor = "#ffffff", bodyBackground = bodyBg, borderColor = border, variant };
 
         private static object Footer(string title, int order, object[] fields,
-            string? titleBg = null, string? bodyBg = null, string? border = null, string? variant = null) =>
-            new { type = "Footer", title, order, showTitle = true, fields, columns = Array.Empty<object>(), titleBackground = titleBg, titleColor = "#ffffff", bodyBackground = bodyBg, borderColor = border, variant };
+            string? titleBg = null, string? bodyBg = null, string? border = null, string? variant = null, string? sectionId = null) =>
+            new { type = "Footer", title, order, sectionId, showTitle = true, fields, columns = Array.Empty<object>(), titleBackground = titleBg, titleColor = "#ffffff", bodyBackground = bodyBg, borderColor = border, variant };
 
         private static object F(string field, string label, string fmt = "text", bool bold = false,
-                                string align = "left", bool inline = false) =>
-            new { field, label, bold, fontSize = 9, align, format = fmt, inline };
+                                string align = "left", bool inline = false, bool visible = true) =>
+            new { field, label, bold, fontSize = 9, align, format = fmt, inline, visible };
 
         private static object C(string field, string label, int width = 0, string fmt = "text",
-                                string align = "left", bool bold = false) =>
-            new { field, label, width, align, format = fmt, bold };
+                                string align = "left", bool bold = false, bool visible = true) =>
+            new { field, label, width, align, format = fmt, bold, visible };
     }
 }

@@ -325,5 +325,63 @@ namespace Application.Core.Reports.Engine
                 ["trasladoTasa"]     = d.TieneTraslados ? (d.TrasladoTasaOCuota ?? 0m) : 0m,
                 ["trasladoImporte"]  = d.TieneTraslados ? (d.TrasladoImporte ?? 0m) : 0m,
             }).ToList();
+
+        // ─────────────────────────────────────────────
+        // COMPLEMENTO DE PAGO CFDI
+        // ─────────────────────────────────────────────
+
+        public static Dictionary<string, object?> FromPayment(Payment p) => new()
+        {
+            // Comprobante
+            ["paymentNumber"]           = p.PaymentNumber,
+            ["paymentDate"]             = p.PaymentDate,
+            ["totalAmount"]             = p.TotalAmount,
+            ["currency"]                = p.Currency,
+            ["exchangeRate"]            = p.ExchangeRate,
+            ["paymentFormSAT"]          = p.PaymentFormSAT,
+            ["reference"]               = p.Reference ?? "",
+            ["bankOrigin"]              = p.BankOrigin ?? "",
+            ["bankAccountOrigin"]       = p.BankAccountOrigin ?? "",
+            ["bankDestination"]         = p.BankDestination ?? "",
+            ["bankAccountDestination"]  = p.BankAccountDestination ?? "",
+            // Serie/Folio del complemento
+            ["complementSerie"]         = p.ComplementSerie ?? "",
+            ["complementFolio"]         = p.ComplementFolio ?? "",
+            ["uuid"]                    = p.Uuid ?? "",
+            ["timbradoAt"]              = p.TimbradoAt,
+            // Emisor
+            ["companyLogoUrl"]          = p.Company?.LogoUrl ?? "",
+            ["emisorRfc"]               = p.EmisorRfc ?? "",
+            ["emisorNombre"]            = p.EmisorNombre ?? "",
+            ["emisorRegimenFiscal"]     = p.EmisorRegimenFiscal ?? "",
+            ["lugarExpedicion"]         = p.LugarExpedicion ?? "",
+            // Receptor
+            ["receptorRfc"]             = p.ReceptorRfc ?? "",
+            ["receptorNombre"]          = p.ReceptorNombre ?? "",
+            ["receptorDomicilioFiscal"] = p.ReceptorDomicilioFiscal ?? "",
+            ["receptorRegimenFiscal"]   = p.ReceptorRegimenFiscal ?? "",
+            ["receptorUsoCfdi"]         = p.ReceptorUsoCfdi ?? "",
+            // Timbrado
+            ["noCertificadoCfdi"]       = p.NoCertificadoCfdi ?? "",
+            ["noCertificadoSat"]        = p.NoCertificadoSat ?? "",
+            ["selloCfdi"]               = p.SelloCfdi ?? "",
+            ["selloSat"]                = p.SelloSat ?? "",
+            ["cadenaOriginalSat"]       = p.CadenaOriginalSat ?? "",
+            ["qrCode"]                  = p.QrCode ?? "",
+            ["notes"]                   = p.Notes ?? "",
+        };
+
+        public static List<Dictionary<string, object?>> FromPaymentApplications(Payment p) =>
+            p.PaymentApplications.Select(a => new Dictionary<string, object?>
+            {
+                ["serieAndFolio"]             = a.SerieAndFolio,
+                ["folioUUID"]                 = a.FolioUUID,
+                ["originalInvoiceAmount"]     = a.OriginalInvoiceAmount,
+                ["partialityNumber"]          = a.PartialityNumber,
+                ["previousBalance"]           = a.PreviousBalance,
+                ["amountApplied"]             = a.AmountApplied,
+                ["newBalance"]                = a.NewBalance,
+                ["paymentType"]               = a.PaymentType,
+            }).ToList();
     }
 }

@@ -39,13 +39,18 @@ namespace Domain.Entities
         public bool IsActive { get; set; } = true;
 
         /// <summary>
-        /// Configuración de secciones en JSON:
+        /// Configuración de secciones en JSON (motor legacy QuestPDF):
         /// [{ "type": "Header|Table|Summary|Footer", "title": "...", "order": 1,
         ///    "fields": [{ "field": "key", "label": "...", "bold": false, "fontSize": 9, "align": "left", "format": "text|currency|date|number" }],
         ///    "columns": [{ "field": "key", "label": "...", "width": 80, "align": "left", "format": "text|currency|date|number" }] }]
         /// </summary>
-        [Required]
         public string SectionsJson { get; set; } = "[]";
+
+        /// <summary>
+        /// Plantilla HTML con placeholders Liquid ({{ variable }}, {% for item in items %}...{% endfor %}).
+        /// Cuando está presente, se usa Playwright para convertir HTML → PDF en lugar de QuestPDF.
+        /// </summary>
+        public string? HtmlTemplate { get; set; }
 
         /// <summary>
         /// Descripción opcional de la plantilla

@@ -33,6 +33,7 @@ namespace Application.Core.Reports.Engine
                 "Inventory"           => GetInventoryCatalog(),
                 "CashierShift"        => GetCashierShiftCatalog(),
                 "Invoice"             => GetInvoiceCatalog(),
+                "Payment"             => GetPaymentCatalog(),
                 _                     => throw new ArgumentException($"Tipo de reporte desconocido: {reportType}")
             };
         }
@@ -268,6 +269,61 @@ namespace Application.Core.Reports.Engine
                 F("discountAmount",     "Descuento total",          FieldFormat.Currency,   HeaderSummaryFooter),
                 F("taxAmount",          "Impuestos trasladados",    FieldFormat.Currency,   HeaderSummaryFooter),
                 F("total",              "Total",                    FieldFormat.Currency,   HeaderSummaryFooter),
+            }
+        };
+
+        // ─────────────────────────────────────────────
+        // COMPLEMENTO DE PAGO CFDI
+        // ─────────────────────────────────────────────
+        private static ReportFieldCatalogDto GetPaymentCatalog() => new()
+        {
+            ReportType = "Payment",
+            AvailableSectionTypes = new() { SectionType.Header, SectionType.Table, SectionType.Summary, SectionType.Footer },
+            Fields = new()
+            {
+                // Emisor
+                F("emisorRfc",               "RFC emisor",               FieldFormat.Text,     HeaderSummaryFooter),
+                F("emisorNombre",            "Razón social emisor",      FieldFormat.Text,     HeaderSummaryFooter),
+                F("emisorRegimenFiscal",     "Régimen fiscal emisor",    FieldFormat.Text,     HeaderSummaryFooter),
+                F("lugarExpedicion",         "Lugar de expedición (CP)", FieldFormat.Text,     HeaderSummaryFooter),
+                // Receptor
+                F("receptorRfc",             "RFC receptor",             FieldFormat.Text,     HeaderSummaryFooter),
+                F("receptorNombre",          "Razón social receptor",    FieldFormat.Text,     HeaderSummaryFooter),
+                F("receptorDomicilioFiscal", "CP domicilio fiscal",      FieldFormat.Text,     HeaderSummaryFooter),
+                F("receptorRegimenFiscal",   "Régimen fiscal receptor",  FieldFormat.Text,     HeaderSummaryFooter),
+                F("receptorUsoCfdi",         "Uso CFDI",                 FieldFormat.Text,     HeaderSummaryFooter),
+                // Datos del complemento
+                F("complementSerie",         "Serie",                    FieldFormat.Text,     HeaderSummaryFooter),
+                F("complementFolio",         "Folio",                    FieldFormat.Text,     HeaderSummaryFooter),
+                F("paymentDate",             "Fecha de pago",            FieldFormat.DateTime, HeaderSummaryFooter),
+                F("totalAmount",             "Monto total",              FieldFormat.Currency, HeaderSummaryFooter),
+                F("currency",                "Moneda",                   FieldFormat.Text,     HeaderSummaryFooter),
+                F("exchangeRate",            "Tipo de cambio",           FieldFormat.Number,   HeaderSummaryFooter),
+                F("paymentFormSAT",          "Forma de pago (SAT)",      FieldFormat.Text,     HeaderSummaryFooter),
+                F("reference",               "Referencia bancaria",      FieldFormat.Text,     HeaderSummaryFooter),
+                F("bankOrigin",              "Banco origen",             FieldFormat.Text,     HeaderSummaryFooter),
+                F("bankAccountOrigin",       "Cuenta origen",            FieldFormat.Text,     HeaderSummaryFooter),
+                F("bankDestination",         "Banco destino",            FieldFormat.Text,     HeaderSummaryFooter),
+                F("bankAccountDestination",  "Cuenta destino",           FieldFormat.Text,     HeaderSummaryFooter),
+                F("notes",                   "Notas",                    FieldFormat.Text,     HeaderSummaryFooter),
+                // Timbrado
+                F("uuid",                    "UUID / Folio Fiscal",      FieldFormat.Text,     HeaderSummaryFooter),
+                F("timbradoAt",              "Fecha timbrado",           FieldFormat.DateTime, HeaderSummaryFooter),
+                F("noCertificadoCfdi",       "No. Cert. CFDI",           FieldFormat.Text,     HeaderSummaryFooter),
+                F("noCertificadoSat",        "No. Cert. SAT",            FieldFormat.Text,     HeaderSummaryFooter),
+                F("selloCfdi",               "Sello CFDI",               FieldFormat.Text,     HeaderSummaryFooter),
+                F("selloSat",                "Sello SAT",                FieldFormat.Text,     HeaderSummaryFooter),
+                F("cadenaOriginalSat",       "Cadena original SAT",      FieldFormat.Text,     HeaderSummaryFooter),
+                F("qrCode",                  "Código QR SAT",            FieldFormat.Image,    HeaderSummaryFooter),
+                // Facturas aplicadas (tabla)
+                F("serieAndFolio",           "Serie/Folio factura",      FieldFormat.Text,     TableOnly),
+                F("folioUUID",               "UUID factura",             FieldFormat.Text,     TableOnly),
+                F("partialityNumber",        "Parcialidad",              FieldFormat.Number,   TableOnly),
+                F("originalInvoiceAmount",   "Importe original",         FieldFormat.Currency, TableOnly),
+                F("previousBalance",         "Saldo anterior",           FieldFormat.Currency, TableOnly),
+                F("amountApplied",           "Importe pagado",           FieldFormat.Currency, TableOnly),
+                F("newBalance",              "Saldo insoluto",           FieldFormat.Currency, TableOnly),
+                F("paymentType",             "Tipo de pago",             FieldFormat.Text,     TableOnly),
             }
         };
 

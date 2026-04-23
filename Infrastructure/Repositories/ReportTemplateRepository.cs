@@ -75,9 +75,10 @@ namespace Infrastructure.Repositories
             await _context.ReportTemplates
                 .Where(t =>
                     t.ReportType == reportType &&
-                    t.IsDefault &&
                     (t.CompanyId == companyId || (companyId == null && t.CompanyId == null)))
-                .ExecuteUpdateAsync(s => s.SetProperty(t => t.IsDefault, false));
+                .ExecuteUpdateAsync(s =>
+                    s.SetProperty(t => t.IsDefault, false)
+                     .SetProperty(t => t.IsActive, false));
         }
     }
 }

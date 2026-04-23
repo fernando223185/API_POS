@@ -222,6 +222,12 @@ builder.Services.AddScoped<Application.Abstractions.Quotations.IQuotationReposit
 // ✅ NUEVO: Plantillas de reportes personalizables
 builder.Services.AddScoped<Application.Abstractions.Reports.IReportTemplateRepository, ReportTemplateRepository>();
 
+// ✅ Motor HTML → PDF (Playwright + Fluid/Liquid)
+builder.Services.AddScoped<Application.Abstractions.Reports.ITemplateRenderService,
+    Application.Core.Reports.Engine.FluidTemplateRenderService>();
+builder.Services.AddScoped<Application.Abstractions.Reports.IPdfRenderService,
+    Infrastructure.Services.PlaywrightPdfRenderService>();
+
 builder.Services.AddHostedService<InvoiceDueAlertJob>();
 builder.Services.AddHostedService<StockAlertJob>();
 
@@ -238,8 +244,19 @@ builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(Infrastructure.AssemblyReference).Assembly); // ✅ NUEVO - Escanear Infrastructure
 });
 
-// Licencia comunitaria de QuestPDF
+// Licencia comunitaria de QuestPDF (motor legacy)
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
+// Instalar Chromium para Playwright si aún no está presente
+try
+{
+    Microsoft.Playwright.Program.Main(new[] { "install", "chromium" });
+    Console.WriteLine("✅ Playwright Chromium verificado/instalado");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"⚠️  No se pudo verificar Playwright Chromium: {ex.Message}");
+}
 
 var app = builder.Build();
 

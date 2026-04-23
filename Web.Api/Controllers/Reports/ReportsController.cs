@@ -43,6 +43,51 @@ namespace Web.Api.Controllers.Reports
         // ─────────────────────────────────────────────
 
         /// <summary>
+        /// Renderiza un HTML Liquid con datos de ejemplo SIN guardarlo.
+        /// Úsalo en el editor de plantillas para obtener el preview en tiempo real
+        /// mientras el usuario escribe, antes de hacer clic en "Guardar".
+        /// POST /api/reports/templates/live-preview
+        /// </summary>
+        [HttpPost("templates/live-preview")]
+        public async Task<IActionResult> LivePreview([FromBody] LivePreviewRequestDto request)
+        {
+            try
+            {
+                var html = await _mediator.Send(new GetLivePreviewHtmlQuery(request.ReportType, request.HtmlTemplate));
+                return Content(html, "text/html; charset=utf-8");
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+        }
+
+        /// <summary>
+        /// Obtiene la plantilla activa (IsDefault=true, IsActive=true) para un tipo de reporte.
+        /// Solo puede existir una plantilla activa por tipo — esta es la que se usa para generar PDFs.
+        /// GET /api/reports/templates/active/{type}
+        /// </summary>
+        [HttpGet("templates/active/{type}")]
+        public async Task<IActionResult> GetActiveTemplate(string type, [FromQuery] int? companyId = null)
+        {
+            try
+            {
+                var result = await _mediator.Send(new GetActiveTemplateByTypeQuery(type, companyId));
+                if (result is null)
+                    return NotFound(new { message = $"No hay plantilla activa para el tipo '{type}'", error = 1 });
+                return Ok(new { data = result, error = 0 });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+        }
+
+        /// <summary>
         /// Lista las plantillas guardadas. Si se indica type, filtra por tipo de reporte.
         /// GET /api/reports/templates
         /// GET /api/reports/templates?type=Sales&companyId=1

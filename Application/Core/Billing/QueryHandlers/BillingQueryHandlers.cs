@@ -1,3 +1,4 @@
+using Application.Abstractions.Reports;
 using Application.Abstractions.Sales;
 using Application.Core.Billing.Documents;
 using Application.Core.Billing.Queries;
@@ -497,14 +498,20 @@ namespace Application.Core.Billing.QueryHandlers
     public class GetInvoicePdfQueryHandler : IRequestHandler<GetInvoicePdfQuery, (byte[] Bytes, string FileName)>
     {
         private readonly Application.Abstractions.Billing.IInvoiceRepository _invoiceRepository;
-        private readonly Application.Abstractions.Reports.IReportTemplateRepository _templateRepository;
+        private readonly IReportTemplateRepository _templateRepository;
+        private readonly ITemplateRenderService _templateRender;
+        private readonly IPdfRenderService _pdfRender;
 
         public GetInvoicePdfQueryHandler(
             Application.Abstractions.Billing.IInvoiceRepository invoiceRepository,
-            Application.Abstractions.Reports.IReportTemplateRepository templateRepository)
+            IReportTemplateRepository templateRepository,
+            ITemplateRenderService templateRender,
+            IPdfRenderService pdfRender)
         {
             _invoiceRepository = invoiceRepository;
             _templateRepository = templateRepository;
+            _templateRender = templateRender;
+            _pdfRender = pdfRender;
         }
 
         public async Task<(byte[] Bytes, string FileName)> Handle(
@@ -519,18 +526,28 @@ namespace Application.Core.Billing.QueryHandlers
 
             var template = await _templateRepository.GetDefaultByTypeAsync("Invoice", invoice.CompanyId)
                 ?? await _templateRepository.GetDefaultByTypeAsync("Invoice", null)
-                ?? throw new InvalidOperationException("No hay una plantilla por defecto para Facturas. Crea una desde el Report Builder.");
+                ?? throw new InvalidOperationException("No hay una plantilla activa para Facturas. Activa una desde el Report Builder.");
 
-            var sections = Reports.QueryHandlers.GetReportTemplateByIdQueryHandler
-                .EnsureInvoiceVisualSections(
-                    Reports.QueryHandlers.GetReportTemplateByIdQueryHandler
-                        .DeserializeSections(template.SectionsJson));
-
-            var bytes = Reports.Engine.ReportPdfEngine.Generate(
-                sections,
-                new() { Reports.Engine.ReportDataProvider.FromInvoice(invoice) },
-                Reports.Engine.ReportDataProvider.FromInvoiceDetails(invoice),
-                template.Name);
+            byte[] bytes;
+            if (template.HtmlTemplate != null)
+            {
+                var header = Reports.Engine.ReportDataProvider.FromInvoice(invoice);
+                var items  = Reports.Engine.ReportDataProvider.FromInvoiceDetails(invoice);
+                var html   = _templateRender.Render(template.HtmlTemplate, header, items);
+                bytes = await _pdfRender.RenderHtmlToPdfAsync(html);
+            }
+            else
+            {
+                var sections = Reports.QueryHandlers.GetReportTemplateByIdQueryHandler
+                    .EnsureInvoiceVisualSections(
+                        Reports.QueryHandlers.GetReportTemplateByIdQueryHandler
+                            .DeserializeSections(template.SectionsJson));
+                bytes = Reports.Engine.ReportPdfEngine.Generate(
+                    sections,
+                    new() { Reports.Engine.ReportDataProvider.FromInvoice(invoice) },
+                    Reports.Engine.ReportDataProvider.FromInvoiceDetails(invoice),
+                    template.Name);
+            }
 
             var fileName = $"{invoice.Serie}-{invoice.Folio}_{invoice.Uuid}.pdf";
             return (bytes, fileName);

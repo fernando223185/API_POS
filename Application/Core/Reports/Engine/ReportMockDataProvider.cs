@@ -20,6 +20,7 @@ namespace Application.Core.Reports.Engine
                 "Inventory"           => InventoryMockRow(),
                 "CashierShift"        => CashierShiftMockRow(),
                 "Invoice"             => InvoiceMockRow(),
+                "Payment"             => PaymentMockRow(),
                 _                     => new()
             };
 
@@ -32,6 +33,7 @@ namespace Application.Core.Reports.Engine
                 "Inventory"           => InventoryMockTableRows(),
                 "CashierShift"        => CashierShiftMockTableRows(),
                 "Invoice"             => InvoiceMockTableRows(),
+                "Payment"             => PaymentMockTableRows(),
                 _                     => new()
             };
 
@@ -425,6 +427,72 @@ namespace Application.Core.Reports.Engine
                 new() { ClaveProdServ = "43211503", NoIdentificacion = "PROD-001", Descripcion = "Laptop Lenovo IdeaPad 15\"", Cantidad = 1m, ClaveUnidad = "H87", Unidad = "Pieza", ValorUnitario = 950.00m, Descuento = 47.50m, Importe = 902.50m, TieneTraslados = true, TrasladoImporte = 144.40m },
                 new() { ClaveProdServ = "43211706", NoIdentificacion = "PROD-017", Descripcion = "Mouse inalámbrico Logitech",    Cantidad = 2m, ClaveUnidad = "H87", Unidad = "Pieza", ValorUnitario = 175.00m, Descuento = 0m,    Importe = 350.00m, TieneTraslados = true, TrasladoImporte = 56.00m  },
                 new() { ClaveProdServ = "43211706", NoIdentificacion = "PROD-043", Descripcion = "Teclado USB compacto",         Cantidad = 1m, ClaveUnidad = "H87", Unidad = "Pieza", ValorUnitario = 125.00m, Descuento = 0m,    Importe = 125.00m, TieneTraslados = true, TrasladoImporte = 20.00m  },
+            },
+        };
+
+        // ─────────────────────────────────────────────
+        // COMPLEMENTO DE PAGO
+        // ─────────────────────────────────────────────
+
+        private static Dictionary<string, string> PaymentMockRow() => new()
+        {
+            ["paymentNumber"]           = "PAG-2026-0042",
+            ["paymentDate"]             = "18/04/2026",
+            ["totalAmount"]             = "$5,800.00",
+            ["currency"]                = "MXN",
+            ["exchangeRate"]            = "1.00",
+            ["paymentFormSAT"]          = "03",
+            ["reference"]               = "REF-TRF-88210",
+            ["bankOrigin"]              = "BBVA Bancomer",
+            ["bankAccountOrigin"]       = "012XXXXXXXX",
+            ["bankDestination"]         = "Banamex",
+            ["bankAccountDestination"]  = "002XXXXXXXX",
+            ["complementSerie"]         = "CP",
+            ["complementFolio"]         = "0042",
+            ["uuid"]                    = "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+            ["timbradoAt"]              = "18/04/2026 10:36",
+            ["companyLogoUrl"]          = "",
+            ["emisorRfc"]               = "EDE901231XX9",
+            ["emisorNombre"]            = "Empresa Demo S.A. de C.V.",
+            ["emisorRegimenFiscal"]     = "601",
+            ["lugarExpedicion"]         = "44100",
+            ["receptorRfc"]             = "GALM800101ABC",
+            ["receptorNombre"]          = "María García López",
+            ["receptorDomicilioFiscal"] = "44200",
+            ["receptorRegimenFiscal"]   = "612",
+            ["receptorUsoCfdi"]         = "CP01",
+            ["noCertificadoCfdi"]       = "30001000000500003316",
+            ["noCertificadoSat"]        = "30001000000500003456",
+            ["selloCfdi"]               = "ANyYyM6yX1d9obB6bf8g4eM6xt4FRPqs6nItJ241V/tOELJWCTXui4aPW38JCmGEw==",
+            ["selloSat"]                = "iWIbF+FCrJPlwysUfi9p5fyTKAy+KDd1nAfmPIAy2NS8FeHJVxdxNh2XAXIQ==",
+            ["cadenaOriginalSat"]       = "||1.1|B2C3D4E5-F6A7-8901-BCDE-F12345678901|2026-04-18T10:36:00|SPR190613I52|ANyYyM6yX1d9==|30001000000500003456||",
+            ["qrCode"]                  = SampleQrPngBase64,
+            ["notes"]                   = "",
+        };
+
+        private static List<Dictionary<string, string>> PaymentMockTableRows() => new()
+        {
+            new()
+            {
+                ["serieAndFolio"]             = "A-00121",
+                ["folioUUID"]                 = "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+                ["originalInvoiceAmount"]     = "$3,480.00",
+                ["partialityNumber"]          = "1",
+                ["previousBalance"]           = "$3,480.00",
+                ["amountApplied"]             = "$3,480.00",
+                ["newBalance"]                = "$0.00",
+                ["paymentType"]               = "FullPayment",
+            },
+            new()
+            {
+                ["serieAndFolio"]             = "A-00118",
+                ["folioUUID"]                 = "C3D4E5F6-A7B8-9012-CDEF-123456789012",
+                ["originalInvoiceAmount"]     = "$4,640.00",
+                ["partialityNumber"]          = "2",
+                ["previousBalance"]           = "$2,320.00",
+                ["amountApplied"]             = "$2,320.00",
+                ["newBalance"]                = "$0.00",
+                ["paymentType"]               = "PartialPayment",
             },
         };
     }

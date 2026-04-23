@@ -70,6 +70,10 @@ namespace Application.DTOs.Reports
         /// <summary>Mostrar en la misma línea que el campo anterior (grid de 2 columnas)</summary>
         [JsonPropertyName("inline")]
         public bool Inline { get; set; }
+
+        /// <summary>Mostrar este campo en el PDF. false = disponible para agregar, pero actualmente oculto.</summary>
+        [JsonPropertyName("visible")]
+        public bool Visible { get; set; } = true;
     }
 
     /// <summary>
@@ -95,6 +99,10 @@ namespace Application.DTOs.Reports
 
         [JsonPropertyName("bold")]
         public bool Bold { get; set; }
+
+        /// <summary>Mostrar esta columna en el PDF. false = disponible para agregar, pero actualmente oculta.</summary>
+        [JsonPropertyName("visible")]
+        public bool Visible { get; set; } = true;
     }
 
     /// <summary>
@@ -112,6 +120,14 @@ namespace Application.DTOs.Reports
         [JsonPropertyName("order")]
         public int Order { get; set; }
 
+        /// <summary>
+        /// Identificador único de la sección. Coincide con el atributo id="sec-{sectionId}"
+        /// del elemento HTML en la plantilla. Permite al frontend ocultar/mostrar la sección
+        /// inyectando CSS: #sec-{sectionId} { display: none }
+        /// </summary>
+        [JsonPropertyName("sectionId")]
+        public string? SectionId { get; set; }
+
         /// <summary>Campos para Header/Summary/Footer</summary>
         [JsonPropertyName("fields")]
         public List<ReportSectionField> Fields { get; set; } = new();
@@ -123,6 +139,10 @@ namespace Application.DTOs.Reports
         /// <summary>Mostrar título de sección en el PDF</summary>
         [JsonPropertyName("showTitle")]
         public bool ShowTitle { get; set; } = true;
+
+        /// <summary>Mostrar esta sección en el PDF. false = disponible para agregar, pero actualmente oculta.</summary>
+        [JsonPropertyName("visible")]
+        public bool Visible { get; set; } = true;
 
         [JsonPropertyName("titleBackground")]
         public string? TitleBackground { get; set; }
@@ -147,11 +167,14 @@ namespace Application.DTOs.Reports
     public class CreateReportTemplateDto
     {
         public string Name { get; set; } = string.Empty;
-        /// <summary>Sales | Delivery | Quotation | Purchase | Inventory | CashierShift</summary>
+        /// <summary>Sales | Delivery | Quotation | Purchase | Inventory | CashierShift | Invoice</summary>
         public string ReportType { get; set; } = string.Empty;
         public string? Description { get; set; }
         public bool IsDefault { get; set; }
+        /// <summary>Configuración de secciones y campos. Define qué información se muestra u oculta en el PDF.</summary>
         public List<ReportSectionDefinition> Sections { get; set; } = new();
+        /// <summary>Plantilla HTML con sintaxis Liquid. Cuando está presente se usa Playwright para generar el PDF.</summary>
+        public string? HtmlTemplate { get; set; }
     }
 
     public class UpdateReportTemplateDto
@@ -159,7 +182,10 @@ namespace Application.DTOs.Reports
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public bool IsDefault { get; set; }
+        /// <summary>Configuración de secciones y campos. Define qué información se muestra u oculta en el PDF.</summary>
         public List<ReportSectionDefinition> Sections { get; set; } = new();
+        /// <summary>Plantilla HTML con sintaxis Liquid. Cuando está presente se usa Playwright para generar el PDF.</summary>
+        public string? HtmlTemplate { get; set; }
     }
 
     public class ReportTemplateResponseDto
@@ -170,7 +196,12 @@ namespace Application.DTOs.Reports
         public string? Description { get; set; }
         public bool IsDefault { get; set; }
         public bool IsActive { get; set; }
+        /// <summary>Configuración de secciones y campos. Visible=true = se muestra en el PDF; Visible=false = disponible para agregar.</summary>
         public List<ReportSectionDefinition> Sections { get; set; } = new();
+        /// <summary>Plantilla HTML Liquid. Presente cuando se usa el motor Playwright.</summary>
+        public string? HtmlTemplate { get; set; }
+        /// <summary>html | sections</summary>
+        public string Engine => HtmlTemplate != null ? "html" : "sections";
         public int? CompanyId { get; set; }
         public int? CreatedByUserId { get; set; }
         public string? CreatedByName { get; set; }
@@ -218,7 +249,7 @@ namespace Application.DTOs.Reports
     {
         /// <summary>ID de la plantilla a usar (null = usar default del tipo)</summary>
         public int? TemplateId { get; set; }
-        /// <summary>Sales | Delivery | Quotation | Purchase | Inventory | CashierShift</summary>
+        /// <summary>Sales | Delivery | Quotation | Purchase | Inventory | CashierShift | Invoice | Payment</summary>
         public string ReportType { get; set; } = string.Empty;
         /// <summary>IDs de los documentos a incluir (ventas, cotizaciones, etc.)</summary>
         public List<int> DocumentIds { get; set; } = new();
@@ -227,6 +258,18 @@ namespace Application.DTOs.Reports
         public DateTime? ToDate { get; set; }
         public int? WarehouseId { get; set; }
         public int? CompanyId { get; set; }
+    }
+
+    // ─────────────────────────────────────────────
+    // DTO PARA LIVE PREVIEW (sin guardar)
+    // ─────────────────────────────────────────────
+
+    public class LivePreviewRequestDto
+    {
+        /// <summary>Sales | Delivery | Quotation | Purchase | Inventory | CashierShift | Invoice | Payment</summary>
+        public string ReportType { get; set; } = string.Empty;
+        /// <summary>HTML con sintaxis Liquid. Se renderizará con datos mock del tipo indicado.</summary>
+        public string HtmlTemplate { get; set; } = string.Empty;
     }
 
     // ─────────────────────────────────────────────
