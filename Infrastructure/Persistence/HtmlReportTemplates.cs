@@ -512,9 +512,9 @@ tbody td.c { text-align: center; }
     <div class=""doc-box"">
       <span class=""cfdi-badge"">CFDI 4.0</span>
       <div class=""doc-box-label"" style=""margin-top:6px"">FACTURA</div>
-      <div class=""doc-box-folio"" data-field=""folio"">{{{{ serie }}}}-{{{{ folio }}}}</div>
+      <div class=""doc-box-folio"" data-field=""invoiceFolio"">{{{{ invoiceSerie }}}}-{{{{ invoiceFolio }}}}</div>
       <div class=""doc-box-date"" data-field=""invoiceDate"">{{{{ invoiceDate }}}}</div>
-      <div class=""doc-box-date"" data-field=""tipoComprobante"">Tipo: {{{{ tipoComprobante }}}}</div>
+      <div class=""doc-box-date"" data-field=""tipoDeComprobante"">Tipo: {{{{ tipoDeComprobante }}}}</div>
     </div>
   </div>
 
@@ -540,7 +540,7 @@ tbody td.c { text-align: center; }
     <div class=""section-title"">Conceptos</div>
     <table>
       <thead><tr>
-        <th class=""col-claveProdServ"">Clave SAT</th><th class=""col-noIdentificacion"">No. Ident.</th><th class=""c col-cantidad"">Cant.</th><th class=""col-claveUnidad"">UM</th><th class=""col-descripcion"">Descripción</th><th class=""r col-valorUnitario"">Precio Unit.</th><th class=""r col-importe"">Importe</th><th class=""r col-iva"">IVA</th>
+        <th class=""col-claveProdServ"">Clave SAT</th><th class=""col-noIdentificacion"">No. Ident.</th><th class=""c col-cantidad"">Cant.</th><th class=""col-claveUnidad"">UM</th><th class=""col-descripcion"">Descripción</th><th class=""r col-valorUnitario"">Precio Unit.</th><th class=""r col-importe"">Importe</th><th class=""r col-trasladoImporte"">IVA</th>
       </tr></thead>
       <tbody>
         {{% for item in items %}}
@@ -552,7 +552,7 @@ tbody td.c { text-align: center; }
           <td class=""col-descripcion"">{{{{ item.descripcion }}}}</td>
           <td class=""r col-valorUnitario"">{{{{ item.valorUnitario }}}}</td>
           <td class=""r col-importe"">{{{{ item.importe }}}}</td>
-          <td class=""r col-iva"">{{{{ item.iva }}}}</td>
+          <td class=""r col-iva"">{{{{ item.trasladoImporte }}}}</td>
         </tr>
         {{% endfor %}}
       </tbody>

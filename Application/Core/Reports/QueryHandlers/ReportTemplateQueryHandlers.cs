@@ -431,6 +431,7 @@ namespace Application.Core.Reports.QueryHandlers
         private readonly IPurchaseOrderRepository _purchaseRepo;
         private readonly ICashierShiftRepository _shiftRepo;
         private readonly IInvoiceRepository _invoiceRepo;
+        private readonly Application.Abstractions.AccountsReceivable.IPaymentRepository _paymentRepo;
         private readonly ITemplateRenderService _templateRender;
         private readonly IPdfRenderService _pdfRender;
 
@@ -441,6 +442,7 @@ namespace Application.Core.Reports.QueryHandlers
             IPurchaseOrderRepository purchaseRepo,
             ICashierShiftRepository shiftRepo,
             IInvoiceRepository invoiceRepo,
+            Application.Abstractions.AccountsReceivable.IPaymentRepository paymentRepo,
             ITemplateRenderService templateRender,
             IPdfRenderService pdfRender)
         {
@@ -450,6 +452,7 @@ namespace Application.Core.Reports.QueryHandlers
             _purchaseRepo = purchaseRepo;
             _shiftRepo = shiftRepo;
             _invoiceRepo = invoiceRepo;
+            _paymentRepo = paymentRepo;
             _templateRender = templateRender;
             _pdfRender = pdfRender;
         }
@@ -493,6 +496,7 @@ namespace Application.Core.Reports.QueryHandlers
                 "Purchase"            => await GeneratePurchaseReportAsync(sections, data, reportTitle),
                 "CashierShift"        => await GenerateCashierShiftReportAsync(sections, data, reportTitle),
                 "Invoice"             => await GenerateInvoiceReportAsync(sections, data, reportTitle),
+                "Payment"             => await GeneratePaymentReportAsync(sections, data, reportTitle),
                 _                     => throw new ArgumentException($"Tipo de reporte no soportado: {data.ReportType}")
             };
         }
@@ -611,6 +615,7 @@ namespace Application.Core.Reports.QueryHandlers
                 "Purchase"            => await BuildPurchaseDataAsync(data),
                 "CashierShift"        => await BuildCashierShiftDataAsync(data),
                 "Invoice"             => await BuildInvoiceDataAsync(data),
+                "Payment"             => await BuildPaymentDataAsync(data),
                 _                     => throw new ArgumentException($"Tipo de reporte no soportado: {data.ReportType}")
             };
         }
@@ -677,6 +682,25 @@ namespace Application.Core.Reports.QueryHandlers
             var inv = await _invoiceRepo.GetByIdAsync(data.DocumentIds[0])
                 ?? throw new KeyNotFoundException($"Factura {data.DocumentIds[0]} no encontrada");
             return (new() { ReportDataProvider.FromInvoice(inv) }, ReportDataProvider.FromInvoiceDetails(inv));
+        }
+
+        private async Task<(List<Dictionary<string, object?>>, List<Dictionary<string, object?>>)> BuildPaymentDataAsync(GenerateReportDto data)
+        {
+            if (!data.DocumentIds.Any()) throw new InvalidOperationException("Debe especificar el ID del complemento de pago");
+            var payment = await _paymentRepo.GetByIdAsync(data.DocumentIds[0])
+                ?? throw new KeyNotFoundException($"Complemento de pago {data.DocumentIds[0]} no encontrado");
+            return (new() { ReportDataProvider.FromPayment(payment) }, ReportDataProvider.FromPaymentApplications(payment));
+        }
+
+        private async Task<byte[]> GeneratePaymentReportAsync(
+            List<ReportSectionDefinition> sections, GenerateReportDto data, string title)
+        {
+            if (!data.DocumentIds.Any()) throw new InvalidOperationException("Debe especificar el ID del complemento de pago");
+            var payment = await _paymentRepo.GetByIdAsync(data.DocumentIds[0])
+                ?? throw new KeyNotFoundException($"Complemento de pago {data.DocumentIds[0]} no encontrado");
+            var dataRow   = ReportDataProvider.FromPayment(payment);
+            var tableRows = ReportDataProvider.FromPaymentApplications(payment);
+            return ReportPdfEngine.Generate(sections, new() { dataRow }, tableRows, title);
         }
     }
 }

@@ -173,6 +173,8 @@ builder.Services.AddScoped<IBranchRepository, BranchRepository>();  // ✅ NUEVO
 builder.Services.AddScoped<IWarehouseRepository, WarehouseRepository>();  // ✅ NUEVO
 builder.Services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();  // ✅ NUEVO - Órdenes de Compra
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();  // ✅ NUEVO - Proveedores
+builder.Services.AddScoped<Application.Abstractions.Shipping.IShippingCarrierRepository, ShippingCarrierRepository>();  // ✅ NUEVO - Paqueterías
+builder.Services.AddScoped<Application.Abstractions.Backup.IBackupService, BackupService>();  // ✅ NUEVO - Respaldos
 builder.Services.AddScoped<IPurchaseOrderReceivingRepository, PurchaseOrderReceivingRepository>();  // ✅ NUEVO - Recepciones
 builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();  // ✅ NUEVO - Empresas
 builder.Services.AddScoped<Application.Abstractions.Inventory.IStockTransferRepository, StockTransferRepository>();  // ✅ NUEVO - Traspasos

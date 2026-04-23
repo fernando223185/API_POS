@@ -87,6 +87,12 @@ namespace Infrastructure.Persistence
         // ✅ NUEVO: Plantillas de reportes personalizables
         public DbSet<ReportTemplate> ReportTemplates { get; set; }
 
+        // ✅ NUEVO: Paqueterías / Transportistas
+        public DbSet<ShippingCarrier> ShippingCarriers { get; set; }
+
+        // ✅ NUEVO: Historial de respaldos de base de datos
+        public DbSet<BackupRecord> BackupRecords { get; set; }
+
         // ✅ NUEVO: Catálogos SAT para facturación
         public DbSet<SatUsoCfdi> SatUsoCfdi { get; set; }
         public DbSet<SatRegimenFiscal> SatRegimenFiscal { get; set; }
