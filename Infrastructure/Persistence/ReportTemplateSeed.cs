@@ -23,6 +23,8 @@ namespace Infrastructure.Persistence
                 ("Payment",      "Complemento de Pago CFDI",      HtmlReportTemplates.Payment,      BuildPaymentTemplate()),
                 ("Quotation",    "Cotización",                    HtmlReportTemplates.Quotation,    BuildQuotationTemplate()),
                 ("Delivery",     "Nota de Entrega",               HtmlReportTemplates.Delivery,     BuildDeliveryTemplate()),
+                ("WarehouseTransferDispatch",   "Traspaso de Almacén — Despacho/Salida",   HtmlReportTemplates.WarehouseTransferDispatch,   BuildWarehouseTransferDispatchTemplate()),
+                ("WarehouseTransferReceiving",  "Traspaso de Almacén — Recepción/Entrada", HtmlReportTemplates.WarehouseTransferReceiving,  BuildWarehouseTransferReceivingTemplate()),
             };
 
             bool changed = false;
@@ -403,6 +405,74 @@ namespace Infrastructure.Persistence
         // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // COMPLEMENTO DE PAGO CFDI
         // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+        private static string BuildWarehouseTransferDispatchTemplate() => Json(new[]
+        {
+            Header("Información del Traspaso", 1, new[]
+            {
+                F("transferCode",            "Orden de Traspaso",     bold: true),
+                F("transferDate",            "Fecha Traspaso",        fmt: "date",     inline: true),
+                F("dispatchedAt",            "Despachado el",         fmt: "datetime", inline: false),
+                F("sourceWarehouseName",     "Almacén Origen (Sale)", bold: true,     inline: true),
+                F("destinationWarehouseName","Almacén Destino (Recibe)", bold: true),
+                F("dispatchedByName",        "Despachado por",        inline: true),
+                F("createdByName",           "Creado por"),
+                F("totalProducts",           "Total Productos",       fmt: "number",   inline: true),
+                F("status",                  "Estado"),
+                F("notes",                   "Notas"),
+                F("companyName",             "Empresa",                               visible: false),
+                F("receivingUrl",            "URL de recepción móvil",               visible: false),
+            }, titleBg: "#1a3c6e", bodyBg: "#eef4ff", border: "#c8d9f6", variant: "corporate", sectionId: "traspaso"),
+            Table("Productos Despachados", 2, new[]
+            {
+                C("productCode",       "Código",         80),
+                C("productName",       "Producto",       0),
+                C("quantityRequested", "Solicitado",     70,  fmt: "number",   align: "center"),
+                C("quantityDispatched","Despachado",     70,  fmt: "number",   align: "center", bold: true),
+                C("unitCost",          "Costo Unit.",    70,  fmt: "currency", align: "right"),
+                C("lineTotal",         "Total Línea",    80,  fmt: "currency", align: "right"),
+                C("notes",             "Notas",          100),
+            }, titleBg: "#1a3c6e", bodyBg: "#f7faff", border: "#c8d9f6", variant: "corporate", sectionId: "productos"),
+            Footer("Totales y QR de Recepción", 3, new[]
+            {
+                F("totalQuantityDispatched", "Total Unidades Despachadas", fmt: "number", bold: true),
+                F("receivingQrCode",         "Código QR Recepción Móvil",  fmt: "image"),
+                F("receivingUrl",            "URL de recepción"),
+            }, titleBg: "#1a3c6e", bodyBg: "#eef4ff", border: "#c8d9f6", variant: "corporate", sectionId: "totales"),
+        });
+
+        private static string BuildWarehouseTransferReceivingTemplate() => Json(new[]
+        {
+            Header("Información de la Recepción", 1, new[]
+            {
+                F("receivingCode",           "Entrada de Mercancía",  bold: true),
+                F("receivingDate",           "Fecha Recepción",       fmt: "datetime", inline: true),
+                F("receivingType",           "Tipo de Entrada",       inline: false),
+                F("transferCode",            "Ref. Orden Traspaso",   bold: true,     inline: true),
+                F("sourceWarehouseName",     "Almacén Origen",        inline: false),
+                F("destinationWarehouseName","Almacén Destino (Recibe)", bold: true, inline: true),
+                F("receivedByName",          "Recibido por"),
+                F("totalProducts",           "Productos Recibidos",   fmt: "number",   inline: true),
+                F("notes",                   "Notas"),
+                F("companyName",             "Empresa",                               visible: false),
+            }, titleBg: "#1a3c6e", bodyBg: "#eef4ff", border: "#c8d9f6", variant: "corporate", sectionId: "recepcion"),
+            Table("Detalle de Productos Recibidos", 2, new[]
+            {
+                C("productCode",       "Código",         80),
+                C("productName",       "Producto",       0),
+                C("quantityDispatched","Despachado",     70,  fmt: "number",   align: "center"),
+                C("quantityReceived",  "Recibido",       70,  fmt: "number",   align: "center", bold: true),
+                C("pendingQuantity",   "Pendiente",      70,  fmt: "number",   align: "center"),
+                C("unitCost",          "Costo Unit.",    70,  fmt: "currency", align: "right"),
+                C("notes",             "Notas",          100),
+            }, titleBg: "#1a3c6e", bodyBg: "#f7faff", border: "#c8d9f6", variant: "corporate", sectionId: "productos"),
+            Footer("Resumen de Recepción", 3, new[]
+            {
+                F("totalQuantityDispatched", "Total Despachado",      fmt: "number"),
+                F("totalQuantityReceived",   "Recibido en esta Entrada", fmt: "number", bold: true, inline: true),
+                F("totalQuantityPending",    "Pendiente por Recibir",  fmt: "number",  bold: true),
+            }, titleBg: "#1a3c6e", bodyBg: "#eef4ff", border: "#c8d9f6", variant: "corporate", sectionId: "totales"),
+        });
 
         private static string BuildPaymentTemplate() => Json(new[]
         {

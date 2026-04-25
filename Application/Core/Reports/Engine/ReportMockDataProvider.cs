@@ -14,27 +14,31 @@ namespace Application.Core.Reports.Engine
         public static Dictionary<string, string> GetMockDataRow(string reportType) =>
             reportType switch
             {
-                "Sales" or "Delivery" => SalesMockRow(reportType),
-                "Quotation"           => QuotationMockRow(),
-                "Purchase"            => PurchaseMockRow(),
-                "Inventory"           => InventoryMockRow(),
-                "CashierShift"        => CashierShiftMockRow(),
-                "Invoice"             => InvoiceMockRow(),
-                "Payment"             => PaymentMockRow(),
-                _                     => new()
+                "Sales" or "Delivery"       => SalesMockRow(reportType),
+                "Quotation"                 => QuotationMockRow(),
+                "Purchase"                  => PurchaseMockRow(),
+                "Inventory"                 => InventoryMockRow(),
+                "CashierShift"              => CashierShiftMockRow(),
+                "Invoice"                   => InvoiceMockRow(),
+                "Payment"                   => PaymentMockRow(),
+                "WarehouseTransferDispatch" => WarehouseTransferDispatchMockRow(),
+                "WarehouseTransferReceiving"=> WarehouseTransferReceivingMockRow(),
+                _                           => new()
             };
 
         public static List<Dictionary<string, string>> GetMockTableRows(string reportType) =>
             reportType switch
             {
-                "Sales" or "Delivery" => SalesMockTableRows(),
-                "Quotation"           => QuotationMockTableRows(),
-                "Purchase"            => PurchaseMockTableRows(),
-                "Inventory"           => InventoryMockTableRows(),
-                "CashierShift"        => CashierShiftMockTableRows(),
-                "Invoice"             => InvoiceMockTableRows(),
-                "Payment"             => PaymentMockTableRows(),
-                _                     => new()
+                "Sales" or "Delivery"       => SalesMockTableRows(),
+                "Quotation"                 => QuotationMockTableRows(),
+                "Purchase"                  => PurchaseMockTableRows(),
+                "Inventory"                 => InventoryMockTableRows(),
+                "CashierShift"              => CashierShiftMockTableRows(),
+                "Invoice"                   => InvoiceMockTableRows(),
+                "Payment"                   => PaymentMockTableRows(),
+                "WarehouseTransferDispatch" => WarehouseTransferDispatchMockTableRows(),
+                "WarehouseTransferReceiving"=> WarehouseTransferReceivingMockTableRows(),
+                _                           => new()
             };
 
         // ─────────────────────────────────────────────
@@ -493,6 +497,101 @@ namespace Application.Core.Reports.Engine
                 ["amountApplied"]             = "$2,320.00",
                 ["newBalance"]                = "$0.00",
                 ["paymentType"]               = "PartialPayment",
+            },
+        };
+
+        // ─────────────────────────────────────────────
+        // TRASPASO DE ALMACÉN — DOCUMENTO DE SALIDA
+        // ─────────────────────────────────────────────
+
+        private static Dictionary<string, string> WarehouseTransferDispatchMockRow() => new()
+        {
+            ["transferCode"]              = "WTR-001",
+            ["transferDate"]              = "24/04/2026",
+            ["dispatchedAt"]              = "24/04/2026 14:30",
+            ["status"]                    = "Despachado",
+            ["sourceWarehouseName"]       = "Almacén Central",
+            ["sourceWarehouseCode"]       = "ALM-001",
+            ["destinationWarehouseName"]  = "Almacén Sucursal Norte",
+            ["destinationWarehouseCode"]  = "ALM-002",
+            ["companyName"]               = "Empresa Demo S.A. de C.V.",
+            ["dispatchedByName"]          = "Carlos López",
+            ["createdByName"]             = "Juan Pérez",
+            ["notes"]                     = "Reposición mensual — Sucursal Norte",
+            ["totalProducts"]             = "2",
+            ["totalQuantityDispatched"]   = "100",
+            ["receivingUrl"]              = "https://app.example.com/warehouse-transfers/1/receive",
+            ["receivingQrCode"]           = SampleQrPngBase64,
+        };
+
+        private static List<Dictionary<string, string>> WarehouseTransferDispatchMockTableRows() => new()
+        {
+            new()
+            {
+                ["productCode"]         = "PROD-005",
+                ["productName"]         = "Refresco 600ml",
+                ["quantityRequested"]   = "60",
+                ["quantityDispatched"]  = "60",
+                ["unitCost"]            = "$12.50",
+                ["lineTotal"]           = "$750.00",
+                ["notes"]               = "",
+            },
+            new()
+            {
+                ["productCode"]         = "PROD-008",
+                ["productName"]         = "Agua 1L",
+                ["quantityRequested"]   = "40",
+                ["quantityDispatched"]  = "40",
+                ["unitCost"]            = "$8.00",
+                ["lineTotal"]           = "$320.00",
+                ["notes"]               = "",
+            },
+        };
+
+        // ─────────────────────────────────────────────
+        // TRASPASO DE ALMACÉN — DOCUMENTO DE ENTRADA
+        // ─────────────────────────────────────────────
+
+        private static Dictionary<string, string> WarehouseTransferReceivingMockRow() => new()
+        {
+            ["receivingCode"]             = "WRV-001",
+            ["receivingDate"]             = "24/04/2026 16:00",
+            ["receivingType"]             = "Parcial",
+            ["transferCode"]              = "WTR-001",
+            ["sourceWarehouseName"]       = "Almacén Central",
+            ["sourceWarehouseCode"]       = "ALM-001",
+            ["destinationWarehouseName"]  = "Almacén Sucursal Norte",
+            ["destinationWarehouseCode"]  = "ALM-002",
+            ["companyName"]               = "Empresa Demo S.A. de C.V.",
+            ["receivedByName"]            = "Ana García",
+            ["notes"]                     = "Llegó el camión, faltaron 20 refrescos",
+            ["totalProducts"]             = "1",
+            ["totalQuantityReceived"]     = "40",
+            ["totalQuantityDispatched"]   = "100",
+            ["totalQuantityPending"]      = "60",
+        };
+
+        private static List<Dictionary<string, string>> WarehouseTransferReceivingMockTableRows() => new()
+        {
+            new()
+            {
+                ["productCode"]         = "PROD-005",
+                ["productName"]         = "Refresco 600ml",
+                ["quantityReceived"]    = "40",
+                ["quantityDispatched"]  = "60",
+                ["pendingQuantity"]     = "20",
+                ["unitCost"]            = "$12.50",
+                ["notes"]               = "Recibidos con golpes leves en empaque",
+            },
+            new()
+            {
+                ["productCode"]         = "PROD-008",
+                ["productName"]         = "Agua 1L",
+                ["quantityReceived"]    = "0",
+                ["quantityDispatched"]  = "40",
+                ["pendingQuantity"]     = "40",
+                ["unitCost"]            = "$8.00",
+                ["notes"]               = "Pendiente de recibir",
             },
         };
     }

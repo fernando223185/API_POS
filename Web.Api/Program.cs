@@ -178,6 +178,7 @@ builder.Services.AddScoped<Application.Abstractions.Backup.IBackupService, Backu
 builder.Services.AddScoped<IPurchaseOrderReceivingRepository, PurchaseOrderReceivingRepository>();  // ✅ NUEVO - Recepciones
 builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();  // ✅ NUEVO - Empresas
 builder.Services.AddScoped<Application.Abstractions.Inventory.IStockTransferRepository, StockTransferRepository>();  // ✅ NUEVO - Traspasos
+builder.Services.AddScoped<Application.Abstractions.Inventory.IWarehouseTransferRepository, WarehouseTransferRepository>();  // ✅ NUEVO - Traspasos con entrada parcial
 
 // ✅ NUEVO: Sistema de ventas con cobranza
 builder.Services.AddScoped<Application.Abstractions.Sales.ISaleRepository, SaleRepository>();

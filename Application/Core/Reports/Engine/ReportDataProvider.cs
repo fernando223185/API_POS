@@ -1,6 +1,9 @@
 using Domain.Entities;
-using PurchaseOrderEntity    = Domain.Entities.PurchaseOrder;
+using QRCoder;
+using PurchaseOrderEntity     = Domain.Entities.PurchaseOrder;
 using PurchaseReceivingEntity = Domain.Entities.PurchaseOrderReceiving;
+using WarehouseTransferEntity  = Domain.Entities.WarehouseTransfer;
+using WarehouseTransferReceivingEntity = Domain.Entities.WarehouseTransferReceiving;
 
 namespace Application.Core.Reports.Engine
 {
@@ -383,5 +386,119 @@ namespace Application.Core.Reports.Engine
                 ["newBalance"]                = a.NewBalance,
                 ["paymentType"]               = a.PaymentType,
             }).ToList();
+
+        // ─────────────────────────────────────────────
+        // TRASPASO DE ALMACÉN — DOCUMENTO DE SALIDA
+        // ─────────────────────────────────────────────
+
+        /// <summary>
+        /// Genera el diccionario de cabecera para el documento de despacho (salida).
+        /// <param name="receivingUrl">URL que se codifica en el QR para que el destino registre la entrada desde móvil.</param>
+        /// </summary>
+        public static Dictionary<string, object?> FromWarehouseTransferDispatch(
+            WarehouseTransferEntity transfer, string receivingUrl)
+        {
+            var qrBytes  = GenerateQrPng(receivingUrl);
+            var qrBase64 = Convert.ToBase64String(qrBytes);
+
+            return new Dictionary<string, object?>
+            {
+                ["transferCode"]              = transfer.Code,
+                ["transferDate"]              = transfer.TransferDate,
+                ["dispatchedAt"]              = transfer.DispatchedAt,
+                ["status"]                    = TranslateTransferStatus(transfer.Status),
+                ["sourceWarehouseName"]       = transfer.SourceWarehouse?.Name ?? "",
+                ["sourceWarehouseCode"]       = transfer.SourceWarehouse?.Code ?? "",
+                ["destinationWarehouseName"]  = transfer.DestinationWarehouse?.Name ?? "",
+                ["destinationWarehouseCode"]  = transfer.DestinationWarehouse?.Code ?? "",
+                ["companyName"]               = transfer.SourceWarehouse?.Branch?.Company?.LegalName ?? "",
+                ["dispatchedByName"]          = transfer.DispatchedBy?.Name ?? "",
+                ["createdByName"]             = transfer.CreatedBy?.Name ?? "",
+                ["notes"]                     = transfer.Notes ?? "",
+                ["totalProducts"]             = transfer.Details.Count,
+                ["totalQuantityDispatched"]   = transfer.Details.Sum(d => d.QuantityDispatched),
+                // QR para escanear desde móvil y dar entrada
+                ["receivingUrl"]              = receivingUrl,
+                ["receivingQrCode"]           = qrBase64,
+            };
+        }
+
+        public static List<Dictionary<string, object?>> FromWarehouseTransferDispatchDetails(
+            WarehouseTransferEntity transfer) =>
+            transfer.Details.Select(d => new Dictionary<string, object?>
+            {
+                ["productCode"]         = d.Product?.code ?? "",
+                ["productName"]         = d.Product?.name ?? "",
+                ["quantityRequested"]   = d.QuantityRequested,
+                ["quantityDispatched"]  = d.QuantityDispatched,
+                ["unitCost"]            = d.UnitCost ?? 0m,
+                ["lineTotal"]           = d.QuantityDispatched * (d.UnitCost ?? 0m),
+                ["notes"]               = d.Notes ?? "",
+            }).ToList();
+
+        // ─────────────────────────────────────────────
+        // TRASPASO DE ALMACÉN — DOCUMENTO DE ENTRADA
+        // ─────────────────────────────────────────────
+
+        public static Dictionary<string, object?> FromWarehouseTransferReceivingDoc(
+            WarehouseTransferReceivingEntity receiving)
+        {
+            var transfer = receiving.WarehouseTransfer;
+            return new Dictionary<string, object?>
+            {
+                ["receivingCode"]             = receiving.Code,
+                ["receivingDate"]             = receiving.ReceivingDate,
+                ["receivingType"]             = receiving.ReceivingType == "Complete" ? "Completa" : "Parcial",
+                ["transferCode"]              = transfer?.Code ?? "",
+                ["sourceWarehouseName"]       = transfer?.SourceWarehouse?.Name ?? "",
+                ["sourceWarehouseCode"]       = transfer?.SourceWarehouse?.Code ?? "",
+                ["destinationWarehouseName"]  = receiving.DestinationWarehouse?.Name ?? "",
+                ["destinationWarehouseCode"]  = receiving.DestinationWarehouse?.Code ?? "",
+                ["companyName"]               = receiving.DestinationWarehouse?.Branch?.Company?.LegalName ?? "",
+                ["receivedByName"]            = receiving.CreatedBy?.Name ?? "",
+                ["notes"]                     = receiving.Notes ?? "",
+                ["totalProducts"]             = receiving.Details.Count,
+                ["totalQuantityReceived"]     = receiving.Details.Sum(d => d.QuantityReceived),
+                ["totalQuantityDispatched"]   = transfer?.Details.Sum(d => d.QuantityDispatched) ?? 0m,
+                ["totalQuantityPending"]      = (transfer?.Details.Sum(d => d.QuantityDispatched) ?? 0m)
+                                                - (transfer?.Details.Sum(d => d.QuantityReceived) ?? 0m),
+            };
+        }
+
+        public static List<Dictionary<string, object?>> FromWarehouseTransferReceivingDetails(
+            WarehouseTransferReceivingEntity receiving) =>
+            receiving.Details.Select(d => new Dictionary<string, object?>
+            {
+                ["productCode"]         = d.Product?.code ?? "",
+                ["productName"]         = d.Product?.name ?? "",
+                ["quantityReceived"]    = d.QuantityReceived,
+                ["quantityDispatched"]  = d.WarehouseTransferDetail?.QuantityDispatched ?? 0m,
+                ["pendingQuantity"]     = (d.WarehouseTransferDetail?.QuantityDispatched ?? 0m)
+                                          - (d.WarehouseTransferDetail?.QuantityReceived ?? 0m),
+                ["unitCost"]            = d.WarehouseTransferDetail?.UnitCost ?? 0m,
+                ["notes"]               = d.Notes ?? "",
+            }).ToList();
+
+        // ─────────────────────────────────────────────
+        // Helpers privados
+        // ─────────────────────────────────────────────
+
+        private static string TranslateTransferStatus(string status) => status switch
+        {
+            "Draft"             => "Borrador",
+            "Dispatched"        => "Despachado",
+            "PartiallyReceived" => "Recibido Parcial",
+            "Received"          => "Recibido",
+            "Cancelled"         => "Cancelado",
+            _                   => status
+        };
+
+        private static byte[] GenerateQrPng(string content)
+        {
+            var generator = new QRCodeGenerator();
+            var data      = generator.CreateQrCode(content, QRCodeGenerator.ECCLevel.M);
+            var qr        = new PngByteQRCode(data);
+            return qr.GetGraphic(10);
+        }
     }
 }

@@ -1,6 +1,7 @@
 using Application.Abstractions.Billing;
 using Application.Abstractions.CashierShifts;
 using Application.Abstractions.Config;
+using Application.Abstractions.Inventory;
 using Application.Abstractions.Purchasing;
 using Application.Abstractions.Quotations;
 using Application.Abstractions.Reports;
@@ -432,6 +433,7 @@ namespace Application.Core.Reports.QueryHandlers
         private readonly ICashierShiftRepository _shiftRepo;
         private readonly IInvoiceRepository _invoiceRepo;
         private readonly Application.Abstractions.AccountsReceivable.IPaymentRepository _paymentRepo;
+        private readonly IWarehouseTransferRepository _warehouseTransferRepo;
         private readonly ITemplateRenderService _templateRender;
         private readonly IPdfRenderService _pdfRender;
 
@@ -443,6 +445,7 @@ namespace Application.Core.Reports.QueryHandlers
             ICashierShiftRepository shiftRepo,
             IInvoiceRepository invoiceRepo,
             Application.Abstractions.AccountsReceivable.IPaymentRepository paymentRepo,
+            IWarehouseTransferRepository warehouseTransferRepo,
             ITemplateRenderService templateRender,
             IPdfRenderService pdfRender)
         {
@@ -453,6 +456,7 @@ namespace Application.Core.Reports.QueryHandlers
             _shiftRepo = shiftRepo;
             _invoiceRepo = invoiceRepo;
             _paymentRepo = paymentRepo;
+            _warehouseTransferRepo = warehouseTransferRepo;
             _templateRender = templateRender;
             _pdfRender = pdfRender;
         }
@@ -610,13 +614,15 @@ namespace Application.Core.Reports.QueryHandlers
         {
             return data.ReportType switch
             {
-                "Sales" or "Delivery" => await BuildSalesDataAsync(data),
-                "Quotation"           => await BuildQuotationDataAsync(data),
-                "Purchase"            => await BuildPurchaseDataAsync(data),
-                "CashierShift"        => await BuildCashierShiftDataAsync(data),
-                "Invoice"             => await BuildInvoiceDataAsync(data),
-                "Payment"             => await BuildPaymentDataAsync(data),
-                _                     => throw new ArgumentException($"Tipo de reporte no soportado: {data.ReportType}")
+                "Sales" or "Delivery"          => await BuildSalesDataAsync(data),
+                "Quotation"                    => await BuildQuotationDataAsync(data),
+                "Purchase"                     => await BuildPurchaseDataAsync(data),
+                "CashierShift"                 => await BuildCashierShiftDataAsync(data),
+                "Invoice"                      => await BuildInvoiceDataAsync(data),
+                "Payment"                      => await BuildPaymentDataAsync(data),
+                "WarehouseTransferDispatch"    => await BuildWarehouseTransferDispatchDataAsync(data),
+                "WarehouseTransferReceiving"   => await BuildWarehouseTransferReceivingDataAsync(data),
+                _                              => throw new ArgumentException($"Tipo de reporte no soportado: {data.ReportType}")
             };
         }
 
@@ -690,6 +696,33 @@ namespace Application.Core.Reports.QueryHandlers
             var payment = await _paymentRepo.GetByIdAsync(data.DocumentIds[0])
                 ?? throw new KeyNotFoundException($"Complemento de pago {data.DocumentIds[0]} no encontrado");
             return (new() { ReportDataProvider.FromPayment(payment) }, ReportDataProvider.FromPaymentApplications(payment));
+        }
+
+        private async Task<(List<Dictionary<string, object?>>, List<Dictionary<string, object?>>)> BuildWarehouseTransferDispatchDataAsync(GenerateReportDto data)
+        {
+            if (!data.DocumentIds.Any()) throw new InvalidOperationException("Debe especificar el ID del traspaso");
+            var transfer = await _warehouseTransferRepo.GetByIdAsync(data.DocumentIds[0])
+                ?? throw new KeyNotFoundException($"Traspaso {data.DocumentIds[0]} no encontrado");
+            
+            var baseUrl = (data.AppBaseUrl ?? "").TrimEnd('/');
+            var receivingUrl = string.IsNullOrWhiteSpace(baseUrl)
+                ? $"warehouse-transfers/{transfer.Id}/receive"
+                : $"{baseUrl}/warehouse-transfers/{transfer.Id}/receive";
+            
+            var dataRow = ReportDataProvider.FromWarehouseTransferDispatch(transfer, receivingUrl);
+            var tableRows = ReportDataProvider.FromWarehouseTransferDispatchDetails(transfer);
+            return (new() { dataRow }, tableRows);
+        }
+
+        private async Task<(List<Dictionary<string, object?>>, List<Dictionary<string, object?>>)> BuildWarehouseTransferReceivingDataAsync(GenerateReportDto data)
+        {
+            if (!data.DocumentIds.Any()) throw new InvalidOperationException("Debe especificar el ID de la entrada");
+            var receiving = await _warehouseTransferRepo.GetReceivingByIdAsync(data.DocumentIds[0])
+                ?? throw new KeyNotFoundException($"Entrada {data.DocumentIds[0]} no encontrada");
+            
+            var dataRow = ReportDataProvider.FromWarehouseTransferReceivingDoc(receiving);
+            var tableRows = ReportDataProvider.FromWarehouseTransferReceivingDetails(receiving);
+            return (new() { dataRow }, tableRows);
         }
 
         private async Task<byte[]> GeneratePaymentReportAsync(

@@ -72,9 +72,15 @@ namespace Infrastructure.Persistence
         public DbSet<CustomerCreditHistory> CustomerCreditHistory { get; set; }
         public DbSet<PaymentComplementLog> PaymentComplementLogs { get; set; }
 
-        // ✅ NUEVO: Traspasos de inventario
+        // ✅ NUEVO: Traspasos de inventario (simple)
         public DbSet<StockTransfer> StockTransfers { get; set; }
         public DbSet<StockTransferDetail> StockTransferDetails { get; set; }
+
+        // ✅ NUEVO: Traspasos de almacén con entrada parcial
+        public DbSet<WarehouseTransfer> WarehouseTransfers { get; set; }
+        public DbSet<WarehouseTransferDetail> WarehouseTransferDetails { get; set; }
+        public DbSet<WarehouseTransferReceiving> WarehouseTransferReceivings { get; set; }
+        public DbSet<WarehouseTransferReceivingDetail> WarehouseTransferReceivingDetails { get; set; }
 
         // ✅ NUEVO: Sistema de alertas
         public DbSet<Alert> Alerts { get; set; }
@@ -750,6 +756,87 @@ namespace Infrastructure.Persistence
                 .WithMany()
                 .HasForeignKey(im => im.StockTransferId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // ✅ NUEVO: Traspasos de almacén con entrada parcial
+            modelBuilder.Entity<WarehouseTransfer>(entity =>
+            {
+                entity.HasOne(t => t.SourceWarehouse)
+                    .WithMany()
+                    .HasForeignKey(t => t.SourceWarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(t => t.DestinationWarehouse)
+                    .WithMany()
+                    .HasForeignKey(t => t.DestinationWarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(t => t.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(t => t.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(t => t.DispatchedBy)
+                    .WithMany()
+                    .HasForeignKey(t => t.DispatchedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(t => t.Code).IsUnique();
+                entity.HasIndex(t => t.Status);
+                entity.HasIndex(t => t.CompanyId);
+                entity.HasIndex(t => t.CreatedAt);
+            });
+
+            modelBuilder.Entity<WarehouseTransferDetail>(entity =>
+            {
+                entity.HasOne(d => d.WarehouseTransfer)
+                    .WithMany(t => t.Details)
+                    .HasForeignKey(d => d.WarehouseTransferId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(d => d.Product)
+                    .WithMany()
+                    .HasForeignKey(d => d.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<WarehouseTransferReceiving>(entity =>
+            {
+                entity.HasOne(r => r.WarehouseTransfer)
+                    .WithMany(t => t.Receivings)
+                    .HasForeignKey(r => r.WarehouseTransferId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(r => r.DestinationWarehouse)
+                    .WithMany()
+                    .HasForeignKey(r => r.DestinationWarehouseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(r => r.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(r => r.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(r => r.Code).IsUnique();
+                entity.HasIndex(r => r.WarehouseTransferId);
+            });
+
+            modelBuilder.Entity<WarehouseTransferReceivingDetail>(entity =>
+            {
+                entity.HasOne(d => d.WarehouseTransferReceiving)
+                    .WithMany(r => r.Details)
+                    .HasForeignKey(d => d.WarehouseTransferReceivingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(d => d.WarehouseTransferDetail)
+                    .WithMany(td => td.ReceivingDetails)
+                    .HasForeignKey(d => d.WarehouseTransferDetailId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(d => d.Product)
+                    .WithMany()
+                    .HasForeignKey(d => d.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
             // ✅ NUEVO: Configuración de Cotizaciones
             modelBuilder.Entity<Quotation>(entity =>

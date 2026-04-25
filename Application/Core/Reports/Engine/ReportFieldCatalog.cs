@@ -27,14 +27,16 @@ namespace Application.Core.Reports.Engine
         {
             return reportType switch
             {
-                "Sales" or "Delivery" => GetSalesCatalog(reportType),
-                "Quotation"           => GetQuotationCatalog(),
-                "Purchase"            => GetPurchaseCatalog(),
-                "Inventory"           => GetInventoryCatalog(),
-                "CashierShift"        => GetCashierShiftCatalog(),
-                "Invoice"             => GetInvoiceCatalog(),
-                "Payment"             => GetPaymentCatalog(),
-                _                     => throw new ArgumentException($"Tipo de reporte desconocido: {reportType}")
+                "Sales" or "Delivery"        => GetSalesCatalog(reportType),
+                "Quotation"                  => GetQuotationCatalog(),
+                "Purchase"                   => GetPurchaseCatalog(),
+                "Inventory"                  => GetInventoryCatalog(),
+                "CashierShift"               => GetCashierShiftCatalog(),
+                "Invoice"                    => GetInvoiceCatalog(),
+                "Payment"                    => GetPaymentCatalog(),
+                "WarehouseTransferDispatch"  => GetWarehouseTransferDispatchCatalog(),
+                "WarehouseTransferReceiving" => GetWarehouseTransferReceivingCatalog(),
+                _                            => throw new ArgumentException($"Tipo de reporte desconocido: {reportType}")
             };
         }
 
@@ -324,6 +326,88 @@ namespace Application.Core.Reports.Engine
                 F("amountApplied",           "Importe pagado",           FieldFormat.Currency, TableOnly),
                 F("newBalance",              "Saldo insoluto",           FieldFormat.Currency, TableOnly),
                 F("paymentType",             "Tipo de pago",             FieldFormat.Text,     TableOnly),
+            }
+        };
+
+        // ─────────────────────────────────────────────
+        // TRASPASO DE ALMACÉN — DOCUMENTO DE SALIDA
+        // ─────────────────────────────────────────────
+        private static ReportFieldCatalogDto GetWarehouseTransferDispatchCatalog() => new()
+        {
+            ReportType = "WarehouseTransferDispatch",
+            AvailableSectionTypes = new() { SectionType.Header, SectionType.Table, SectionType.Summary, SectionType.Footer },
+            Fields = new()
+            {
+                // Encabezado
+                F("transferCode",             "Código del traspaso",           FieldFormat.Text,     HeaderSummaryFooter),
+                F("transferDate",             "Fecha del traspaso",            FieldFormat.Date,     HeaderSummaryFooter),
+                F("dispatchedAt",             "Fecha de despacho",             FieldFormat.DateTime, HeaderSummaryFooter),
+                F("status",                   "Estado",                        FieldFormat.Text,     HeaderSummaryFooter),
+                // Almacenes
+                F("sourceWarehouseName",      "Almacén origen",                FieldFormat.Text,     HeaderSummaryFooter),
+                F("sourceWarehouseCode",      "Código almacén origen",         FieldFormat.Text,     HeaderSummaryFooter),
+                F("destinationWarehouseName", "Almacén destino",               FieldFormat.Text,     HeaderSummaryFooter),
+                F("destinationWarehouseCode", "Código almacén destino",        FieldFormat.Text,     HeaderSummaryFooter),
+                // Empresa / Usuarios
+                F("companyName",              "Empresa",                       FieldFormat.Text,     HeaderSummaryFooter),
+                F("dispatchedByName",         "Despachado por",                FieldFormat.Text,     HeaderSummaryFooter),
+                F("createdByName",            "Creado por",                    FieldFormat.Text,     HeaderSummaryFooter),
+                F("notes",                    "Notas",                         FieldFormat.Text,     HeaderSummaryFooter),
+                // Totales
+                F("totalProducts",            "Total de productos",            FieldFormat.Number,   HeaderSummaryFooter),
+                F("totalQuantityDispatched",  "Total unidades despachadas",    FieldFormat.Number,   HeaderSummaryFooter),
+                // QR código de recepción
+                F("receivingUrl",             "URL de recepción (móvil)",      FieldFormat.Text,     HeaderSummaryFooter),
+                F("receivingQrCode",          "QR — Registrar entrada",        FieldFormat.Image,    HeaderSummaryFooter,
+                  "Código QR que apunta a la pantalla de recepción móvil"),
+                // Tabla de productos
+                F("productCode",              "Código producto",               FieldFormat.Text,     TableOnly),
+                F("productName",              "Nombre producto",               FieldFormat.Text,     TableOnly),
+                F("quantityRequested",        "Cantidad solicitada",           FieldFormat.Number,   TableOnly),
+                F("quantityDispatched",       "Cantidad despachada",           FieldFormat.Number,   TableOnly),
+                F("unitCost",                 "Costo unitario",                FieldFormat.Currency, TableOnly),
+                F("lineTotal",                "Total línea",                   FieldFormat.Currency, TableOnly),
+                F("notes",                    "Notas del producto",            FieldFormat.Text,     TableOnly),
+            }
+        };
+
+        // ─────────────────────────────────────────────
+        // TRASPASO DE ALMACÉN — DOCUMENTO DE ENTRADA
+        // ─────────────────────────────────────────────
+        private static ReportFieldCatalogDto GetWarehouseTransferReceivingCatalog() => new()
+        {
+            ReportType = "WarehouseTransferReceiving",
+            AvailableSectionTypes = new() { SectionType.Header, SectionType.Table, SectionType.Summary, SectionType.Footer },
+            Fields = new()
+            {
+                // Encabezado
+                F("receivingCode",            "Código de entrada",             FieldFormat.Text,     HeaderSummaryFooter),
+                F("receivingDate",            "Fecha de entrada",              FieldFormat.DateTime, HeaderSummaryFooter),
+                F("receivingType",            "Tipo de entrada",               FieldFormat.Text,     HeaderSummaryFooter,
+                  "Parcial o Completa"),
+                F("transferCode",             "Orden de traspaso",             FieldFormat.Text,     HeaderSummaryFooter),
+                // Almacenes
+                F("sourceWarehouseName",      "Almacén origen",                FieldFormat.Text,     HeaderSummaryFooter),
+                F("sourceWarehouseCode",      "Código almacén origen",         FieldFormat.Text,     HeaderSummaryFooter),
+                F("destinationWarehouseName", "Almacén destino",               FieldFormat.Text,     HeaderSummaryFooter),
+                F("destinationWarehouseCode", "Código almacén destino",        FieldFormat.Text,     HeaderSummaryFooter),
+                // Empresa / Usuarios
+                F("companyName",              "Empresa",                       FieldFormat.Text,     HeaderSummaryFooter),
+                F("receivedByName",           "Recibido por",                  FieldFormat.Text,     HeaderSummaryFooter),
+                F("notes",                    "Notas",                         FieldFormat.Text,     HeaderSummaryFooter),
+                // Totales
+                F("totalProducts",            "Productos recibidos",           FieldFormat.Number,   HeaderSummaryFooter),
+                F("totalQuantityReceived",    "Total unidades recibidas",      FieldFormat.Number,   HeaderSummaryFooter),
+                F("totalQuantityDispatched",  "Total unidades despachadas",    FieldFormat.Number,   HeaderSummaryFooter),
+                F("totalQuantityPending",     "Total unidades pendientes",     FieldFormat.Number,   HeaderSummaryFooter),
+                // Tabla de productos
+                F("productCode",              "Código producto",               FieldFormat.Text,     TableOnly),
+                F("productName",              "Nombre producto",               FieldFormat.Text,     TableOnly),
+                F("quantityReceived",         "Cantidad recibida",             FieldFormat.Number,   TableOnly),
+                F("quantityDispatched",       "Cantidad despachada",           FieldFormat.Number,   TableOnly),
+                F("pendingQuantity",          "Cantidad pendiente",            FieldFormat.Number,   TableOnly),
+                F("unitCost",                 "Costo unitario",                FieldFormat.Currency, TableOnly),
+                F("notes",                    "Notas del producto",            FieldFormat.Text,     TableOnly),
             }
         };
 

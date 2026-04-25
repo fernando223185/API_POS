@@ -249,7 +249,7 @@ namespace Application.DTOs.Reports
     {
         /// <summary>ID de la plantilla a usar (null = usar default del tipo)</summary>
         public int? TemplateId { get; set; }
-        /// <summary>Sales | Delivery | Quotation | Purchase | Inventory | CashierShift | Invoice | Payment</summary>
+        /// <summary>Sales | Delivery | Quotation | Purchase | Inventory | CashierShift | Invoice | Payment | WarehouseTransferDispatch | WarehouseTransferReceiving</summary>
         public string ReportType { get; set; } = string.Empty;
         /// <summary>IDs de los documentos a incluir (ventas, cotizaciones, etc.)</summary>
         public List<int> DocumentIds { get; set; } = new();
@@ -258,6 +258,8 @@ namespace Application.DTOs.Reports
         public DateTime? ToDate { get; set; }
         public int? WarehouseId { get; set; }
         public int? CompanyId { get; set; }
+        /// <summary>URL base de la aplicación (para generar QR codes que apunten a pantallas específicas)</summary>
+        public string? AppBaseUrl { get; set; }
     }
 
     // ─────────────────────────────────────────────

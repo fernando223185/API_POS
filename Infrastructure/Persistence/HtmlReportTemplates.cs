@@ -753,5 +753,278 @@ tbody td.c { text-align: center; }
 
   <div class=""doc-footer"">Este documento es una representación impresa de un CFDI &mdash; EasyPOS {{{{ now }}}}</div>
 </div></body></html>";
+
+        // ──────────────────────────────────────────────────────────────────────
+        // TRASPASO DE ALMACÉN — DOCUMENTO DE SALIDA/DESPACHO
+        // ──────────────────────────────────────────────────────────────────────
+
+        public static string WarehouseTransferDispatch => $@"<!DOCTYPE html>
+<html lang=""es"">
+<head><meta charset=""UTF-8""><title>Traspaso {{{{ transferCode }}}}</title>
+<style>
+:root {{ --primary: #1a3c6e; --body-bg: #eef4ff; --border: #c8d9f6; }}
+{BaseCss}
+.route-bar {{ display: flex; align-items: center; gap: 10px; background: #1a3c6e; color:#fff;
+  padding: 8px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 9pt; }}
+.route-wh  {{ flex: 1; }}
+.route-label {{ font-size: 7pt; opacity: .7; }}
+.route-name  {{ font-size: 10pt; font-weight: bold; }}
+.route-arrow {{ font-size: 18pt; opacity: .7; }}
+.qr-section {{ margin-top: 24px; border: 1.5px dashed #1a3c6e; border-radius: 8px;
+  padding: 16px; display: flex; align-items: center; gap: 20px; background: #f5f8ff; }}
+.qr-image {{ width: 120px; height: 120px; flex-shrink: 0; }}
+.qr-text {{ }}
+.qr-title {{ font-size: 11pt; font-weight: bold; color: #1a3c6e; margin-bottom: 4px; }}
+.qr-desc  {{ font-size: 8.5pt; color: #555; line-height: 1.5; }}
+.qr-url   {{ font-size: 7.5pt; color: #1a3c6e; word-break: break-all; margin-top: 6px; }}
+.sig-section {{ display: flex; gap: 40px; margin-top: 40px; }}
+.sig-box {{ flex: 1; border-top: 1px solid #999; padding-top: 6px; text-align: center;
+  font-size: 8pt; color: #666; }}
+.notes-box {{ background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px;
+  padding: 8px 12px; font-size: 8.5pt; margin-bottom: 14px; }}
+</style>
+</head>
+<body><div class=""page"">
+
+  <!-- ENCABEZADO -->
+  <div class=""doc-header"">
+    <div class=""company-side"">
+      <div class=""company-name"">{{{{ companyName }}}}</div>
+      <div class=""company-sub"">Documento de Despacho de Mercancía</div>
+    </div>
+    <div class=""doc-box"">
+      <div class=""doc-box-label"">Orden de Traspaso</div>
+      <div class=""doc-box-folio"">{{{{ transferCode }}}}</div>
+      <div class=""doc-box-date"">Fecha: {{{{ transferDate }}}}</div>
+      <div class=""doc-box-date"">Despachado: {{{{ dispatchedAt }}}}</div>
+    </div>
+  </div>
+
+  <!-- RUTA DE ALMACENES -->
+  <div class=""route-bar"">
+    <div class=""route-wh"">
+      <div class=""route-label"">ALMACÉN ORIGEN (SALE)</div>
+      <div class=""route-name"">{{{{ sourceWarehouseName }}}}</div>
+    </div>
+    <div class=""route-arrow"">&#10140;</div>
+    <div class=""route-wh"" style=""text-align:right"">
+      <div class=""route-label"">ALMACÉN DESTINO (RECIBE)</div>
+      <div class=""route-name"">{{{{ destinationWarehouseName }}}}</div>
+    </div>
+  </div>
+
+  <!-- DATOS DE AUDITORÍA -->
+  <div class=""section"">
+    <div class=""section-title"">Información del Despacho</div>
+    <div class=""section-body"">
+      <div class=""field-grid cols-3"">
+        <div><div class=""field-label"">Despachado por</div><div class=""field-value"">{{{{ dispatchedByName }}}}</div></div>
+        <div><div class=""field-label"">Creado por</div><div class=""field-value"">{{{{ createdByName }}}}</div></div>
+        <div><div class=""field-label"">Total productos</div><div class=""field-value"">{{{{ totalProducts }}}} artículo(s)</div></div>
+      </div>
+    </div>
+  </div>
+
+  {{% if notes %}}
+  <div class=""notes-box"">📝 <strong>Notas:</strong> {{{{ notes }}}}</div>
+  {{% endif %}}
+
+  <!-- TABLA DE PRODUCTOS DESPACHADOS -->
+  <table>
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Producto</th>
+        <th class=""r"">Solicitado</th>
+        <th class=""r"">Despachado</th>
+        <th class=""r"">Costo Unit.</th>
+        <th class=""r"">Total Línea</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{% for item in items %}}
+      <tr>
+        <td>{{{{ item.productCode }}}}</td>
+        <td>{{{{ item.productName }}}}</td>
+        <td class=""r"">{{{{ item.quantityRequested }}}}</td>
+        <td class=""r""><strong>{{{{ item.quantityDispatched }}}}</strong></td>
+        <td class=""r"">${{{{ item.unitCost }}}}</td>
+        <td class=""r"">${{{{ item.lineTotal }}}}</td>
+      </tr>
+      {{% endfor %}}
+    </tbody>
+  </table>
+
+  <!-- TOTALES -->
+  <div class=""totals-wrap"">
+    <div class=""totals-box"">
+      <div class=""total-row grand"">
+        <span class=""tl"">Total Unidades Despachadas</span>
+        <span class=""tv"">{{{{ totalQuantityDispatched }}}}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR DE RECEPCIÓN MÓVIL -->
+  {{% if receivingQrCode %}}
+  <div class=""qr-section"">
+    <img class=""qr-image"" src=""data:image/png;base64,{{{{ receivingQrCode }}}}"" alt=""QR Recepción"" />
+    <div class=""qr-text"">
+      <div class=""qr-title"">📱 Registrar Entrada desde Móvil</div>
+      <div class=""qr-desc"">
+        El almacén destino puede escanear este código QR con su celular para abrir
+        directamente la pantalla de recepción de mercancía y registrar las cantidades recibidas.
+      </div>
+      <div class=""qr-url"">{{{{ receivingUrl }}}}</div>
+    </div>
+  </div>
+  {{% endif %}}
+
+  <!-- FIRMAS -->
+  <div class=""sig-section"">
+    <div class=""sig-box"">Entregó: {{{{ dispatchedByName }}}}</div>
+    <div class=""sig-box"">Recibió (firma):</div>
+    <div class=""sig-box"">Autorizado por:</div>
+  </div>
+
+  <div class=""doc-footer"">
+    Generado el {{{{ now }}}} — {{{{ transferCode }}}} — {{{{ companyName }}}}
+  </div>
+
+</div></body></html>";
+
+        // ──────────────────────────────────────────────────────────────────────
+        // TRASPASO DE ALMACÉN — DOCUMENTO DE ENTRADA/RECEPCIÓN
+        // ──────────────────────────────────────────────────────────────────────
+
+        public static string WarehouseTransferReceiving => $@"<!DOCTYPE html>
+<html lang=""es"">
+<head><meta charset=""UTF-8""><title>Entrada {{{{ receivingCode }}}}</title>
+<style>
+:root {{ --primary: #1a3c6e; --body-bg: #eef4ff; --border: #c8d9f6; }}
+{BaseCss}
+.route-bar {{ display: flex; align-items: center; gap: 10px; background: #1a3c6e; color:#fff;
+  padding: 8px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 9pt; }}
+.route-wh  {{ flex: 1; }}
+.route-label {{ font-size: 7pt; opacity: .7; }}
+.route-name  {{ font-size: 10pt; font-weight: bold; }}
+.route-arrow {{ font-size: 18pt; opacity: .7; }}
+.sig-section {{ display: flex; gap: 40px; margin-top: 40px; }}
+.sig-box {{ flex: 1; border-top: 1px solid #999; padding-top: 6px; text-align: center;
+  font-size: 8pt; color: #666; }}
+.notes-box {{ background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px;
+  padding: 8px 12px; font-size: 8.5pt; margin-bottom: 14px; }}
+</style>
+</head>
+<body><div class=""page"">
+
+  <!-- ENCABEZADO -->
+  <div class=""doc-header"">
+    <div class=""company-side"">
+      <div class=""company-name"">{{{{ companyName }}}}</div>
+      <div class=""company-sub"">Documento de Recepción de Mercancía</div>
+      <div class=""company-sub"">Ref. Orden: <strong>{{{{ transferCode }}}}</strong></div>
+    </div>
+    <div class=""doc-box"">
+      <div class=""doc-box-label"">Entrada de Mercancía</div>
+      <div class=""doc-box-folio"">{{{{ receivingCode }}}}</div>
+      <div class=""doc-box-date"">Fecha: {{{{ receivingDate }}}}</div>
+      <div class=""doc-box-date"">
+        {{% if receivingType == 'Completa' %}}
+          <span class=""badge badge-green"">Entrada Completa</span>
+        {{% else %}}
+          <span class=""badge badge-yellow"">Entrada Parcial</span>
+        {{% endif %}}
+      </div>
+    </div>
+  </div>
+
+  <!-- RUTA DE ALMACENES -->
+  <div class=""route-bar"">
+    <div class=""route-wh"">
+      <div class=""route-label"">ALMACÉN ORIGEN</div>
+      <div class=""route-name"">{{{{ sourceWarehouseName }}}}</div>
+    </div>
+    <div class=""route-arrow"">&#10140;</div>
+    <div class=""route-wh"" style=""text-align:right"">
+      <div class=""route-label"">ALMACÉN DESTINO (RECIBE)</div>
+      <div class=""route-name"">{{{{ destinationWarehouseName }}}}</div>
+    </div>
+  </div>
+
+  <!-- DATOS DE AUDITORÍA -->
+  <div class=""section"">
+    <div class=""section-title"">Información de la Recepción</div>
+    <div class=""section-body"">
+      <div class=""field-grid cols-3"">
+        <div><div class=""field-label"">Recibido por</div><div class=""field-value"">{{{{ receivedByName }}}}</div></div>
+        <div><div class=""field-label"">Orden de traspaso</div><div class=""field-value"">{{{{ transferCode }}}}</div></div>
+        <div><div class=""field-label"">Productos recibidos</div><div class=""field-value"">{{{{ totalProducts }}}} artículo(s)</div></div>
+      </div>
+    </div>
+  </div>
+
+  {{% if notes %}}
+  <div class=""notes-box"">📝 <strong>Notas:</strong> {{{{ notes }}}}</div>
+  {{% endif %}}
+
+  <!-- TABLA DE PRODUCTOS RECIBIDOS -->
+  <table>
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Producto</th>
+        <th class=""r"">Despachado</th>
+        <th class=""r"">Recibido</th>
+        <th class=""r"">Pendiente</th>
+        <th class=""r"">Costo Unit.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{% for item in items %}}
+      <tr>
+        <td>{{{{ item.productCode }}}}</td>
+        <td>{{{{ item.productName }}}}</td>
+        <td class=""r"">{{{{ item.quantityDispatched }}}}</td>
+        <td class=""r""><strong>{{{{ item.quantityReceived }}}}</strong></td>
+        <td class=""r"" style=""color: {{% if item.pendingQuantity > 0 %}}#dc2626{{% else %}}#16a34a{{% endif %}}; font-weight:bold"">
+          {{{{ item.pendingQuantity }}}}
+        </td>
+        <td class=""r"">${{{{ item.unitCost }}}}</td>
+      </tr>
+      {{% endfor %}}
+    </tbody>
+  </table>
+
+  <!-- RESUMEN TOTALES -->
+  <div class=""totals-wrap"">
+    <div class=""totals-box"">
+      <div class=""total-row"">
+        <span class=""tl"">Total Despachado</span>
+        <span class=""tv"">{{{{ totalQuantityDispatched }}}}</span>
+      </div>
+      <div class=""total-row"">
+        <span class=""tl"">Recibido en esta entrada</span>
+        <span class=""tv"">{{{{ totalQuantityReceived }}}}</span>
+      </div>
+      <div class=""total-row grand"">
+        <span class=""tl"">Pendiente por recibir</span>
+        <span class=""tv"">{{{{ totalQuantityPending }}}}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIRMAS -->
+  <div class=""sig-section"">
+    <div class=""sig-box"">Recibió: {{{{ receivedByName }}}}</div>
+    <div class=""sig-box"">Revisó / Autorizó:</div>
+    <div class=""sig-box"">Almacén origen confirma:</div>
+  </div>
+
+  <div class=""doc-footer"">
+    Generado el {{{{ now }}}} — {{{{ receivingCode }}}} — {{{{ companyName }}}}
+  </div>
+
+</div></body></html>";
     }
 }
