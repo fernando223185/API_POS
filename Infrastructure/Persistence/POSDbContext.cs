@@ -99,6 +99,14 @@ namespace Infrastructure.Persistence
         // ✅ NUEVO: Historial de respaldos de base de datos
         public DbSet<BackupRecord> BackupRecords { get; set; }
 
+        // ✅ NUEVO: Ajustes de inventario
+        public DbSet<StockAdjustment> StockAdjustments { get; set; }
+        public DbSet<StockAdjustmentDetail> StockAdjustmentDetails { get; set; }
+
+        // ✅ NUEVO: Conteos cíclicos de inventario
+        public DbSet<InventoryCount> InventoryCounts { get; set; }
+        public DbSet<InventoryCountDetail> InventoryCountDetails { get; set; }
+
         // ✅ NUEVO: Catálogos SAT para facturación
         public DbSet<SatUsoCfdi> SatUsoCfdi { get; set; }
         public DbSet<SatRegimenFiscal> SatRegimenFiscal { get; set; }

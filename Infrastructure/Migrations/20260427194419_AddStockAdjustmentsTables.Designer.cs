@@ -4,6 +4,7 @@ using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(POSDbContext))]
-    partial class POSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260427194419_AddStockAdjustmentsTables")]
+    partial class AddStockAdjustmentsTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -852,158 +855,6 @@ namespace Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("CustomerCreditPolicies", (string)null);
-                });
-
-            modelBuilder.Entity("Domain.Entities.InventoryCount", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("ApprovedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("ApprovedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("AssignedToUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("CategoryId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("CompanyId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CountType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("CountedProducts")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("CreatedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("ProductsWithVariance")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("ScheduledDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("StartedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TotalProducts")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("TotalVarianceCost")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("WarehouseId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApprovedByUserId");
-
-                    b.HasIndex("AssignedToUserId");
-
-                    b.HasIndex("CategoryId");
-
-                    b.HasIndex("CompanyId");
-
-                    b.HasIndex("CreatedByUserId");
-
-                    b.HasIndex("WarehouseId");
-
-                    b.ToTable("InventoryCounts");
-                });
-
-            modelBuilder.Entity("Domain.Entities.InventoryCountDetail", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("CountedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("CountedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("InventoryCountId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal?>("PhysicalQuantity")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("RecountRequested")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("RecountedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("RecountedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("SystemQuantity")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("UnitCost")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("Variance")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("VarianceCost")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("VariancePercentage")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CountedByUserId");
-
-                    b.HasIndex("InventoryCountId");
-
-                    b.HasIndex("ProductId");
-
-                    b.HasIndex("RecountedByUserId");
-
-                    b.ToTable("InventoryCountDetails");
                 });
 
             modelBuilder.Entity("Domain.Entities.InventoryMovement", b =>
@@ -2097,10 +1948,6 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime?>("DiscontinuedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Discriminator")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("EAN")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -2372,10 +2219,6 @@ namespace Infrastructure.Migrations
                     b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("Products");
-
-                    b.HasDiscriminator<string>("Discriminator").HasValue("Product");
-
-                    b.UseTphMappingStrategy();
                 });
 
             modelBuilder.Entity("Domain.Entities.ProductCategory", b =>
@@ -4791,13 +4634,6 @@ namespace Infrastructure.Migrations
                     b.ToTable("WarehouseTransferReceivingDetails");
                 });
 
-            modelBuilder.Entity("Domain.Entities.Products", b =>
-                {
-                    b.HasBaseType("Domain.Entities.Product");
-
-                    b.HasDiscriminator().HasValue("Products");
-                });
-
             modelBuilder.Entity("Domain.Entities.AlertRuleConfig", b =>
                 {
                     b.HasOne("Domain.Entities.Company", "Company")
@@ -4952,82 +4788,6 @@ namespace Infrastructure.Migrations
                     b.Navigation("Company");
 
                     b.Navigation("Customer");
-                });
-
-            modelBuilder.Entity("Domain.Entities.InventoryCount", b =>
-                {
-                    b.HasOne("Domain.Entities.User", "ApprovedByUser")
-                        .WithMany()
-                        .HasForeignKey("ApprovedByUserId");
-
-                    b.HasOne("Domain.Entities.User", "AssignedToUser")
-                        .WithMany()
-                        .HasForeignKey("AssignedToUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Domain.Entities.ProductCategory", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId");
-
-                    b.HasOne("Domain.Entities.Company", "Company")
-                        .WithMany()
-                        .HasForeignKey("CompanyId");
-
-                    b.HasOne("Domain.Entities.User", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Domain.Entities.Warehouse", "Warehouse")
-                        .WithMany()
-                        .HasForeignKey("WarehouseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ApprovedByUser");
-
-                    b.Navigation("AssignedToUser");
-
-                    b.Navigation("Category");
-
-                    b.Navigation("Company");
-
-                    b.Navigation("CreatedByUser");
-
-                    b.Navigation("Warehouse");
-                });
-
-            modelBuilder.Entity("Domain.Entities.InventoryCountDetail", b =>
-                {
-                    b.HasOne("Domain.Entities.User", "CountedByUser")
-                        .WithMany()
-                        .HasForeignKey("CountedByUserId");
-
-                    b.HasOne("Domain.Entities.InventoryCount", "InventoryCount")
-                        .WithMany("Details")
-                        .HasForeignKey("InventoryCountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Domain.Entities.Products", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Domain.Entities.User", "RecountedByUser")
-                        .WithMany()
-                        .HasForeignKey("RecountedByUserId");
-
-                    b.Navigation("CountedByUser");
-
-                    b.Navigation("InventoryCount");
-
-                    b.Navigation("Product");
-
-                    b.Navigation("RecountedByUser");
                 });
 
             modelBuilder.Entity("Domain.Entities.InventoryMovement", b =>
@@ -5947,11 +5707,6 @@ namespace Infrastructure.Migrations
             modelBuilder.Entity("Domain.Entities.Company", b =>
                 {
                     b.Navigation("Branches");
-                });
-
-            modelBuilder.Entity("Domain.Entities.InventoryCount", b =>
-                {
-                    b.Navigation("Details");
                 });
 
             modelBuilder.Entity("Domain.Entities.Invoice", b =>
