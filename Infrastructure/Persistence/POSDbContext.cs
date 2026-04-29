@@ -151,10 +151,14 @@ namespace Infrastructure.Persistence
                 entity.HasIndex(c => c.IsActive);
             });
 
-            // Configurar precisión decimal para Products
-            modelBuilder.Entity<Product>()
-                .Property(p => p.price)
-                .HasPrecision(18, 2);
+            // Configurar precisión decimal y nombre de tabla para Product
+            modelBuilder.Entity<Product>(entity =>
+            {
+                entity.ToTable("Products"); // Mapear a la tabla Products
+                
+                entity.Property(p => p.price)
+                    .HasPrecision(18, 2);
+            });
 
             // Configurar la relación entre User y Role
             modelBuilder.Entity<User>()

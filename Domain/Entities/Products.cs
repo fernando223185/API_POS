@@ -286,9 +286,4 @@ namespace Domain.Entities
         // public ICollection<TransferItem> TransferItems { get; set; } = new List<TransferItem>();
         // public ICollection<InventoryMovement> InventoryMovements { get; set; } = new List<InventoryMovement>();
     }
-
-    // Alias para compatibilidad con código existente
-    public class Products : Product
-    {
-    }
 }

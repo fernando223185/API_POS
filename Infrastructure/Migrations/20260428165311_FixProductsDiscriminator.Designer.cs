@@ -4,6 +4,7 @@ using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(POSDbContext))]
-    partial class POSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260428165311_FixProductsDiscriminator")]
+    partial class FixProductsDiscriminator
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2097,6 +2100,10 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime?>("DiscontinuedDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Discriminator")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("EAN")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -2367,7 +2374,11 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("UpdatedByUserId");
 
-                    b.ToTable("Products", (string)null);
+                    b.ToTable("Products");
+
+                    b.HasDiscriminator<string>("Discriminator").HasValue("Product");
+
+                    b.UseTphMappingStrategy();
                 });
 
             modelBuilder.Entity("Domain.Entities.ProductCategory", b =>
@@ -4783,6 +4794,13 @@ namespace Infrastructure.Migrations
                     b.ToTable("WarehouseTransferReceivingDetails");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Products", b =>
+                {
+                    b.HasBaseType("Domain.Entities.Product");
+
+                    b.HasDiscriminator().HasValue("Products");
+                });
+
             modelBuilder.Entity("Domain.Entities.AlertRuleConfig", b =>
                 {
                     b.HasOne("Domain.Entities.Company", "Company")
@@ -4996,7 +5014,7 @@ namespace Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Domain.Entities.Product", "Product")
+                    b.HasOne("Domain.Entities.Products", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)

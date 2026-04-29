@@ -15,25 +15,7 @@ namespace Infrastructure.Repositories
             _dbcontext = dbcontext;
         }
 
-        // ? M�TODO AUXILIAR PARA CONVERTIR Product a Products
-        private Products ConvertToProducts(Product product)
-        {
-            var products = new Products();
-            
-            // Copiar todas las propiedades
-            foreach (var prop in typeof(Product).GetProperties())
-            {
-                if (prop.CanWrite)
-                {
-                    var value = prop.GetValue(product);
-                    prop.SetValue(products, value);
-                }
-            }
-            
-            return products;
-        }
-
-        public async Task<Products> CreateAsync(Products product)
+        public async Task<Product> CreateAsync(Product product)
         {
             await _dbcontext.Products.AddAsync(product);
             await _dbcontext.SaveChangesAsync();
@@ -53,7 +35,7 @@ namespace Infrastructure.Repositories
         }
 
         // ? VERSI�N MEJORADA CON CONTEO TOTAL Y MEJOR FILTRADO
-        public async Task<IEnumerable<Products>> GetByPageAsync(ProductPageQuery query)
+        public async Task<IEnumerable<Product>> GetByPageAsync(ProductPageQuery query)
         {
             var pageSize = query.Size ?? 10;
             var pageNumber = query.Nro ?? 1;
@@ -81,8 +63,7 @@ namespace Infrastructure.Repositories
                 .Take(pageSize)
                 .ToListAsync();
 
-            // ? CORREGIDO: Convertir usando m�todo auxiliar
-            return results.Select(ConvertToProducts);
+            return results;
         }
 
         // ? NUEVO M�TODO PARA OBTENER CONTEO TOTAL
@@ -116,7 +97,7 @@ namespace Infrastructure.Repositories
         }
 
         // ?? NUEVO M�TODO PARA OBTENER PRODUCTOS PAGINADOS CON CONTEO
-        public async Task<(IEnumerable<Products> Products, int TotalCount)> GetPagedWithCountAsync(ProductPageQuery query)
+        public async Task<(IEnumerable<Product> Products, int TotalCount)> GetPagedWithCountAsync(ProductPageQuery query)
         {
             var pageSize = query.Size ?? 10;
             var pageNumber = query.Nro ?? 1;
@@ -226,12 +207,10 @@ namespace Infrastructure.Repositories
             var results = await queryable
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
+
                 .ToListAsync();
 
-            // ?? CORREGIDO: Convertir usando m�todo auxiliar
-            var products = results.Select(ConvertToProducts);
-
-            return (products, totalCount);
+            return (results, totalCount);
         }
 
         // ? M�TODO PARA ESTAD�STICAS DE PRODUCTOS
@@ -376,7 +355,7 @@ namespace Infrastructure.Repositories
             return result;
         }
 
-        public async Task<Products?> GetByIdAsync(int productID)
+        public async Task<Product?> GetByIdAsync(int productID)
         {
             var product = await _dbcontext.Products
                 .Include(p => p.Category)
@@ -387,10 +366,10 @@ namespace Infrastructure.Repositories
                 .Include(p => p.ProductImages)
                 .FirstOrDefaultAsync(c => c.ID == productID);
                 
-            return product != null ? ConvertToProducts(product) : null;
+            return product;
         }
 
-        public async Task<Products?> UpdateAsync(Products product)
+        public async Task<Product?> UpdateAsync(Product product)
         {
             var existingProduct = await _dbcontext.Products.FirstOrDefaultAsync(c => c.ID == product.ID);
             if (existingProduct != null)

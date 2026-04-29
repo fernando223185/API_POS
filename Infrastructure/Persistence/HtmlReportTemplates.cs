@@ -283,20 +283,25 @@ tbody td.c { text-align: center; }
 <html lang=""es"">
 <head><meta charset=""UTF-8"">
 <style>
-:root {{ --primary: #1a6e5a; --body-bg: #edf9f5; --border: #bde3d8; }}
+:root {{ --primary: #176f61; --body-bg: #edf9f5; --border: #bde3d8; }}
 {BaseCss}
-.summary-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }}
-.summary-card {{ background: var(--body-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; }}
-.summary-card .sc-label {{ font-size: 7.5pt; color: #666; }}
-.summary-card .sc-value {{ font-size: 12pt; font-weight: bold; color: var(--primary); }}
+.summary-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }}
+.summary-card {{ background:var(--body-bg); border:1px solid var(--border); border-radius:6px; padding:8px 10px; }}
+.summary-card .sc-label {{ font-size:7.5pt; color:#666; }}
+.summary-card .sc-value {{ font-size:11pt; font-weight:bold; color:var(--primary); }}
+.note-box {{ background:#fefce8; border:1px solid #fde68a; border-radius:6px; padding:8px 10px; margin-top:6px; font-size:8pt; }}
+.movement-group {{ margin-bottom:14px; border:1px solid var(--border); border-radius:6px; overflow:hidden; }}
+.movement-title {{ background:var(--body-bg); color:var(--primary); font-weight:bold; padding:7px 10px; font-size:8.5pt; }}
+.sign-wrap {{ margin-top:16px; border-top:1px solid #d9d9d9; padding-top:12px; text-align:center; }}
+.sign-line {{ width:240px; margin:0 auto; border-top:1px solid #7a7a7a; padding-top:6px; font-size:8pt; color:#555; }}
 </style>
 </head>
 <body><div class=""page"">
   <div class=""doc-header"" id=""sec-encabezado"">
     <div class=""company-side"">
-      {{% if companyLogo %}}<img src=""{{{{ companyLogo }}}}"" class=""company-logo"" />{{% endif %}}
       <div class=""company-name"">{{{{ companyName }}}}</div>
-      <div class=""company-sub"">Corte de Caja</div>
+      <div class=""company-sub"">Corte de Caja Financiero</div>
+      <div class=""company-sub"">Sucursal: {{{{ branchName }}}}</div>
     </div>
     <div class=""doc-box"">
       <div class=""doc-box-label"">Turno</div>
@@ -307,57 +312,101 @@ tbody td.c { text-align: center; }
   </div>
 
   <div class=""section"">
-    <div class=""section-title"">Período del Turno</div>
+    <div class=""section-title"">INFORMACIÓN DEL TURNO</div>
     <div class=""section-body"">
       <div class=""field-grid"">
-        <div data-field=""openedAt""><div class=""field-label"">Apertura</div><div class=""field-value bold"">{{{{ openedAt }}}}</div></div>
-        <div data-field=""closedAt""><div class=""field-label"">Cierre</div><div class=""field-value bold"">{{{{ closedAt }}}}</div></div>
+        <div><div class=""field-label"">Apertura</div><div class=""field-value bold"">{{{{ openedAt }}}}</div></div>
+        <div><div class=""field-label"">Cierre</div><div class=""field-value bold"">{{{{ closedAt }}}}</div></div>
       </div>
     </div>
   </div>
 
-  <div class=""summary-grid"">
-    <div class=""summary-card""><div class=""sc-label"">N° de Ventas</div><div class=""sc-value"">{{{{ salesCount }}}}</div></div>
-    <div class=""summary-card""><div class=""sc-label"">Total Ventas</div><div class=""sc-value"">{{{{ totalSales }}}}</div></div>
-    <div class=""summary-card""><div class=""sc-label"">Fondo Inicial</div><div class=""sc-value"">{{{{ openingCash }}}}</div></div>
-    <div class=""summary-card""><div class=""sc-label"">Diferencia</div><div class=""sc-value"">{{{{ difference }}}}</div></div>
-  </div>
-
-  <div class=""section"" id=""sec-totales"">
-    <div class=""section-title"">Desglose por Forma de Pago</div>
+  <div class=""section"">
+    <div class=""section-title"">RESUMEN DE VENTAS</div>
     <div class=""section-body"">
-      <div class=""field-grid"">
-        <div data-field=""cashTotal""><div class=""field-label"">Efectivo</div><div class=""field-value bold"">{{{{ cashTotal }}}}</div></div>
-        <div data-field=""cardTotal""><div class=""field-label"">Tarjeta</div><div class=""field-value bold"">{{{{ cardTotal }}}}</div></div>
-        <div data-field=""transferTotal""><div class=""field-label"">Transferencia</div><div class=""field-value bold"">{{{{ transferTotal }}}}</div></div>
-        <div data-field=""closingCash""><div class=""field-label"">Fondo Final</div><div class=""field-value bold"">{{{{ closingCash }}}}</div></div>
+      <div class=""summary-grid"">
+        <div class=""summary-card""><div class=""sc-label"">Total de ventas</div><div class=""sc-value"">{{{{ salesCount }}}}</div></div>
+        <div class=""summary-card""><div class=""sc-label"">Ventas canceladas</div><div class=""sc-value"">{{{{ cancelledSales }}}}</div></div>
+        <div class=""summary-card""><div class=""sc-label"">Monto total de ventas</div><div class=""sc-value"">${{{{ totalSales }}}}</div></div>
+        <div class=""summary-card""><div class=""sc-label"">Monto cancelado</div><div class=""sc-value"">${{{{ cancelledAmount }}}}</div></div>
       </div>
     </div>
   </div>
 
-  {{% if items.size > 0 %}}
-  <div class=""section"" id=""sec-ventas"">
-    <div class=""section-title"">Ventas del Turno</div>
-    <table>
-      <thead><tr>
-        <th class=""col-saleCode"">Folio</th><th class=""col-saleTime"">Hora</th><th class=""col-customerName"">Cliente</th><th class=""c col-paymentMethod"">Pago</th><th class=""r col-saleTotal"">Total</th>
-      </tr></thead>
-      <tbody>
-        {{% for item in items %}}
-        <tr>
-          <td class=""col-saleCode"">{{{{ item.saleCode }}}}</td>
-          <td class=""col-saleTime"">{{{{ item.saleTime }}}}</td>
-          <td class=""col-customerName"">{{{{ item.customerName }}}}</td>
-          <td class=""c col-paymentMethod"">{{{{ item.paymentMethod }}}}</td>
-          <td class=""r col-saleTotal"">{{{{ item.saleTotal }}}}</td>
-        </tr>
-        {{% endfor %}}
-      </tbody>
-    </table>
+  <div class=""section"">
+    <div class=""section-title"">DESGLOSE POR FORMA DE PAGO</div>
+    <div class=""section-body"">
+      <div class=""summary-grid"">
+        <div class=""summary-card""><div class=""sc-label"">Efectivo</div><div class=""sc-value"">${{{{ cashTotal }}}}</div></div>
+        <div class=""summary-card""><div class=""sc-label"">Tarjeta</div><div class=""sc-value"">${{{{ cardTotal }}}}</div></div>
+        <div class=""summary-card""><div class=""sc-label"">Transferencia</div><div class=""sc-value"">${{{{ transferTotal }}}}</div></div>
+        <div class=""summary-card""><div class=""sc-label"">Otros</div><div class=""sc-value"">${{{{ otherTotal }}}}</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class=""section"">
+    <div class=""section-title"">FLUJO DE EFECTIVO</div>
+    <div class=""section-body"">
+      <div class=""summary-grid"">
+        <div class=""summary-card""><div class=""sc-label"">Fondo inicial</div><div class=""sc-value"">${{{{ openingCash }}}}</div></div>
+        <div class=""summary-card""><div class=""sc-label"">Depósitos de efectivo (+)</div><div class=""sc-value"">${{{{ cashDepositsIn }}}}</div></div>
+        <div class=""summary-card""><div class=""sc-label"">Retiros de efectivo (-)</div><div class=""sc-value"">${{{{ cashWithdrawalsOut }}}}</div></div>
+        <div class=""summary-card""><div class=""sc-label"">Efectivo esperado</div><div class=""sc-value"">${{{{ expectedCash }}}}</div></div>
+        <div class=""summary-card""><div class=""sc-label"">Efectivo final</div><div class=""sc-value"">${{{{ closingCash }}}}</div></div>
+        <div class=""summary-card""><div class=""sc-label"">Diferencia ({{{{ differenceStatus }}}})</div><div class=""sc-value"">${{{{ difference }}}}</div></div>
+      </div>
+    </div>
+  </div>
+
+  {{% if paymentMethods.size > 0 %}}
+  <div class=""section"" id=""sec-movimientos"">
+    <div class=""section-title"">MOVIMIENTOS POR FORMA DE PAGO</div>
+    <div class=""section-body"">
+      {{% for paymentGroup in paymentMethods %}}
+      <div class=""movement-group"">
+        <div class=""movement-title"">{{{{ paymentGroup.name }}}} ({{{{ paymentGroup.count }}}} ventas - ${{{{ paymentGroup.total }}}})</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Ticket</th>
+              <th class=""c"">Hora</th>
+              <th>Cliente</th>
+              <th class=""r"">Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{% for sale in paymentGroup.sales %}}
+            <tr>
+              <td>{{{{ sale.code }}}}</td>
+              <td class=""c"">{{{{ sale.time }}}}</td>
+              <td>{{{{ sale.customer }}}}</td>
+              <td class=""r"">${{{{ sale.amount }}}}</td>
+            </tr>
+            {{% endfor %}}
+          </tbody>
+        </table>
+      </div>
+      {{% endfor %}}
+    </div>
   </div>
   {{% endif %}}
 
-  <div class=""doc-footer"">EasyPOS &mdash; {{{{ now }}}}</div>
+  {{% if openingNotes or closingNotes %}}
+  <div class=""section"">
+    <div class=""section-title"">NOTAS</div>
+    <div class=""section-body"">
+      {{% if openingNotes %}}<div class=""note-box""><strong>Apertura:</strong> {{{{ openingNotes }}}}</div>{{% endif %}}
+      {{% if closingNotes %}}<div class=""note-box""><strong>Cierre:</strong> {{{{ closingNotes }}}}</div>{{% endif %}}
+    </div>
+  </div>
+  {{% endif %}}
+
+  <div class=""sign-wrap"">
+    <div class=""sign-line"">Firma del Cajero: {{{{ cashierName }}}}</div>
+  </div>
+
+  <div class=""doc-footer"">Impreso por {{{{ closedByName }}}} - EasyPOS - {{{{ now }}}}</div>
 </div></body></html>";
 
         // ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬

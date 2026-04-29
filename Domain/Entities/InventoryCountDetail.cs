@@ -86,7 +86,7 @@ namespace Domain.Entities
 
         // Navegación
         public virtual InventoryCount InventoryCount { get; set; } = null!;
-        public virtual Products Product { get; set; } = null!;
+        public virtual Product Product { get; set; } = null!;
         public virtual User? CountedByUser { get; set; }
         public virtual User? RecountedByUser { get; set; }
     }

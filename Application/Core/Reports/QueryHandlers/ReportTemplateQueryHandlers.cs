@@ -6,6 +6,7 @@ using Application.Abstractions.Purchasing;
 using Application.Abstractions.Quotations;
 using Application.Abstractions.Reports;
 using Application.Abstractions.Sales;
+using Application.Core.CashierShifts.Queries;
 using Application.Core.Reports.Engine;
 using Application.Core.Reports.Queries;
 using Application.DTOs.Reports;
@@ -436,6 +437,7 @@ namespace Application.Core.Reports.QueryHandlers
         private readonly IWarehouseTransferRepository _warehouseTransferRepo;
         private readonly ITemplateRenderService _templateRender;
         private readonly IPdfRenderService _pdfRender;
+        private readonly IMediator _mediator;
 
         public GenerateReportPdfQueryHandler(
             IReportTemplateRepository templateRepo,
@@ -447,7 +449,8 @@ namespace Application.Core.Reports.QueryHandlers
             Application.Abstractions.AccountsReceivable.IPaymentRepository paymentRepo,
             IWarehouseTransferRepository warehouseTransferRepo,
             ITemplateRenderService templateRender,
-            IPdfRenderService pdfRender)
+            IPdfRenderService pdfRender,
+            IMediator mediator)
         {
             _templateRepo = templateRepo;
             _saleRepo = saleRepo;
@@ -459,6 +462,7 @@ namespace Application.Core.Reports.QueryHandlers
             _warehouseTransferRepo = warehouseTransferRepo;
             _templateRender = templateRender;
             _pdfRender = pdfRender;
+            _mediator = mediator;
         }
 
         public async Task<byte[]> Handle(GenerateReportPdfQuery request, CancellationToken cancellationToken)
@@ -577,16 +581,9 @@ namespace Application.Core.Reports.QueryHandlers
         {
             if (!data.DocumentIds.Any())
                 throw new InvalidOperationException("Debe especificar el ID del turno de cajero");
-
-            var shift = await _shiftRepo.GetByIdAsync(data.DocumentIds[0])
-                ?? throw new KeyNotFoundException($"Turno {data.DocumentIds[0]} no encontrado");
-
-            // Obtener las ventas del turno
-            var sales = new List<Sale>();
-            // El turno tiene ventas asociadas; obtener via SaleRepository si están disponibles
-            // Como fallback usamos colección vacía y los totales del shift
-            var dataRow = ReportDataProvider.FromCashierShift(shift, sales);
-            var tableRows = ReportDataProvider.FromCashierShiftSales(sales);
+            var report = await _mediator.Send(new GetShiftReportQuery(data.DocumentIds[0]));
+            var dataRow = BuildCashierShiftDataRow(report);
+            var tableRows = BuildCashierShiftTableRows(report);
 
             return ReportPdfEngine.Generate(sections, new() { dataRow }, tableRows, title);
         }
@@ -674,13 +671,84 @@ namespace Application.Core.Reports.QueryHandlers
         private async Task<(List<Dictionary<string, object?>>, List<Dictionary<string, object?>>)> BuildCashierShiftDataAsync(GenerateReportDto data)
         {
             if (!data.DocumentIds.Any()) throw new InvalidOperationException("Debe especificar el ID del turno");
-            var shift = await _shiftRepo.GetByIdAsync(data.DocumentIds[0])
-                ?? throw new KeyNotFoundException($"Turno {data.DocumentIds[0]} no encontrado");
-            var sales    = new List<Sale>();
-            var dataRow  = ReportDataProvider.FromCashierShift(shift, sales);
-            var tableRows = ReportDataProvider.FromCashierShiftSales(sales);
+            var report = await _mediator.Send(new GetShiftReportQuery(data.DocumentIds[0]));
+            var dataRow = BuildCashierShiftDataRow(report);
+            var tableRows = BuildCashierShiftTableRows(report);
             return (new() { dataRow }, tableRows);
         }
+
+        private static Dictionary<string, object?> BuildCashierShiftDataRow(Application.DTOs.CashierShift.ShiftReportDto report)
+        {
+            var shift = report.Shift;
+            var sales = report.Sales ?? new();
+
+            List<Dictionary<string, object?>> BuildSalesForMethod(string method) =>
+                sales
+                    .Where(s => (s.PaymentMethods ?? new List<string>())
+                        .Any(pm => string.Equals(pm, method, StringComparison.OrdinalIgnoreCase)))
+                    .Select(s => new Dictionary<string, object?>
+                    {
+                        ["code"] = s.Code,
+                        ["time"] = s.SaleDate.ToString("HH:mm"),
+                        ["customer"] = string.IsNullOrWhiteSpace(s.CustomerName) ? "Publico General" : s.CustomerName,
+                        ["amount"] = s.Total
+                    })
+                    .ToList();
+
+            var paymentMethods = new List<Dictionary<string, object?>>();
+            foreach (var summary in report.PaymentMethodSummary ?? new())
+            {
+                paymentMethods.Add(new Dictionary<string, object?>
+                {
+                    ["name"] = summary.PaymentMethod,
+                    ["count"] = summary.Count,
+                    ["total"] = summary.Amount,
+                    ["sales"] = BuildSalesForMethod(summary.PaymentMethod)
+                });
+            }
+
+            return new Dictionary<string, object?>
+            {
+                ["shiftCode"] = shift.Code,
+                ["cashierName"] = shift.CashierName,
+                ["warehouseName"] = shift.WarehouseName,
+                ["branchName"] = shift.BranchName ?? "",
+                ["companyName"] = shift.CompanyName ?? "Corte de Caja",
+                ["openedAt"] = shift.OpeningDate,
+                ["closedAt"] = shift.ClosingDate,
+                ["salesCount"] = shift.TotalSales,
+                ["cancelledSales"] = shift.CancelledSales,
+                ["totalSales"] = shift.TotalSalesAmount,
+                ["cancelledAmount"] = shift.CancelledSalesAmount,
+                ["openingCash"] = report.CashFlow.InitialCash,
+                ["cashTotal"] = shift.CashSales,
+                ["cardTotal"] = shift.CardSales,
+                ["transferTotal"] = shift.TransferSales,
+                ["otherTotal"] = shift.OtherSales,
+                ["cashDepositsIn"] = report.CashFlow.CashDepositsIn,
+                ["cashWithdrawalsOut"] = report.CashFlow.CashWithdrawalsOut,
+                ["expectedCash"] = report.CashFlow.ExpectedCash,
+                ["closingCash"] = report.CashFlow.FinalCash,
+                ["difference"] = report.CashFlow.Difference,
+                ["differenceStatus"] = report.CashFlow.DifferenceStatus,
+                ["openingNotes"] = shift.OpeningNotes ?? "",
+                ["closingNotes"] = shift.ClosingNotes ?? "",
+                ["closedByName"] = shift.ClosedByName ?? "Sistema",
+                ["paymentMethods"] = paymentMethods
+            };
+        }
+
+        private static List<Dictionary<string, object?>> BuildCashierShiftTableRows(Application.DTOs.CashierShift.ShiftReportDto report) =>
+            (report.Sales ?? new())
+                .Select(s => new Dictionary<string, object?>
+                {
+                    ["saleCode"] = s.Code,
+                    ["saleTime"] = s.SaleDate.ToString("HH:mm"),
+                    ["customerName"] = string.IsNullOrWhiteSpace(s.CustomerName) ? "Publico General" : s.CustomerName,
+                    ["paymentMethod"] = string.Join(", ", s.PaymentMethods ?? new List<string>()),
+                    ["saleTotal"] = s.Total
+                })
+                .ToList();
 
         private async Task<(List<Dictionary<string, object?>>, List<Dictionary<string, object?>>)> BuildInvoiceDataAsync(GenerateReportDto data)
         {

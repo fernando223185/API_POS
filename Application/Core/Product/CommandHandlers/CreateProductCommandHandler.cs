@@ -31,7 +31,7 @@ namespace Application.Core.Product.CommandHandlers
             }
 
             // Crear la entidad Product
-            var product = new Products
+            var product = new Domain.Entities.Product
             {
                 name = request.ProductData.Name,
                 description = request.ProductData.Description,

@@ -225,6 +225,67 @@ namespace Application.Core.CashierShifts.Documents
 
                         col.Item().PaddingTop(12);
 
+                        // ── MOVIMIENTOS POR FORMA DE PAGO ────────────────────────────────
+                        if (report.Sales.Any())
+                        {
+                            col.Item().Text("MOVIMIENTOS POR FORMA DE PAGO").Bold().FontColor(PrimaryColor).FontSize(11);
+                            col.Item().PaddingTop(4).Border(1).BorderColor(BorderColor).Padding(8).Column(paymentCol =>
+                            {
+                                // Agrupar ventas por forma de pago
+                                var paymentGroups = report.PaymentMethodSummary;
+
+                                foreach (var paymentMethod in paymentGroups)
+                                {
+                                    var salesByMethod = report.Sales
+                                        .Where(s => s.PaymentMethods.Contains(paymentMethod.PaymentMethod))
+                                        .ToList();
+
+                                    if (!salesByMethod.Any()) continue;
+
+                                    // Encabezado de forma de pago
+                                    paymentCol.Item().Text(t =>
+                                    {
+                                        t.Span($"{paymentMethod.PaymentMethod} ").SemiBold().FontSize(10).FontColor(PrimaryColor);
+                                        t.Span($"({salesByMethod.Count} ventas - ${paymentMethod.Amount:N2})")
+                                            .FontSize(9).FontColor("#666");
+                                    });
+
+                                    // Tabla de ventas por forma de pago
+                                    paymentCol.Item().PaddingTop(4).Table(table =>
+                                    {
+                                        table.ColumnsDefinition(cols =>
+                                        {
+                                            cols.ConstantColumn(50);  // Código
+                                            cols.ConstantColumn(50);  // Hora
+                                            cols.RelativeColumn(1);   // Cliente
+                                            cols.ConstantColumn(70);  // Monto
+                                        });
+
+                                        static IContainer CellStyleCompact(IContainer c) => c.Padding(3);
+
+                                        // Mini header
+                                        table.Cell().Element(CellStyleCompact).Text("Venta").SemiBold().FontSize(8);
+                                        table.Cell().Element(CellStyleCompact).Text("Hora").SemiBold().FontSize(8);
+                                        table.Cell().Element(CellStyleCompact).Text("Cliente").SemiBold().FontSize(8);
+                                        table.Cell().Element(CellStyleCompact).AlignRight().Text("Monto").SemiBold().FontSize(8);
+
+                                        // Datos
+                                        foreach (var sale in salesByMethod)
+                                        {
+                                            table.Cell().Element(CellStyleCompact).Text(sale.Code).FontSize(8);
+                                            table.Cell().Element(CellStyleCompact).Text(sale.SaleDate.ToString("HH:mm")).FontSize(8);
+                                            table.Cell().Element(CellStyleCompact).Text(sale.CustomerName ?? "Público General").FontSize(8);
+                                            table.Cell().Element(CellStyleCompact).AlignRight().Text($"${sale.Total:N2}").FontSize(8);
+                                        }
+                                    });
+
+                                    paymentCol.Item().PaddingTop(6);
+                                }
+                            });
+
+                            col.Item().PaddingTop(12);
+                        }
+
                         // ── NOTAS ────────────────────────────────────────────────────
                         if (!string.IsNullOrEmpty(report.Shift.OpeningNotes) || !string.IsNullOrEmpty(report.Shift.ClosingNotes))
                         {

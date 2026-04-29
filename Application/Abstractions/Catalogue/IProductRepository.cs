@@ -6,15 +6,15 @@ namespace Application.Abstractions.Catalogue
     public interface IProductRepository
     {
         // Métodos principales del repositorio
-        Task<Products> CreateAsync(Products product);
-        Task<Products?> UpdateAsync(Products product);
+        Task<Product> CreateAsync(Product product);
+        Task<Product?> UpdateAsync(Product product);
         Task<bool> DeleteAsync(int productID);
-        Task<Products?> GetByIdAsync(int productID);
-        Task<IEnumerable<Products>> GetByPageAsync(ProductPageQuery query);
+        Task<Product?> GetByIdAsync(int productID);
+        Task<IEnumerable<Product>> GetByPageAsync(ProductPageQuery query);
         
         // ✅ NUEVOS MÉTODOS PARA PAGINACIÓN AVANZADA
         Task<int> GetTotalCountAsync(ProductPageQuery query);
-        Task<(IEnumerable<Products> Products, int TotalCount)> GetPagedWithCountAsync(ProductPageQuery query);
+        Task<(IEnumerable<Product> Products, int TotalCount)> GetPagedWithCountAsync(ProductPageQuery query);
         Task<(int Total, int Active, int Inactive, decimal TotalValue, int LowStock)> GetStatisticsAsync();
         Task<List<CategoryStats>> GetTopCategoriesAsync(int count = 5);
         Task<int> GetOutOfStockCountAsync();
