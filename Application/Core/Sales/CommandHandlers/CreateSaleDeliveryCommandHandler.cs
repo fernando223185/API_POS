@@ -22,6 +22,7 @@ namespace Application.Core.Sales.CommandHandlers
         private readonly IProductRepository _productRepository;
         private readonly ICustomerRepository _customerRepository;
         private readonly IWarehouseRepository _warehouseRepository;
+        private readonly IUserRepository _userRepository;
         private readonly ICodeGeneratorService _codeGenerator;
 
         public CreateSaleDeliveryCommandHandler(
@@ -29,12 +30,14 @@ namespace Application.Core.Sales.CommandHandlers
             IProductRepository productRepository,
             ICustomerRepository customerRepository,
             IWarehouseRepository warehouseRepository,
+            IUserRepository userRepository,
             ICodeGeneratorService codeGenerator)
         {
             _saleRepository = saleRepository;
             _productRepository = productRepository;
             _customerRepository = customerRepository;
             _warehouseRepository = warehouseRepository;
+            _userRepository = userRepository;
             _codeGenerator = codeGenerator;
         }
 
@@ -46,8 +49,17 @@ namespace Application.Core.Sales.CommandHandlers
             if (request.SaleData.CustomerId == 0) request.SaleData.CustomerId = null;
             if (request.SaleData.PriceListId == 0) request.SaleData.PriceListId = null;
 
-            var warehouse = await _warehouseRepository.GetByIdAsync(request.SaleData.WarehouseId)
-                ?? throw new KeyNotFoundException($"Almacén con ID {request.SaleData.WarehouseId} no encontrado");
+            var user = await _userRepository.GetByIdAsync(request.UserId)
+                ?? throw new KeyNotFoundException("Usuario con ID " + request.UserId + " no encontrado");
+
+            if (!user.Active)
+                throw new InvalidOperationException("El usuario no esta activo");
+
+            if (!user.BranchId.HasValue)
+                throw new InvalidOperationException("El usuario no tiene una sucursal asignada");
+
+            var warehouse = await _warehouseRepository.GetMainByBranchIdAsync(user.BranchId.Value)
+                ?? throw new InvalidOperationException("La sucursal del usuario no tiene un almacen principal activo configurado");
 
             Customer? customer = null;
             if (request.SaleData.CustomerId.HasValue)
@@ -129,7 +141,7 @@ namespace Application.Core.Sales.CommandHandlers
                 SaleDate = DateTime.UtcNow,
                 CustomerId = request.SaleData.CustomerId,
                 CustomerName = customer != null ? $"{customer.Name} {customer.LastName}" : "Público General",
-                WarehouseId = request.SaleData.WarehouseId,
+                WarehouseId = warehouse.Id,
                 BranchId = warehouse.BranchId,
                 CompanyId = warehouse.Branch?.CompanyId,
                 UserId = request.UserId,

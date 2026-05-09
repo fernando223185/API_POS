@@ -46,7 +46,7 @@ namespace Web.Api.Controllers.Sales
                     return Unauthorized(new { message = "Usuario no autenticado", error = 1 });
                 }
 
-                Console.WriteLine($"?? Creando venta - Usuario: {userName}, Almac�n: {request.WarehouseId}, " +
+                Console.WriteLine($"?? Creando venta - Usuario: {userName}, " +
                                 $"Productos: {request.Details.Count}");
 
                 var command = new CreateSaleCommand(request, userId);

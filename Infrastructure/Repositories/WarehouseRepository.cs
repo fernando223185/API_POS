@@ -33,6 +33,15 @@ namespace Infrastructure.Repositories
                 .FirstOrDefaultAsync(w => w.Code == code);
         }
 
+        public async Task<Warehouse?> GetMainByBranchIdAsync(int branchId)
+        {
+            return await _context.Warehouses
+                .Include(w => w.Branch)
+                .Where(w => w.BranchId == branchId && w.IsActive && w.IsMainWarehouse)
+                .OrderBy(w => w.Id)
+                .FirstOrDefaultAsync();
+        }
+
         public async Task<List<Warehouse>> GetAllAsync(bool includeInactive = false)
         {
             var query = _context.Warehouses

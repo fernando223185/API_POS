@@ -12,9 +12,7 @@ namespace Application.DTOs.Sales
     public class CreateSaleRequestDto
     {
         public int? CustomerId { get; set; }
-
-        [Required(ErrorMessage = "El almac�n es requerido")]
-        public int WarehouseId { get; set; }
+        public int? WarehouseId { get; set; }
 
         public int? PriceListId { get; set; }
 
@@ -140,9 +138,7 @@ namespace Application.DTOs.Sales
     public class CreateSaleDeliveryRequestDto
     {
         public int? CustomerId { get; set; }
-
-        [Required(ErrorMessage = "El almacén es requerido")]
-        public int WarehouseId { get; set; }
+        public int? WarehouseId { get; set; }
 
         public int? PriceListId { get; set; }
 

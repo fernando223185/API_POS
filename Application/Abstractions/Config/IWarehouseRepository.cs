@@ -7,6 +7,7 @@ namespace Application.Abstractions.Config
     {
         Task<Warehouse?> GetByIdAsync(int id);
         Task<Warehouse?> GetByCodeAsync(string code);
+        Task<Warehouse?> GetMainByBranchIdAsync(int branchId);
         Task<List<Warehouse>> GetAllAsync(bool includeInactive = false);
         Task<List<Warehouse>> GetByBranchIdAsync(int branchId, bool includeInactive = false);
         Task<(List<Warehouse> warehouses, int totalRecords)> GetPagedAsync(int pageNumber, int pageSize, bool includeInactive = false, string? searchTerm = null, int? branchId = null);
