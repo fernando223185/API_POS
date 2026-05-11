@@ -1,5 +1,6 @@
 ﻿using Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -7,6 +8,38 @@ namespace Infrastructure.Persistence
 {
     public class POSDbContext : DbContext
     {
+        private static readonly TimeSpan CurrentTimestampTolerance = TimeSpan.FromMinutes(15);
+        private static readonly TimeZoneInfo MexicoTimeZone = ResolveMexicoTimeZone();
+
+        private static readonly HashSet<string> TimestampPropertyNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "CreatedAt",
+            "CreatedAtOriginal",
+            "UpdatedAt",
+            "SaleDate",
+            "QuotationDate",
+            "InvoiceDate",
+            "PaymentDate",
+            "AppliedAt",
+            "OrderDate",
+            "ReceivingDate",
+            "MovementDate",
+            "LastMovementDate",
+            "TransferDate",
+            "AdjustmentDate",
+            "StartedAt",
+            "CountedAt",
+            "CompletedAt",
+            "ApprovedAt",
+            "DeliveredAt",
+            "PostedToInventoryDate",
+            "TimbradoAt",
+            "CancelledAt",
+            "EventDate",
+            "AttemptDate",
+            "LastRetryAt"
+        };
+
         public POSDbContext(DbContextOptions<POSDbContext> options) : base(options)
         {
         }
@@ -115,6 +148,130 @@ namespace Infrastructure.Persistence
         public DbSet<SatTipoComprobante> SatTipoComprobante { get; set; }
         public DbSet<SatProductoServicio> SatProductoServicio { get; set; }
         public DbSet<SatUnidadMedida> SatUnidadMedida { get; set; }
+
+        public override int SaveChanges()
+        {
+            ApplyMexicoTimestamps();
+            return base.SaveChanges();
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            ApplyMexicoTimestamps();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            ApplyMexicoTimestamps();
+            return base.SaveChangesAsync(cancellationToken);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            ApplyMexicoTimestamps();
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        private static TimeZoneInfo ResolveMexicoTimeZone()
+        {
+            foreach (var timeZoneId in new[] { "America/Mexico_City", "Central Standard Time (Mexico)", "Central Standard Time" })
+            {
+                try
+                {
+                    return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+                }
+                catch (TimeZoneNotFoundException)
+                {
+                }
+                catch (InvalidTimeZoneException)
+                {
+                }
+            }
+
+            return TimeZoneInfo.Utc;
+        }
+
+        private static DateTime GetMexicoNow()
+        {
+            var mexicoNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, MexicoTimeZone);
+            return DateTime.SpecifyKind(mexicoNow, DateTimeKind.Unspecified);
+        }
+
+        private void ApplyMexicoTimestamps()
+        {
+            var utcNow = DateTime.UtcNow;
+            var serverNow = DateTime.Now;
+            var mexicoNow = GetMexicoNow();
+
+            foreach (var entry in ChangeTracker.Entries()
+                         .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified))
+            {
+                foreach (var property in entry.Properties)
+                {
+                    if (!IsDateTimeProperty(property) || !IsTimestampProperty(property.Metadata.Name))
+                    {
+                        continue;
+                    }
+
+                    if (entry.State == EntityState.Added && ShouldReplaceGeneratedTimestamp(property.CurrentValue, utcNow, serverNow))
+                    {
+                        property.CurrentValue = mexicoNow;
+                    }
+                    else if (entry.State == EntityState.Modified && property.Metadata.Name.Equals("UpdatedAt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        property.CurrentValue = mexicoNow;
+                    }
+                    else if (entry.State == EntityState.Modified && ShouldReplaceGeneratedTimestamp(property.CurrentValue, utcNow, serverNow))
+                    {
+                        property.CurrentValue = mexicoNow;
+                    }
+                }
+            }
+        }
+
+        private static bool IsDateTimeProperty(PropertyEntry property)
+        {
+            var type = Nullable.GetUnderlyingType(property.Metadata.ClrType) ?? property.Metadata.ClrType;
+            return type == typeof(DateTime);
+        }
+
+        private static bool IsTimestampProperty(string propertyName)
+        {
+            return TimestampPropertyNames.Contains(propertyName)
+                || propertyName.EndsWith("At", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool ShouldReplaceGeneratedTimestamp(object? value, DateTime utcNow, DateTime serverNow)
+        {
+            if (value is null)
+            {
+                return false;
+            }
+
+            if (value is not DateTime dateTime)
+            {
+                return false;
+            }
+
+            if (dateTime == default)
+            {
+                return true;
+            }
+
+            var normalizedValue = DateTime.SpecifyKind(dateTime, DateTimeKind.Unspecified);
+            var normalizedUtcNow = DateTime.SpecifyKind(utcNow, DateTimeKind.Unspecified);
+            var normalizedServerNow = DateTime.SpecifyKind(serverNow, DateTimeKind.Unspecified);
+
+            return GetAbsoluteDifference(normalizedValue, normalizedUtcNow) <= CurrentTimestampTolerance
+                || GetAbsoluteDifference(normalizedValue, normalizedServerNow) <= CurrentTimestampTolerance;
+        }
+
+        private static TimeSpan GetAbsoluteDifference(DateTime left, DateTime right)
+        {
+            var difference = left - right;
+            return difference < TimeSpan.Zero ? difference.Negate() : difference;
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
