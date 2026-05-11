@@ -354,7 +354,8 @@ namespace Web.Api.Controllers.Search
                                 name = p.name,
                                 code = p.code,
                                 price = p.price,
-                                category = p.Category != null ? p.Category.Name : "Sin categoría"
+                                category = p.Category != null ? p.Category.Name : "Sin categoría",
+                                navigationUrl = $"/products/{p.ID}"
                             })
                             .ToListAsync();
                         break;
@@ -377,7 +378,8 @@ namespace Web.Api.Controllers.Search
                                 name = c.Name,
                                 taxId = c.TaxId,
                                 email = c.Email,
-                                phone = c.Phone
+                                phone = c.Phone,
+                                navigationUrl = $"/customers/{c.ID}"
                             })
                             .ToListAsync();
                         break;
@@ -400,7 +402,8 @@ namespace Web.Api.Controllers.Search
                                 customer = s.Customer != null ? s.Customer.Name : "Público general",
                                 total = s.Total,
                                 date = s.SaleDate,
-                                status = s.Status
+                                status = s.Status,
+                                navigationUrl = $"/sales/{s.Id}"
                             })
                             .ToListAsync();
                         break;
@@ -423,7 +426,8 @@ namespace Web.Api.Controllers.Search
                                 description = m.Description,
                                 path = m.Path,
                                 icon = m.Icon,
-                                order = m.Order
+                                order = m.Order,
+                                navigationUrl = m.Path
                             })
                             .ToListAsync();
                         break;
@@ -448,6 +452,7 @@ namespace Web.Api.Controllers.Search
                                 moduleId = sm.ModuleId,
                                 path = sm.Path,
                                 order = sm.Order,
+                                navigationUrl = sm.Path,
                                 icon = sm.Icon,
                                 color = sm.Color
                             })
