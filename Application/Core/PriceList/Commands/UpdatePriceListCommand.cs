@@ -1,8 +1,8 @@
-using Application.Abstractions.Messaging;
+using MediatR;
 
 namespace Application.Core.PriceList.Commands
 {
-    public class UpdatePriceListCommand : ICommand<Domain.Entities.PriceList>
+    public class UpdatePriceListCommand : IRequest<Domain.Entities.PriceList>
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
@@ -10,6 +10,7 @@ namespace Application.Core.PriceList.Commands
         public string Code { get; set; } = string.Empty;
         public decimal DefaultDiscountPercentage { get; set; }
         public bool IsDefault { get; set; }
+        public bool IsActive { get; set; } = true;
         public DateTime? ValidFrom { get; set; }
         public DateTime? ValidTo { get; set; }
     }

@@ -1,8 +1,8 @@
-using Application.Abstractions.Messaging;
+using MediatR;
 
 namespace Application.Core.PriceList.Commands
 {
-    public class DeletePriceListCommand : ICommand<bool>
+    public class DeletePriceListCommand : IRequest<bool>
     {
         public int Id { get; set; }
     }

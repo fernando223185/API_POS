@@ -1,9 +1,8 @@
-using Application.Abstractions.Messaging;
-using Domain.Entities;
+using MediatR;
 
 namespace Application.Core.PriceList.Commands
 {
-    public class CreatePriceListCommand : ICommand<Domain.Entities.PriceList>
+    public class CreatePriceListCommand : IRequest<Domain.Entities.PriceList>
     {
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }

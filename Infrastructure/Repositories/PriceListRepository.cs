@@ -2,129 +2,88 @@ using Application.Abstractions.Catalogue;
 using Domain.Entities;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Repositories
 {
     public class PriceListRepository : IPriceListRepository
     {
         private readonly POSDbContext _context;
-        private readonly ILogger<PriceListRepository> _logger;
 
-        public PriceListRepository(POSDbContext context, ILogger<PriceListRepository> logger)
-        {
-            _context = context;
-            _logger = logger;
-        }
+        public PriceListRepository(POSDbContext context) => _context = context;
 
         public async Task<List<PriceList>> GetAllAsync(bool? isActive = null)
         {
-            try
-            {
-                var query = _context.PriceLists.AsQueryable();
-
-                if (isActive.HasValue)
-                {
-                    query = query.Where(p => p.IsActive == isActive.Value);
-                }
-
-                var priceLists = await query
-                    .OrderBy(p => p.Name)
-                    .ToListAsync();
-
-                _logger.LogInformation($"Retrieved {priceLists.Count} price lists");
-                return priceLists;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving price lists");
-                throw;
-            }
+            var query = _context.PriceLists.AsQueryable();
+            if (isActive.HasValue)
+                query = query.Where(p => p.IsActive == isActive.Value);
+            return await query.OrderBy(p => p.Name).ToListAsync();
         }
 
-        public async Task<PriceList?> GetByIdAsync(int id)
-        {
-            try
-            {
-                var priceList = await _context.PriceLists
-                    .FirstOrDefaultAsync(p => p.Id == id);
+        public Task<PriceList?> GetByIdAsync(int id)
+            => _context.PriceLists.FirstOrDefaultAsync(p => p.Id == id);
 
-                if (priceList == null)
-                {
-                    _logger.LogWarning($"PriceList with ID {id} not found");
-                }
-
-                return priceList;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error retrieving price list with ID {id}");
-                throw;
-            }
-        }
+        public Task<PriceList?> GetDefaultAsync()
+            => _context.PriceLists.FirstOrDefaultAsync(p => p.IsDefault && p.IsActive);
 
         public async Task<PriceList> CreateAsync(PriceList priceList)
         {
-            try
-            {
-                priceList.CreatedAt = DateTime.UtcNow;
-                priceList.IsActive = true;
-
-                _context.PriceLists.Add(priceList);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"PriceList created: {priceList.Name} (ID: {priceList.Id})");
-                return priceList;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating price list");
-                throw;
-            }
+            _context.PriceLists.Add(priceList);
+            await _context.SaveChangesAsync();
+            return priceList;
         }
 
         public async Task<PriceList> UpdateAsync(PriceList priceList)
         {
-            try
-            {
-                _context.PriceLists.Update(priceList);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"PriceList updated: {priceList.Name} (ID: {priceList.Id})");
-                return priceList;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error updating price list with ID {priceList.Id}");
-                throw;
-            }
+            _context.PriceLists.Update(priceList);
+            await _context.SaveChangesAsync();
+            return priceList;
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task<bool> SetActiveAsync(int id, bool isActive)
         {
-            try
-            {
-                var priceList = await _context.PriceLists.FindAsync(id);
-                
-                if (priceList == null)
-                {
-                    _logger.LogWarning($"PriceList with ID {id} not found for deletion");
-                    return false;
-                }
+            var entity = await _context.PriceLists.FirstOrDefaultAsync(p => p.Id == id);
+            if (entity is null) return false;
 
-                // Eliminación lógica: marcar como inactivo
-                priceList.IsActive = false;
-                _context.PriceLists.Update(priceList);
-                await _context.SaveChangesAsync();
+            entity.IsActive = isActive;
+            await _context.SaveChangesAsync();
+            return true;
+        }
 
-                _logger.LogInformation($"PriceList soft deleted: {priceList.Name} (ID: {id})");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error deleting price list with ID {id}");
-                throw;
-            }
+        public Task<bool> CodeExistsAsync(string code, int? excludeId = null)
+        {
+            var q = _context.PriceLists.Where(p => p.Code == code);
+            if (excludeId.HasValue)
+                q = q.Where(p => p.Id != excludeId.Value);
+            return q.AnyAsync();
+        }
+
+        public async Task<bool> HasActiveDependenciesAsync(int id)
+        {
+            var hasCustomers = await _context.Customer.AnyAsync(c => c.PriceListId == id);
+            if (hasCustomers) return true;
+
+            var hasSales = await _context.SalesNew.AnyAsync(s => s.PriceListId == id);
+            if (hasSales) return true;
+
+            var hasQuotations = await _context.Quotations.AnyAsync(q => q.PriceListId == id);
+            if (hasQuotations) return true;
+
+            var hasProductPrices = await _context.ProductPrices.AnyAsync(pp => pp.PriceListId == id && pp.IsActive);
+            return hasProductPrices;
+        }
+
+        public async Task ClearDefaultFlagExceptAsync(int keepId)
+        {
+            var others = await _context.PriceLists
+                .Where(p => p.IsDefault && p.Id != keepId)
+                .ToListAsync();
+
+            if (others.Count == 0) return;
+
+            foreach (var p in others)
+                p.IsDefault = false;
+
+            await _context.SaveChangesAsync();
         }
     }
 }

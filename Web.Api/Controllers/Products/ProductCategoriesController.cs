@@ -1,6 +1,8 @@
+using Application.Core.ProductCategory.Commands;
+using Application.Core.ProductCategory.Queries;
+using Application.DTOs.Product;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Web.Api.Authorization;
 
 namespace Web.Api.Controllers.Products
@@ -9,36 +11,24 @@ namespace Web.Api.Controllers.Products
     [ApiController]
     public class ProductCategoriesController : ControllerBase
     {
-        private readonly POSDbContext _context;
+        private readonly IMediator _mediator;
 
-        public ProductCategoriesController(POSDbContext context)
+        public ProductCategoriesController(IMediator mediator)
         {
-            _context = context;
+            _mediator = mediator;
         }
 
         /// <summary>
-        /// Obtener todas las categor�as de productos activas
+        /// Obtener todas las categorías de productos.
+        /// Por defecto retorna solo las activas; usa includeInactive=true para incluir las inactivas.
         /// </summary>
         [HttpGet]
         [RequirePermission("Productos", "View")]
-        public async Task<IActionResult> GetCategories()
+        public async Task<IActionResult> GetCategories([FromQuery] bool includeInactive = false)
         {
             try
             {
-                var categories = await _context.ProductCategories
-                    .Where(c => c.IsActive)
-                    .OrderBy(c => c.Name)
-                    .Select(c => new
-                    {
-                        id = c.Id,
-                        name = c.Name,
-                        description = c.Description,
-                        code = c.Code,
-                        isActive = c.IsActive,
-                        createdAt = c.CreatedAt,
-                        productsCount = c.Products.Count() // Cantidad de productos en esta categor�a
-                    })
-                    .ToListAsync();
+                var categories = await _mediator.Send(new GetAllProductCategoriesQuery(includeInactive));
 
                 return Ok(new
                 {
@@ -60,34 +50,15 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// Obtener categor�a por ID
+        /// Obtener una categoría por ID con sus subcategorías activas.
         /// </summary>
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         [RequirePermission("Productos", "View")]
         public async Task<IActionResult> GetCategory(int id)
         {
             try
             {
-                var category = await _context.ProductCategories
-                    .Where(c => c.Id == id && c.IsActive)
-                    .Select(c => new
-                    {
-                        id = c.Id,
-                        name = c.Name,
-                        description = c.Description,
-                        code = c.Code,
-                        isActive = c.IsActive,
-                        createdAt = c.CreatedAt,
-                        productsCount = c.Products.Count(),
-                        subcategories = c.Subcategories.Where(s => s.IsActive).Select(s => new
-                        {
-                            id = s.Id,
-                            name = s.Name,
-                            code = s.Code,
-                            description = s.Description
-                        }).ToList()
-                    })
-                    .FirstOrDefaultAsync();
+                var category = await _mediator.Send(new GetProductCategoryByIdQuery(id));
 
                 if (category == null)
                 {
@@ -117,7 +88,7 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// Obtener categor�as para select/dropdown (formato optimizado para frontend)
+        /// Obtener categorías en formato optimizado para selects/dropdown del frontend.
         /// </summary>
         [HttpGet("dropdown")]
         [RequirePermission("Productos", "View")]
@@ -125,16 +96,7 @@ namespace Web.Api.Controllers.Products
         {
             try
             {
-                var categories = await _context.ProductCategories
-                    .Where(c => c.IsActive)
-                    .OrderBy(c => c.Name)
-                    .Select(c => new
-                    {
-                        value = c.Id,
-                        label = c.Name,
-                        code = c.Code.ToLower() // Para compatibilidad con tu HTML original
-                    })
-                    .ToListAsync();
+                var categories = await _mediator.Send(new GetProductCategoriesDropdownQuery());
 
                 return Ok(new
                 {
@@ -155,7 +117,7 @@ namespace Web.Api.Controllers.Products
         }
 
         /// <summary>
-        /// Obtener estad�sticas de categor�as
+        /// Obtener estadísticas de categorías (conteo de productos, precio promedio, valor total).
         /// </summary>
         [HttpGet("stats")]
         [RequirePermission("Productos", "View")]
@@ -163,40 +125,13 @@ namespace Web.Api.Controllers.Products
         {
             try
             {
-                var stats = await _context.ProductCategories
-                    .Where(c => c.IsActive)
-                    .Select(c => new
-                    {
-                        categoryId = c.Id,
-                        categoryName = c.Name,
-                        categoryCode = c.Code,
-                        productsCount = c.Products.Count(p => p.IsActive),
-                        totalProducts = c.Products.Count(),
-                        subcategoriesCount = c.Subcategories.Count(s => s.IsActive),
-                        // Agregar m�s estad�sticas cuando tengamos productos reales
-                        avgPrice = c.Products.Any() ? c.Products.Average(p => p.price) : 0,
-                        totalValue = c.Products.Sum(p => p.price * (p.MinimumStock + p.MaximumStock) / 2)
-                    })
-                    .OrderByDescending(s => s.productsCount)
-                    .ToListAsync();
-
-                var totalStats = new
-                {
-                    totalCategories = stats.Count,
-                    totalProducts = stats.Sum(s => s.productsCount),
-                    totalValue = stats.Sum(s => s.totalValue),
-                    avgProductsPerCategory = stats.Any() ? stats.Average(s => s.productsCount) : 0
-                };
+                var result = await _mediator.Send(new GetProductCategoryStatsQuery());
 
                 return Ok(new
                 {
                     message = "Estadísticas de categorías obtenidas exitosamente",
                     error = 0,
-                    data = new
-                    {
-                        categoryStats = stats,
-                        summary = totalStats
-                    }
+                    data = result
                 });
             }
             catch (Exception ex)
@@ -204,6 +139,146 @@ namespace Web.Api.Controllers.Products
                 return StatusCode(500, new
                 {
                     message = "Error al obtener estadísticas",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Crear una nueva categoría de productos.
+        /// </summary>
+        [HttpPost]
+        [RequirePermission("Productos", "Create")]
+        public async Task<IActionResult> CreateCategory([FromBody] CreateProductCategoryDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new
+                {
+                    message = "Datos de entrada inválidos",
+                    error = 1,
+                    errors = ModelState.SelectMany(x => x.Value!.Errors.Select(e => e.ErrorMessage))
+                });
+            }
+
+            try
+            {
+                var created = await _mediator.Send(new CreateProductCategoryCommand(dto));
+
+                return CreatedAtAction(
+                    nameof(GetCategory),
+                    new { id = created.Id },
+                    new
+                    {
+                        message = "Categoría creada exitosamente",
+                        error = 0,
+                        data = created
+                    });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Error al crear categoría",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Actualizar una categoría de productos existente.
+        /// </summary>
+        [HttpPut("{id:int}")]
+        [RequirePermission("Productos", "Edit")]
+        public async Task<IActionResult> UpdateCategory(int id, [FromBody] UpdateProductCategoryDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new
+                {
+                    message = "Datos de entrada inválidos",
+                    error = 1,
+                    errors = ModelState.SelectMany(x => x.Value!.Errors.Select(e => e.ErrorMessage))
+                });
+            }
+
+            try
+            {
+                var updated = await _mediator.Send(new UpdateProductCategoryCommand(id, dto));
+
+                return Ok(new
+                {
+                    message = "Categoría actualizada exitosamente",
+                    error = 0,
+                    data = updated
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Error al actualizar categoría",
+                    error = 2,
+                    details = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Eliminar una categoría (soft delete: marca IsActive = false).
+        /// No permite eliminar categorías que tengan productos asociados.
+        /// </summary>
+        [HttpDelete("{id:int}")]
+        [RequirePermission("Productos", "Delete")]
+        public async Task<IActionResult> DeleteCategory(int id)
+        {
+            try
+            {
+                var deleted = await _mediator.Send(new DeleteProductCategoryCommand(id));
+
+                if (!deleted)
+                {
+                    return StatusCode(500, new
+                    {
+                        message = "No se pudo eliminar la categoría",
+                        error = 2
+                    });
+                }
+
+                return Ok(new
+                {
+                    message = "Categoría eliminada exitosamente",
+                    error = 0,
+                    categoryId = id
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message, error = 1 });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message, error = 1 });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Error al eliminar categoría",
                     error = 2,
                     details = ex.Message
                 });

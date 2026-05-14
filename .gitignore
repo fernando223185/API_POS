@@ -440,3 +440,6 @@ Desktop.ini
 !DatabaseScripts/
 !README.md
 !CHANGELOG.md
+
+# Claude Code — settings personales (no compartir)
+.claude/settings.local.json

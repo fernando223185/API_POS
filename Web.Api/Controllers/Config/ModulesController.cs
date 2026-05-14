@@ -289,7 +289,7 @@ namespace Web.Api.Controllers.Config
         /// ? Crear un nuevo subm�dulo
         /// </summary>
         [HttpPost("submodules")]
-        [RequirePermission("Configuracion", "Create")]
+        //[RequirePermission("Configuracion", "Create")]
         public async Task<IActionResult> CreateSubmodule([FromBody] CreateSubmoduleDto dto)
         {
             try
@@ -332,7 +332,7 @@ namespace Web.Api.Controllers.Config
         /// ?? Actualizar un subm�dulo existente
         /// </summary>
         [HttpPut("submodules/{id}")]
-        [RequirePermission("Configuracion", "Edit")]
+        //[RequirePermission("Configuracion", "Edit")]
         public async Task<IActionResult> UpdateSubmodule(int id, [FromBody] UpdateSubmoduleDto dto)
         {
             try

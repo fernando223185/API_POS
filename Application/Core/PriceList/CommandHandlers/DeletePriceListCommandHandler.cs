@@ -15,15 +15,20 @@ namespace Application.Core.PriceList.CommandHandlers
 
         public async Task<bool> Handle(DeletePriceListCommand request, CancellationToken cancellationToken)
         {
-            var priceList = await _repository.GetByIdAsync(request.Id);
-            
-            if (priceList == null)
-            {
-                throw new KeyNotFoundException($"PriceList with ID {request.Id} not found");
-            }
+            var priceList = await _repository.GetByIdAsync(request.Id)
+                ?? throw new KeyNotFoundException($"Lista de precios con ID {request.Id} no encontrada");
 
-            // Eliminación lógica mediante bit IsActive
-            return await _repository.DeleteAsync(request.Id);
+            if (priceList.IsDefault)
+                throw new InvalidOperationException(
+                    $"No se puede desactivar la lista '{priceList.Name}' porque está marcada como predeterminada. " +
+                    "Marca otra lista como predeterminada primero.");
+
+            if (await _repository.HasActiveDependenciesAsync(priceList.Id))
+                throw new InvalidOperationException(
+                    $"No se puede desactivar la lista '{priceList.Name}' porque tiene clientes, ventas, cotizaciones " +
+                    "o precios de productos asociados. Reasigna esas dependencias antes de desactivarla.");
+
+            return await _repository.SetActiveAsync(priceList.Id, false);
         }
     }
 }
